@@ -1,0 +1,12 @@
+g1 <- graph(c("X", "Y", "A", "X", "A", "Y"),  
+            directed=TRUE ) 
+ 
+plot(g1,vertex.label.dist=2)
+E(g1)
+g1[]
+V(g1)$name
+
+par(mfrow = c(1,2))
+E(g1)$width = c(5, 1, 1)
+layout = matrix(c(0, 4, -4, 2, 4, 2), nrow = 3, ncol = 2, byrow = TRUE)
+plot(g1,  vertex.color=c( "pink","pink", "skyblue"), layout = layout)
