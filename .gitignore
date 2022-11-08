@@ -6,3 +6,5 @@
 .html
 Results_files/
 Appendix_files/
+results/
+results/*.RDS
