@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.0.36">
+<meta name="generator" content="quarto-1.1.189">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -11,10 +11,15 @@
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
-span.underline{text-decoration: underline;}
-div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
 div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
 ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1.6em;
+  vertical-align: middle;
+}
 pre > code.sourceCode { white-space: pre; position: relative; }
 pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
 pre > code.sourceCode > span:empty { height: 1.2em; }
@@ -53,7 +58,7 @@ code span.al { color: #ff0000; font-weight: bold; } /* Alert */
 code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
 code span.at { color: #7d9029; } /* Attribute */
 code span.bn { color: #40a070; } /* BaseN */
-code span.bu { } /* BuiltIn */
+code span.bu { color: #008000; } /* BuiltIn */
 code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
 code span.ch { color: #4070a0; } /* Char */
 code span.cn { color: #880000; } /* Constant */
@@ -66,7 +71,7 @@ code span.er { color: #ff0000; font-weight: bold; } /* Error */
 code span.ex { } /* Extension */
 code span.fl { color: #40a070; } /* Float */
 code span.fu { color: #06287e; } /* Function */
-code span.im { } /* Import */
+code span.im { color: #008000; font-weight: bold; } /* Import */
 code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
 code span.kw { color: #007020; font-weight: bold; } /* Keyword */
 code span.op { color: #666666; } /* Operator */
@@ -134,71 +139,74 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>sc <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"no_effects"</span>, <span class="st">"effects"</span>, <span class="st">"confounder_unequal"</span>, <span class="st">"collinearity_0.90"</span>)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>algorithms <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"LM"</span>,<span class="st">"RF"</span>,  <span class="st">"BRT"</span>, <span class="st">"NN"</span>, <span class="st">"l1"</span>, <span class="st">"l2"</span>, <span class="st">"l1l2"</span>)</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">par</span>(<span class="at">mfcol =</span> <span class="fu">c</span>(<span class="dv">3</span>,<span class="dv">6</span>), <span class="at">mar =</span> <span class="fu">c</span>(<span class="dv">5</span>,<span class="fl">0.5</span>, <span class="dv">2</span>, <span class="fl">1.4</span>), <span class="at">oma =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">1</span>))</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>labs <span class="ot">=</span>  <span class="fu">c</span>(<span class="st">"LM"</span>,<span class="st">"RF"</span>,  <span class="st">"BRT"</span>, <span class="st">"NN"</span>, <span class="st">"l1"</span>, <span class="st">"l2"</span>, <span class="st">"Glmnet"</span>)</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co">#plot_scenarios(1.0)</span></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co">#dev.off()</span></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>cex_fac <span class="ot">=</span> <span class="fl">1.3</span></span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="fu">plot_scenarios</span>(<span class="fl">1.0</span>, <span class="at">layout =</span> <span class="fu">matrix</span>(<span class="fu">c</span>(<span class="dv">1</span>,<span class="dv">1</span>,</span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>                             <span class="dv">0</span>,<span class="dv">1</span>,</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>                             <span class="dv">0</span>,<span class="dv">0</span>,</span>
-<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>                             <span class="dv">0</span>,<span class="dv">2</span>), <span class="at">nrow =</span> 4L, 2L, <span class="at">byrow =</span> <span class="cn">TRUE</span>))</span>
-<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>    <span class="fu">points</span>(<span class="at">x =</span> <span class="dv">0</span>, <span class="at">y =</span> <span class="sc">-</span><span class="fl">0.55</span>, <span class="at">col =</span> <span class="st">"grey"</span>, <span class="at">xpd =</span> <span class="cn">NA</span>, <span class="at">pch =</span> <span class="dv">15</span>, <span class="at">cex =</span> <span class="fl">1.8</span>)</span>
-<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    <span class="fu">text</span>(<span class="at">x =</span> <span class="fl">0.1</span>, <span class="at">y =</span> <span class="sc">-</span><span class="fl">0.55</span>, <span class="at">label =</span> <span class="st">"True effect"</span>, <span class="at">xpd =</span> <span class="cn">NA</span>, <span class="at">pos =</span> <span class="dv">4</span>, <span class="at">cex =</span> <span class="fl">1.4</span>)</span>
-<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>    <span class="fu">points</span>(<span class="at">x =</span> <span class="dv">0</span>, <span class="at">y =</span> <span class="sc">-</span><span class="fl">0.75</span>, <span class="at">col =</span> <span class="st">"#ffab02"</span>, <span class="at">xpd =</span> <span class="cn">NA</span>, <span class="at">pch =</span> <span class="dv">15</span>, <span class="at">cex =</span> <span class="fl">1.8</span>)</span>
-<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>    <span class="fu">text</span>(<span class="at">x =</span> <span class="fl">0.1</span>, <span class="at">y =</span> <span class="sc">-</span><span class="fl">0.75</span>, <span class="at">label =</span> <span class="st">"Correlation"</span>, <span class="at">xpd =</span> <span class="cn">NA</span>, <span class="at">pos =</span> <span class="dv">4</span>, <span class="at">cex =</span> <span class="fl">1.4</span>)</span>
-<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">cairo_pdf</span>(<span class="st">"plots/Fig_2.pdf"</span>, <span class="at">width =</span> <span class="dv">10</span>, <span class="at">height =</span> <span class="dv">9</span>)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">par</span>(<span class="at">mfcol =</span> <span class="fu">c</span>(<span class="dv">3</span>,<span class="dv">6</span>), <span class="at">mar =</span> <span class="fu">c</span>(<span class="dv">5</span>,<span class="fl">0.5</span>, <span class="dv">2</span>, <span class="fl">1.4</span>), <span class="at">oma =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">1</span>))</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>labs <span class="ot">=</span>  <span class="fu">c</span>(<span class="st">"LM"</span>,<span class="st">"RF"</span>,  <span class="st">"BRT"</span>, <span class="st">"NN"</span>, <span class="st">"l1"</span>, <span class="st">"l2"</span>, <span class="st">"Elastic-net"</span>)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co">#plot_scenarios(1.0)</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co">#dev.off()</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>cex_fac <span class="ot">=</span> <span class="fl">1.3</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="fu">plot_scenarios</span>(<span class="fl">1.0</span>, <span class="at">layout =</span> <span class="fu">matrix</span>(<span class="fu">c</span>(<span class="dv">1</span>,<span class="dv">1</span>,</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>                             <span class="dv">0</span>,<span class="dv">1</span>,</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>                             <span class="dv">0</span>,<span class="dv">0</span>,</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>                             <span class="dv">0</span>,<span class="dv">2</span>), <span class="at">nrow =</span> 4L, 2L, <span class="at">byrow =</span> <span class="cn">TRUE</span>))</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    <span class="fu">points</span>(<span class="at">x =</span> <span class="dv">0</span>, <span class="at">y =</span> <span class="sc">-</span><span class="fl">0.55</span>, <span class="at">col =</span> <span class="st">"grey"</span>, <span class="at">xpd =</span> <span class="cn">NA</span>, <span class="at">pch =</span> <span class="dv">15</span>, <span class="at">cex =</span> <span class="fl">1.8</span>)</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>    <span class="fu">text</span>(<span class="at">x =</span> <span class="fl">0.1</span>, <span class="at">y =</span> <span class="sc">-</span><span class="fl">0.55</span>, <span class="at">label =</span> <span class="st">"True effect"</span>, <span class="at">xpd =</span> <span class="cn">NA</span>, <span class="at">pos =</span> <span class="dv">4</span>, <span class="at">cex =</span> <span class="fl">1.4</span>)</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>    <span class="fu">points</span>(<span class="at">x =</span> <span class="dv">0</span>, <span class="at">y =</span> <span class="sc">-</span><span class="fl">0.75</span>, <span class="at">col =</span> <span class="st">"#ffab02"</span>, <span class="at">xpd =</span> <span class="cn">NA</span>, <span class="at">pch =</span> <span class="dv">15</span>, <span class="at">cex =</span> <span class="fl">1.8</span>)</span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>    <span class="fu">text</span>(<span class="at">x =</span> <span class="fl">0.1</span>, <span class="at">y =</span> <span class="sc">-</span><span class="fl">0.75</span>, <span class="at">label =</span> <span class="st">"Correlation"</span>, <span class="at">xpd =</span> <span class="cn">NA</span>, <span class="at">pos =</span> <span class="dv">4</span>, <span class="at">cex =</span> <span class="fl">1.4</span>)</span>
 <span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>true_effs <span class="ot">=</span> <span class="fu">matrix</span>(<span class="fu">c</span>(</span>
-<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>  <span class="cn">NA</span>, <span class="cn">NA</span>, <span class="cn">NA</span>,</span>
-<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>  <span class="dv">1</span>, <span class="fl">0.5</span>, <span class="dv">1</span>,</span>
-<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>  <span class="sc">-</span><span class="dv">1</span>, <span class="fl">0.5</span>, <span class="dv">1</span>,</span>
-<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>  <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span></span>
-<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>), <span class="dv">4</span>, <span class="dv">3</span>, <span class="at">byrow =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">4</span>, <span class="dv">7</span>)) {</span>
-<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>  counter <span class="ot">=</span> <span class="dv">1</span></span>
-<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>(j <span class="cf">in</span> <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">4</span>, <span class="dv">3</span>)) {</span>
-<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>    tmp <span class="ot">=</span> Results[[sc[j]]]</span>
-<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>    sd <span class="ot">=</span> Results_sd[[sc[j]]][i,]</span>
-<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>    edges <span class="ot">=</span> <span class="fu">round</span>(tmp[i,], <span class="dv">5</span>)</span>
-<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>    bias <span class="ot">=</span> edges[<span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">5</span>)] <span class="sc">-</span> true_effs[j,]</span>
-<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>    g1 <span class="ot">=</span> <span class="fu">graph</span>(<span class="fu">c</span>(<span class="st">"X1"</span>, <span class="st">"Y"</span>, <span class="st">"X2"</span>, <span class="st">"Y"</span>, <span class="st">"X3"</span>, <span class="st">"Y"</span>),  </span>
-<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a>                <span class="at">directed=</span><span class="cn">TRUE</span> ) </span>
-<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a>    <span class="fu">layout_as_tree</span>(g1, <span class="at">root =</span> <span class="st">"Y"</span>, <span class="at">circular =</span> <span class="cn">TRUE</span>, <span class="at">flip.y =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>    <span class="fu">eqarrowPlot</span>(g1, <span class="fu">matrix</span>(<span class="fu">c</span>(<span class="dv">1</span>,<span class="dv">1</span>,</span>
-<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a>                             <span class="dv">0</span>,<span class="dv">1</span>,</span>
-<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a>                             <span class="dv">0</span>,<span class="dv">0</span>,</span>
-<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a>                             <span class="dv">0</span>,<span class="dv">2</span>), <span class="at">nrow =</span> 4L, 2L, <span class="at">byrow =</span> <span class="cn">TRUE</span>) ,</span>
-<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a>                <span class="co">#cols = c( "skyblue","#B0A8B9", "#B0A8B9", "#B0A8B9"),</span></span>
-<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a>                <span class="at">cols =</span> <span class="fu">c</span>(<span class="fu">addA</span>(<span class="fu">rep</span>(<span class="st">"#87CEEB"</span>, <span class="dv">1</span>), <span class="fl">1.0</span>), <span class="st">"#B0A8B9"</span>, <span class="fu">addA</span>(<span class="fu">rep</span>(<span class="st">"#87CEEB"</span>, <span class="dv">1</span>), <span class="fl">1.0</span>), <span class="fu">addA</span>(<span class="fu">rep</span>(<span class="st">"#87CEEB"</span>, <span class="dv">1</span>), <span class="fl">1.0</span>)),</span>
-<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a>                <span class="at">edge.arrow.size=</span><span class="fu">abs</span>(bias)<span class="sc">*</span><span class="fl">2.3</span>,<span class="co">#abs(edges[c(1, 2, 5)]), </span></span>
-<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a>                <span class="at">edge.width=</span><span class="fu">abs</span>(bias)<span class="sc">*</span>cex_fac<span class="sc">*</span><span class="dv">5</span>,<span class="co">#abs(edges[c(1, 2, 5)])*cex_fac,</span></span>
-<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a>                <span class="at">edge.label =</span> <span class="fu">c</span>(<span class="fu">paste0</span>(<span class="fu">format</span>(<span class="fu">round</span>(bias, <span class="dv">2</span>)[<span class="dv">1</span>], <span class="at">nsmall =</span> <span class="dv">1</span>), <span class="st">"</span><span class="sc">\n\n</span><span class="st">"</span>),</span>
-<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a>                               <span class="fu">paste0</span>(<span class="st">"          "</span>,<span class="fu">format</span>(<span class="fu">round</span>(bias, <span class="dv">2</span>)[<span class="dv">2</span>], <span class="at">nsmall =</span> <span class="dv">1</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>), </span>
-<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a>                               <span class="fu">paste0</span>(<span class="st">"          "</span>, <span class="fu">format</span>(<span class="fu">round</span>(bias, <span class="dv">2</span>)[<span class="dv">3</span>], <span class="at">nsmall=</span><span class="dv">1</span>))),</span>
-<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a>                <span class="at">edge.label.cex =</span> <span class="fl">1.4</span>,</span>
-<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a>                <span class="at">edge.colors =</span> <span class="fu">ifelse</span>(<span class="fu">abs</span>(edges[<span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">5</span>)]) <span class="sc">&lt;</span> <span class="fl">0.001</span>, <span class="st">"white"</span>, <span class="st">"#e60000"</span>))</span>
-<span id="cb1-54"><a href="#cb1-54" aria-hidden="true" tabindex="-1"></a>    <span class="fu">text</span>(labs[i], <span class="at">x =</span> <span class="dv">0</span>, <span class="at">y =</span> <span class="fl">2.3</span>, <span class="at">xpd =</span> <span class="cn">NA</span>, <span class="at">cex =</span> <span class="fl">1.4</span>, <span class="at">pos =</span> <span class="dv">3</span>)</span>
-<span id="cb1-55"><a href="#cb1-55" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span>(i <span class="sc">==</span> <span class="dv">1</span>) {</span>
-<span id="cb1-56"><a href="#cb1-56" aria-hidden="true" tabindex="-1"></a>      <span class="fu">text</span>(letters[counter], <span class="at">cex =</span> <span class="fl">1.9</span>, <span class="at">x =</span> <span class="sc">-</span><span class="fl">2.2</span>, <span class="at">y =</span> <span class="fl">2.5</span>, <span class="at">xpd =</span> <span class="cn">NA</span>, <span class="at">font =</span> <span class="dv">2</span>)</span>
-<span id="cb1-57"><a href="#cb1-57" aria-hidden="true" tabindex="-1"></a>      counter <span class="ot">=</span> counter <span class="sc">+</span> <span class="dv">1</span></span>
-<span id="cb1-58"><a href="#cb1-58" aria-hidden="true" tabindex="-1"></a>    }</span>
-<span id="cb1-59"><a href="#cb1-59" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-60"><a href="#cb1-60" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb1-61"><a href="#cb1-61" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span>(i <span class="sc">==</span> <span class="dv">3</span>) {</span>
-<span id="cb1-62"><a href="#cb1-62" aria-hidden="true" tabindex="-1"></a>    <span class="fu">points</span>(<span class="at">x =</span> <span class="dv">0-1</span>, <span class="at">y =</span> <span class="sc">-</span><span class="fl">1.1</span><span class="sc">*</span><span class="fl">0.5</span>, <span class="at">col =</span> <span class="st">"#e60000"</span>, <span class="at">xpd =</span> <span class="cn">NA</span>, <span class="at">pch =</span> <span class="dv">15</span>, <span class="at">cex =</span> <span class="fl">1.8</span>)</span>
-<span id="cb1-63"><a href="#cb1-63" aria-hidden="true" tabindex="-1"></a>    <span class="fu">text</span>(<span class="at">x =</span> <span class="fl">0.1</span><span class="dv">-1</span>, <span class="at">y =</span> <span class="sc">-</span><span class="fl">1.1</span><span class="sc">*</span><span class="fl">0.5</span>, <span class="at">label =</span> <span class="st">"Bias = Estimate - True effect"</span>, <span class="at">xpd =</span> <span class="cn">NA</span>, <span class="at">pos =</span> <span class="dv">4</span>, <span class="at">cex =</span> <span class="fl">1.4</span>)</span>
-<span id="cb1-64"><a href="#cb1-64" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb1-65"><a href="#cb1-65" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>true_effs <span class="ot">=</span> <span class="fu">matrix</span>(<span class="fu">c</span>(</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>  <span class="cn">NA</span>, <span class="cn">NA</span>, <span class="cn">NA</span>,</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>  <span class="dv">1</span>, <span class="fl">0.5</span>, <span class="dv">1</span>,</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>  <span class="sc">-</span><span class="dv">1</span>, <span class="fl">0.5</span>, <span class="dv">1</span>,</span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>  <span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>), <span class="dv">4</span>, <span class="dv">3</span>, <span class="at">byrow =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">4</span>, <span class="dv">7</span>)) {</span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>  counter <span class="ot">=</span> <span class="dv">1</span></span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>(j <span class="cf">in</span> <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">4</span>, <span class="dv">3</span>)) {</span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>    tmp <span class="ot">=</span> Results[[sc[j]]]</span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>    sd <span class="ot">=</span> Results_sd[[sc[j]]][i,]</span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>    edges <span class="ot">=</span> <span class="fu">round</span>(tmp[i,], <span class="dv">5</span>)</span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>    bias <span class="ot">=</span> edges[<span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">5</span>)] <span class="sc">-</span> true_effs[j,]</span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a>    g1 <span class="ot">=</span> <span class="fu">graph</span>(<span class="fu">c</span>(<span class="st">"x\U2081"</span>, <span class="st">"y"</span>, <span class="st">"x\U2082"</span>, <span class="st">"y"</span>, <span class="st">"x\U2083"</span>, <span class="st">"y"</span>),  </span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a>                <span class="at">directed=</span><span class="cn">TRUE</span> ) </span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>    <span class="fu">layout_as_tree</span>(g1, <span class="at">root =</span> <span class="st">"y"</span>, <span class="at">circular =</span> <span class="cn">TRUE</span>, <span class="at">flip.y =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a>    <span class="fu">eqarrowPlot</span>(g1, <span class="fu">matrix</span>(<span class="fu">c</span>(<span class="dv">1</span>,<span class="dv">1</span>,</span>
+<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a>                             <span class="dv">0</span>,<span class="dv">1</span>,</span>
+<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a>                             <span class="dv">0</span>,<span class="dv">0</span>,</span>
+<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a>                             <span class="dv">0</span>,<span class="dv">2</span>), <span class="at">nrow =</span> 4L, 2L, <span class="at">byrow =</span> <span class="cn">TRUE</span>) ,</span>
+<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a>                <span class="co">#cols = c( "skyblue","#B0A8B9", "#B0A8B9", "#B0A8B9"),</span></span>
+<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a>                <span class="at">cols =</span> <span class="fu">c</span>(<span class="fu">addA</span>(<span class="fu">rep</span>(<span class="st">"#87CEEB"</span>, <span class="dv">1</span>), <span class="fl">1.0</span>), <span class="st">"#B0A8B9"</span>, <span class="fu">addA</span>(<span class="fu">rep</span>(<span class="st">"#87CEEB"</span>, <span class="dv">1</span>), <span class="fl">1.0</span>), <span class="fu">addA</span>(<span class="fu">rep</span>(<span class="st">"#87CEEB"</span>, <span class="dv">1</span>), <span class="fl">1.0</span>)),</span>
+<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a>                <span class="at">edge.arrow.size=</span><span class="fu">abs</span>(bias)<span class="sc">*</span><span class="fl">2.3</span>,<span class="co">#abs(edges[c(1, 2, 5)]), </span></span>
+<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a>                <span class="at">edge.width=</span><span class="fu">abs</span>(bias)<span class="sc">*</span>cex_fac<span class="sc">*</span><span class="dv">2</span>,<span class="co">#abs(edges[c(1, 2, 5)])*cex_fac,</span></span>
+<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a>                <span class="at">edge.label =</span> <span class="fu">c</span>(<span class="fu">paste0</span>(<span class="fu">format</span>(<span class="fu">round</span>(bias, <span class="dv">2</span>)[<span class="dv">1</span>], <span class="at">nsmall =</span> <span class="dv">1</span>), <span class="st">"</span><span class="sc">\n\n</span><span class="st">"</span>),</span>
+<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a>                               <span class="fu">paste0</span>(<span class="st">"          "</span>,<span class="fu">format</span>(<span class="fu">round</span>(bias, <span class="dv">2</span>)[<span class="dv">2</span>], <span class="at">nsmall =</span> <span class="dv">1</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>), </span>
+<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a>                               <span class="fu">paste0</span>(<span class="st">"          "</span>, <span class="fu">format</span>(<span class="fu">round</span>(bias, <span class="dv">2</span>)[<span class="dv">3</span>], <span class="at">nsmall=</span><span class="dv">1</span>))),</span>
+<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a>                <span class="at">edge.label.cex =</span> <span class="fl">1.4</span>,</span>
+<span id="cb1-54"><a href="#cb1-54" aria-hidden="true" tabindex="-1"></a>                <span class="at">edge.colors =</span> <span class="fu">ifelse</span>(<span class="fu">abs</span>(edges[<span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">5</span>)]) <span class="sc">&lt;</span> <span class="fl">0.001</span>, <span class="st">"white"</span>, <span class="st">"#e60000"</span>))</span>
+<span id="cb1-55"><a href="#cb1-55" aria-hidden="true" tabindex="-1"></a>    <span class="fu">text</span>(labs[i], <span class="at">x =</span> <span class="dv">0</span>, <span class="at">y =</span> <span class="fl">2.3</span>, <span class="at">xpd =</span> <span class="cn">NA</span>, <span class="at">cex =</span> <span class="fl">1.4</span>, <span class="at">pos =</span> <span class="dv">3</span>)</span>
+<span id="cb1-56"><a href="#cb1-56" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span>(i <span class="sc">==</span> <span class="dv">1</span>) {</span>
+<span id="cb1-57"><a href="#cb1-57" aria-hidden="true" tabindex="-1"></a>      <span class="fu">text</span>(letters[counter], <span class="at">cex =</span> <span class="fl">1.9</span>, <span class="at">x =</span> <span class="sc">-</span><span class="fl">2.2</span>, <span class="at">y =</span> <span class="fl">2.5</span>, <span class="at">xpd =</span> <span class="cn">NA</span>, <span class="at">font =</span> <span class="dv">2</span>)</span>
+<span id="cb1-58"><a href="#cb1-58" aria-hidden="true" tabindex="-1"></a>      counter <span class="ot">=</span> counter <span class="sc">+</span> <span class="dv">1</span></span>
+<span id="cb1-59"><a href="#cb1-59" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb1-60"><a href="#cb1-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-61"><a href="#cb1-61" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb1-62"><a href="#cb1-62" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span>(i <span class="sc">==</span> <span class="dv">3</span>) {</span>
+<span id="cb1-63"><a href="#cb1-63" aria-hidden="true" tabindex="-1"></a>    <span class="fu">points</span>(<span class="at">x =</span> <span class="dv">0-1</span>, <span class="at">y =</span> <span class="sc">-</span><span class="fl">1.1</span><span class="sc">*</span><span class="fl">0.5</span>, <span class="at">col =</span> <span class="st">"#e60000"</span>, <span class="at">xpd =</span> <span class="cn">NA</span>, <span class="at">pch =</span> <span class="dv">15</span>, <span class="at">cex =</span> <span class="fl">1.8</span>)</span>
+<span id="cb1-64"><a href="#cb1-64" aria-hidden="true" tabindex="-1"></a>    <span class="fu">text</span>(<span class="at">x =</span> <span class="fl">0.1</span><span class="dv">-1</span>, <span class="at">y =</span> <span class="sc">-</span><span class="fl">1.1</span><span class="sc">*</span><span class="fl">0.5</span>, <span class="at">label =</span> <span class="st">"Bias = estiamted effect - true effect"</span>, <span class="at">xpd =</span> <span class="cn">NA</span>, <span class="at">pos =</span> <span class="dv">4</span>, <span class="at">cex =</span> <span class="fl">1.4</span>)</span>
+<span id="cb1-65"><a href="#cb1-65" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb1-66"><a href="#cb1-66" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-67"><a href="#cb1-67" aria-hidden="true" tabindex="-1"></a><span class="fu">dev.off</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
-<div class="cell-output-display">
-<p><embed src="plots/Fig_2-1.pdf" class="img-fluid" width="960"></p>
+<div class="cell-output cell-output-stdout">
+<pre><code>pdf 
+  2 </code></pre>
 </div>
 </div>
 </section>
@@ -210,25 +218,34 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <div class="cell" data-fig.format="pdf">
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(data <span class="sc">%&gt;%</span> <span class="fu">filter</span>(<span class="sc">!</span>method <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"NN_Drop"</span>, <span class="st">"L1"</span>, <span class="st">"L2"</span>)), <span class="fu">aes</span>(<span class="at">fill=</span>name, <span class="at">y=</span>value, <span class="at">x=</span>which_bias)) <span class="sc">+</span> </span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_bar</span>(<span class="at">stat =</span> <span class="st">'identity'</span>, <span class="at">position =</span> <span class="st">'stack'</span>) <span class="sc">+</span> </span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_grid</span>(N<span class="sc">~</span> method, <span class="at">labeller =</span> <span class="fu">labeller</span>(<span class="at">N =</span> <span class="fu">c</span>(<span class="st">"low"</span> <span class="ot">=</span> <span class="st">"N = 300"</span>, <span class="st">"med"</span> <span class="ot">=</span> <span class="st">"N = 500"</span>, <span class="st">"large"</span> <span class="ot">=</span> <span class="st">"N = 5,000"</span>))) <span class="sc">+</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_text</span>(<span class="fu">aes</span>(<span class="at">x=</span><span class="fl">2.5</span>, <span class="at">y =</span> <span class="fu">median</span>(<span class="fu">c</span>(<span class="fu">min</span>(value, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), <span class="fu">max</span>(value, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)) ), <span class="at">label =</span> label), <span class="at">size =</span> <span class="dv">3</span>)<span class="sc">+</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()  <span class="sc">+</span> </span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="st">""</span>,  <span class="at">values =</span> <span class="fu">c</span>(<span class="st">"bias"</span> <span class="ot">=</span> <span class="st">"grey"</span>, <span class="st">"Var"</span> <span class="ot">=</span> <span class="st">"black"</span>) )<span class="sc">+</span></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">""</span>, <span class="at">y =</span> <span class="st">""</span>) <span class="sc">+</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span></span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_discrete</span>(<span class="at">labels =</span> <span class="fu">c</span>(<span class="st">"Main = 1"</span>, <span class="st">"Inter = 1"</span>, <span class="st">"Main = 0"</span>, <span class="st">"Inter = 0"</span>)) <span class="sc">+</span></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">panel.grid.major.x =</span> <span class="fu">element_blank</span>()) <span class="sc">+</span></span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">strip.background =</span> <span class="fu">element_rect</span>(<span class="at">fill =</span> <span class="st">"white"</span>)) <span class="sc">+</span></span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">strip.text =</span> <span class="fu">element_text</span>(<span class="at">colour =</span> <span class="st">'black'</span>)) <span class="sc">+</span> </span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">strip.placement =</span> <span class="st">"outside"</span>) <span class="sc">+</span></span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">strip.text =</span> <span class="fu">element_text</span>(<span class="at">hjust =</span> <span class="fl">0.5</span>)) <span class="sc">+</span></span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position=</span><span class="st">"bottom"</span>)<span class="sc">+</span></span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">45</span>, <span class="at">hjust=</span><span class="dv">1</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">levels</span>(data<span class="sc">$</span>method)[<span class="dv">8</span>] <span class="ot">=</span> <span class="st">"Elastic-net"</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>g <span class="ot">=</span> </span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(data <span class="sc">%&gt;%</span> <span class="fu">filter</span>(<span class="sc">!</span>method <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"NN_Drop"</span>, <span class="st">"L1"</span>, <span class="st">"L2"</span>)), <span class="fu">aes</span>(<span class="at">fill=</span>name, <span class="at">y=</span>value, <span class="at">x=</span>which_bias)) <span class="sc">+</span> </span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_bar</span>(<span class="at">stat =</span> <span class="st">'identity'</span>, <span class="at">position =</span> <span class="st">'stack'</span>, <span class="at">color=</span><span class="st">"black"</span>) <span class="sc">+</span> </span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">facet_grid</span>(N<span class="sc">~</span> method, </span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>               <span class="at">labeller =</span> <span class="fu">labeller</span>(<span class="at">N =</span> <span class="fu">c</span>(<span class="st">"low"</span> <span class="ot">=</span> <span class="st">"N = 300"</span>, <span class="st">"med"</span> <span class="ot">=</span> <span class="st">"N = 500"</span>, <span class="st">"large"</span> <span class="ot">=</span> <span class="st">"N = 5,000"</span>)),</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>               <span class="at">scales=</span><span class="st">"free"</span>) <span class="sc">+</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_text</span>(<span class="fu">aes</span>(<span class="at">x=</span><span class="fl">2.5</span>, <span class="at">y =</span> <span class="fu">median</span>(<span class="fu">c</span>(<span class="fu">min</span>(value, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), <span class="fu">max</span>(value, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)) ), <span class="at">label =</span> label), <span class="at">size =</span> <span class="dv">3</span>)<span class="sc">+</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme_bw</span>()  <span class="sc">+</span> </span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_fill_manual</span>(<span class="st">""</span>,  <span class="at">values =</span> <span class="fu">c</span>(<span class="st">"bias"</span> <span class="ot">=</span> <span class="st">"#96c6ed"</span>, <span class="st">"var"</span> <span class="ot">=</span> <span class="st">"#e0acd5"</span> ) )<span class="sc">+</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_y_continuous</span>(<span class="at">breaks =</span> <span class="fu">c</span>(<span class="fl">0.25</span>, <span class="fl">0.0</span>, <span class="sc">-</span><span class="fl">0.25</span>, <span class="sc">-</span><span class="fl">0.5</span>, <span class="sc">-</span><span class="fl">0.75</span>, <span class="sc">-</span><span class="fl">1.0</span>), <span class="at">limits =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="fl">1.0</span>, <span class="fl">0.25</span>)) <span class="sc">+</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">""</span>, <span class="at">y =</span> <span class="st">""</span>) <span class="sc">+</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme_bw</span>() <span class="sc">+</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_x_discrete</span>(<span class="at">labels =</span> <span class="fu">c</span>(<span class="st">"Main = 1"</span>, <span class="st">"Inter = 1"</span>, <span class="st">"Main = 0"</span>, <span class="st">"Inter = 0"</span>)) <span class="sc">+</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(<span class="at">panel.grid.minor.x =</span> <span class="fu">element_blank</span>()) <span class="sc">+</span></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>    <span class="co">#theme(panel.grid.major.y = element_blank()) +</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(<span class="at">panel.grid.minor.y =</span> <span class="fu">element_blank</span>()) <span class="sc">+</span></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(<span class="at">strip.background =</span> <span class="fu">element_rect</span>(<span class="at">fill =</span> <span class="st">"white"</span>)) <span class="sc">+</span></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(<span class="at">strip.text =</span> <span class="fu">element_text</span>(<span class="at">colour =</span> <span class="st">'black'</span>)) <span class="sc">+</span> </span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(<span class="at">strip.placement =</span> <span class="st">"outside"</span>) <span class="sc">+</span></span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(<span class="at">strip.text =</span> <span class="fu">element_text</span>(<span class="at">hjust =</span> <span class="fl">0.5</span>)) <span class="sc">+</span></span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(<span class="at">legend.position=</span><span class="st">"bottom"</span>)<span class="sc">+</span></span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(<span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">45</span>, <span class="at">hjust=</span><span class="dv">1</span>))</span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>g</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output-display">
-<p><embed src="plots/Fig_3-1.pdf" class="img-fluid" width="672"></p>
+<p><embed src="Results_files/figure-html/Fig_3-1.pdf" class="img-fluid" width="960"></p>
 </div>
 </div>
 </section>
@@ -239,87 +256,116 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <div class="cell" data-fig.format="pdf">
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>coll_no <span class="ot">=</span> <span class="fu">readRDS</span>(<span class="st">"results/res_changed_no.RDS"</span>)</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>coll_no_results <span class="ot">=</span> <span class="fu">apply</span>(coll_no [<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>, ,], <span class="dv">2</span><span class="sc">:</span><span class="dv">3</span>, mean)</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>coll_no_results <span class="ot">=</span> <span class="fu">as.data.frame</span>(coll_no_results)[<span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>,]</span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="fu">rownames</span>(coll_no_results) <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"BRT"</span>, <span class="st">"RF"</span>, <span class="st">"NN"</span>, <span class="st">"LM"</span>)</span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="fu">colnames</span>(coll_no_results) <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"H"</span>, <span class="st">"HT"</span>, <span class="st">"HO"</span>, <span class="st">"HOT"</span>)</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>data <span class="ot">=</span> coll_no_results</span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>model <span class="ot">=</span> <span class="fu">rownames</span>(data)</span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>data <span class="ot">=</span> data <span class="sc">%&gt;%</span> <span class="fu">pivot_longer</span>(<span class="at">cols =</span> <span class="fu">c</span>(<span class="st">"H"</span>, <span class="st">"HT"</span>, <span class="st">"HO"</span>, <span class="st">"HOT"</span>)) </span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>data <span class="ot">=</span> data <span class="sc">%&gt;%</span> <span class="fu">filter</span>(name <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"HO"</span>, <span class="st">"H"</span>))</span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>color <span class="ot">=</span> RColorBrewer<span class="sc">::</span><span class="fu">brewer.pal</span>(<span class="dv">4</span>, <span class="st">"Set2"</span>)</span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>labels <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"Conventional ML 1"</span>, <span class="st">"Causal ML"</span>)</span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>name <span class="ot">=</span> forcats<span class="sc">::</span><span class="fu">lvls_reorder</span>(data<span class="sc">$</span>name, <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">1</span>))</span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(data, <span class="fu">aes</span>(<span class="at">fill=</span>model, <span class="at">y=</span>value, <span class="at">x=</span>name)) <span class="sc">+</span> </span>
-<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_bar</span>(<span class="at">position=</span><span class="st">"dodge"</span>, <span class="at">stat=</span><span class="st">"identity"</span>) <span class="sc">+</span></span>
-<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="st">""</span>,  <span class="at">values =</span> <span class="fu">c</span>(<span class="st">"BRT"</span> <span class="ot">=</span> color[<span class="dv">1</span>], <span class="st">"RF"</span> <span class="ot">=</span> color[<span class="dv">2</span>], <span class="st">"LM"</span> <span class="ot">=</span> color[<span class="dv">3</span>], <span class="st">"NN"</span> <span class="ot">=</span> color[<span class="dv">4</span>]) )<span class="sc">+</span></span>
-<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">""</span>, <span class="at">y =</span> <span class="st">"R2"</span>) <span class="sc">+</span></span>
-<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span></span>
-<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_discrete</span>(<span class="at">labels =</span> labels, <span class="at">guide =</span> <span class="fu">guide_axis</span>(<span class="at">angle =</span> <span class="dv">45</span>)) <span class="sc">+</span></span>
-<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">panel.grid.major.x =</span> <span class="fu">element_blank</span>()) <span class="sc">+</span></span>
-<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">axis.text=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">13</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
-<div class="cell-output-display">
-<p><embed src="plots/Fig_4a_no_change-1.pdf" class="img-fluid" width="288"></p>
-</div>
-</div>
-<div class="cell" data-fig.format="pdf">
-<details>
-<summary>Code</summary>
-<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>coll_no <span class="ot">=</span> <span class="fu">readRDS</span>(<span class="st">"results/res_changed_intervention.RDS"</span>)</span>
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>coll_no <span class="ot">=</span> <span class="fu">readRDS</span>(<span class="st">"results/res_changed_no.RDS"</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>coll_no_results <span class="ot">=</span> <span class="fu">apply</span>(coll_no [<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>, ,], <span class="dv">2</span><span class="sc">:</span><span class="dv">3</span>, mean)</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>coll_no_results <span class="ot">=</span> <span class="fu">as.data.frame</span>(coll_no_results)[<span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>,]</span>
 <span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="fu">rownames</span>(coll_no_results) <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"BRT"</span>, <span class="st">"RF"</span>, <span class="st">"NN"</span>, <span class="st">"LM"</span>)</span>
 <span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="fu">colnames</span>(coll_no_results) <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"H"</span>, <span class="st">"HT"</span>, <span class="st">"HO"</span>, <span class="st">"HOT"</span>)</span>
 <span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>data <span class="ot">=</span> coll_no_results</span>
 <span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>model <span class="ot">=</span> <span class="fu">rownames</span>(data)</span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>data <span class="ot">=</span> data <span class="sc">%&gt;%</span> <span class="fu">pivot_longer</span>(<span class="at">cols =</span> <span class="fu">c</span>(<span class="st">"H"</span>, <span class="st">"HT"</span>, <span class="st">"HO"</span>, <span class="st">"HOT"</span>)) <span class="sc">%&gt;%</span> <span class="fu">filter</span>(name <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"HO"</span>, <span class="st">"H"</span>))</span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>color <span class="ot">=</span> RColorBrewer<span class="sc">::</span><span class="fu">brewer.pal</span>(<span class="dv">4</span>, <span class="st">"Set2"</span>)</span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>labels <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"Conventional ML 1"</span>, <span class="st">"Causal ML"</span>)</span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>name <span class="ot">=</span> forcats<span class="sc">::</span><span class="fu">lvls_reorder</span>(data<span class="sc">$</span>name, <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">1</span>))</span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(data, <span class="fu">aes</span>(<span class="at">fill=</span>model, <span class="at">y=</span>value, <span class="at">x=</span>name)) <span class="sc">+</span> </span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_bar</span>(<span class="at">position=</span><span class="st">"dodge"</span>, <span class="at">stat=</span><span class="st">"identity"</span>) <span class="sc">+</span></span>
-<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="st">""</span>,  <span class="at">values =</span> <span class="fu">c</span>(<span class="st">"BRT"</span> <span class="ot">=</span> color[<span class="dv">1</span>], <span class="st">"RF"</span> <span class="ot">=</span> color[<span class="dv">2</span>], <span class="st">"LM"</span> <span class="ot">=</span> color[<span class="dv">3</span>], <span class="st">"NN"</span> <span class="ot">=</span> color[<span class="dv">4</span>]) )<span class="sc">+</span></span>
-<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">""</span>, <span class="at">y =</span> <span class="st">"R2"</span>) <span class="sc">+</span></span>
-<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span></span>
-<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_discrete</span>(<span class="at">labels =</span> labels, <span class="at">guide =</span> <span class="fu">guide_axis</span>(<span class="at">angle =</span> <span class="dv">45</span>)) <span class="sc">+</span></span>
-<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">panel.grid.major.x =</span> <span class="fu">element_blank</span>()) <span class="sc">+</span></span>
-<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">axis.text=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">12</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>data <span class="ot">=</span> data <span class="sc">%&gt;%</span> <span class="fu">pivot_longer</span>(<span class="at">cols =</span> <span class="fu">c</span>(<span class="st">"H"</span>, <span class="st">"HT"</span>, <span class="st">"HO"</span>, <span class="st">"HOT"</span>)) </span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>data <span class="ot">=</span> data <span class="sc">%&gt;%</span> <span class="fu">filter</span>(name <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"HO"</span>, <span class="st">"H"</span>))</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>color <span class="ot">=</span> RColorBrewer<span class="sc">::</span><span class="fu">brewer.pal</span>(<span class="dv">4</span>, <span class="st">"Set2"</span>)</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>labels <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"Conventional ML 1"</span>, <span class="st">"Causal ML"</span>)</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>name <span class="ot">=</span> forcats<span class="sc">::</span><span class="fu">lvls_reorder</span>(data<span class="sc">$</span>name, <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">1</span>))</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(data, <span class="fu">aes</span>(<span class="at">fill=</span>model, <span class="at">y=</span>value, <span class="at">x=</span>name)) <span class="sc">+</span> </span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_bar</span>(<span class="at">position=</span><span class="st">"dodge"</span>, <span class="at">stat=</span><span class="st">"identity"</span>) <span class="sc">+</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="st">""</span>,  <span class="at">values =</span> <span class="fu">c</span>(<span class="st">"BRT"</span> <span class="ot">=</span> color[<span class="dv">1</span>], <span class="st">"RF"</span> <span class="ot">=</span> color[<span class="dv">2</span>], <span class="st">"LM"</span> <span class="ot">=</span> color[<span class="dv">3</span>], <span class="st">"NN"</span> <span class="ot">=</span> color[<span class="dv">4</span>]) )<span class="sc">+</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">""</span>, <span class="at">y =</span> <span class="st">"R2"</span>) <span class="sc">+</span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_discrete</span>(<span class="at">labels =</span> labels, <span class="at">guide =</span> <span class="fu">guide_axis</span>(<span class="at">angle =</span> <span class="dv">45</span>)) <span class="sc">+</span></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">panel.grid.major.x =</span> <span class="fu">element_blank</span>()) <span class="sc">+</span></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">axis.text=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">13</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output-display">
-<p><embed src="plots/Fig_4b_collider-1.pdf" class="img-fluid" width="288"></p>
+<p><embed src="Results_files/figure-html/Fig_4a_no_change-1.pdf" class="img-fluid" width="288"></p>
 </div>
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">levels</span>(data<span class="sc">$</span>name) <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"Conventional ML 1"</span>, <span class="st">"Causal ML"</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>insample <span class="ot">=</span> data</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
 </div>
 <div class="cell" data-fig.format="pdf">
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>coll_no <span class="ot">=</span> <span class="fu">readRDS</span>(<span class="st">"results/res_changed_coll.RDS"</span>)</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>coll_no_results <span class="ot">=</span> <span class="fu">apply</span>(coll_no [<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>, ,], <span class="dv">2</span><span class="sc">:</span><span class="dv">3</span>, mean)</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>coll_no_results <span class="ot">=</span> <span class="fu">as.data.frame</span>(coll_no_results)[<span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>,]</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="fu">rownames</span>(coll_no_results) <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"BRT"</span>, <span class="st">"RF"</span>, <span class="st">"NN"</span>, <span class="st">"LM"</span>)</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="fu">colnames</span>(coll_no_results) <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"H"</span>, <span class="st">"HT"</span>, <span class="st">"HO"</span>, <span class="st">"HOT"</span>)</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>data <span class="ot">=</span> coll_no_results</span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>model <span class="ot">=</span> <span class="fu">rownames</span>(data)</span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>data <span class="ot">=</span> data <span class="sc">%&gt;%</span> <span class="fu">pivot_longer</span>(<span class="at">cols =</span> <span class="fu">c</span>(<span class="st">"H"</span>, <span class="st">"HT"</span>, <span class="st">"HO"</span>, <span class="st">"HOT"</span>)) <span class="sc">%&gt;%</span> <span class="fu">filter</span>(name <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"HOT"</span>, <span class="st">"HT"</span>, <span class="st">"H"</span>))</span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>color <span class="ot">=</span> RColorBrewer<span class="sc">::</span><span class="fu">brewer.pal</span>(<span class="dv">4</span>, <span class="st">"Set2"</span>)</span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>name <span class="ot">=</span> forcats<span class="sc">::</span><span class="fu">lvls_reorder</span>(data<span class="sc">$</span>name, <span class="at">idx =</span> <span class="fu">c</span>(<span class="dv">1</span>,<span class="dv">2</span> , <span class="dv">3</span>))</span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>labels <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"Conventional ML 1"</span>,<span class="st">"Conventional ML 2"</span>, <span class="st">"Causal ML"</span>)</span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(data, <span class="fu">aes</span>(<span class="at">fill=</span>model, <span class="at">y=</span>value, <span class="at">x=</span>name)) <span class="sc">+</span> </span>
-<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_bar</span>(<span class="at">position=</span><span class="st">"dodge"</span>, <span class="at">stat=</span><span class="st">"identity"</span>) <span class="sc">+</span></span>
-<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="st">""</span>,  <span class="at">values =</span> <span class="fu">c</span>(<span class="st">"BRT"</span> <span class="ot">=</span> color[<span class="dv">1</span>], <span class="st">"RF"</span> <span class="ot">=</span> color[<span class="dv">2</span>], <span class="st">"LM"</span> <span class="ot">=</span> color[<span class="dv">3</span>], <span class="st">"NN"</span> <span class="ot">=</span> color[<span class="dv">4</span>]) )<span class="sc">+</span></span>
-<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">""</span>, <span class="at">y =</span> <span class="st">"R2"</span>) <span class="sc">+</span></span>
-<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span></span>
-<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_discrete</span>(<span class="at">labels =</span> labels, <span class="at">guide =</span> <span class="fu">guide_axis</span>(<span class="at">angle =</span> <span class="dv">45</span>)) <span class="sc">+</span></span>
-<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">panel.grid.major.x =</span> <span class="fu">element_blank</span>()) <span class="sc">+</span></span>
-<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">axis.text=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">12</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>coll_no <span class="ot">=</span> <span class="fu">readRDS</span>(<span class="st">"results/res_changed_intervention.RDS"</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>coll_no_results <span class="ot">=</span> <span class="fu">apply</span>(coll_no [<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>, ,], <span class="dv">2</span><span class="sc">:</span><span class="dv">3</span>, mean)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>coll_no_results <span class="ot">=</span> <span class="fu">as.data.frame</span>(coll_no_results)[<span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>,]</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="fu">rownames</span>(coll_no_results) <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"BRT"</span>, <span class="st">"RF"</span>, <span class="st">"NN"</span>, <span class="st">"LM"</span>)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="fu">colnames</span>(coll_no_results) <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"H"</span>, <span class="st">"HT"</span>, <span class="st">"HO"</span>, <span class="st">"HOT"</span>)</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>data <span class="ot">=</span> coll_no_results</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>model <span class="ot">=</span> <span class="fu">rownames</span>(data)</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>data <span class="ot">=</span> data <span class="sc">%&gt;%</span> <span class="fu">pivot_longer</span>(<span class="at">cols =</span> <span class="fu">c</span>(<span class="st">"H"</span>, <span class="st">"HT"</span>, <span class="st">"HO"</span>, <span class="st">"HOT"</span>)) <span class="sc">%&gt;%</span> <span class="fu">filter</span>(name <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"HO"</span>, <span class="st">"H"</span>))</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>color <span class="ot">=</span> RColorBrewer<span class="sc">::</span><span class="fu">brewer.pal</span>(<span class="dv">4</span>, <span class="st">"Set2"</span>)</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>labels <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"Conventional ML 1"</span>, <span class="st">"Causal ML"</span>)</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>name <span class="ot">=</span> forcats<span class="sc">::</span><span class="fu">lvls_reorder</span>(data<span class="sc">$</span>name, <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">1</span>))</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(data, <span class="fu">aes</span>(<span class="at">fill=</span>model, <span class="at">y=</span>value, <span class="at">x=</span>name)) <span class="sc">+</span> </span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_bar</span>(<span class="at">position=</span><span class="st">"dodge"</span>, <span class="at">stat=</span><span class="st">"identity"</span>) <span class="sc">+</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="st">""</span>,  <span class="at">values =</span> <span class="fu">c</span>(<span class="st">"BRT"</span> <span class="ot">=</span> color[<span class="dv">1</span>], <span class="st">"RF"</span> <span class="ot">=</span> color[<span class="dv">2</span>], <span class="st">"LM"</span> <span class="ot">=</span> color[<span class="dv">3</span>], <span class="st">"NN"</span> <span class="ot">=</span> color[<span class="dv">4</span>]) )<span class="sc">+</span></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">""</span>, <span class="at">y =</span> <span class="st">"R2"</span>) <span class="sc">+</span></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span></span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_discrete</span>(<span class="at">labels =</span> labels, <span class="at">guide =</span> <span class="fu">guide_axis</span>(<span class="at">angle =</span> <span class="dv">45</span>)) <span class="sc">+</span></span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">panel.grid.major.x =</span> <span class="fu">element_blank</span>()) <span class="sc">+</span></span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">axis.text=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">12</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output-display">
-<p><embed src="plots/Fig_4c_confounder-1.pdf" class="img-fluid" width="316"></p>
+<p><embed src="Results_files/figure-html/Fig_4b_collider-1.pdf" class="img-fluid" width="288"></p>
+</div>
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">levels</span>(data<span class="sc">$</span>name) <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"Conventional ML 1"</span>, <span class="st">"Causal ML"</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>outofsample <span class="ot">=</span> data</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<div class="cell" data-fig.format="pdf">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>coll_no <span class="ot">=</span> <span class="fu">readRDS</span>(<span class="st">"results/res_changed_coll.RDS"</span>)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>coll_no_results <span class="ot">=</span> <span class="fu">apply</span>(coll_no [<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>, ,], <span class="dv">2</span><span class="sc">:</span><span class="dv">3</span>, mean)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>coll_no_results <span class="ot">=</span> <span class="fu">as.data.frame</span>(coll_no_results)[<span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>,]</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="fu">rownames</span>(coll_no_results) <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"BRT"</span>, <span class="st">"RF"</span>, <span class="st">"NN"</span>, <span class="st">"LM"</span>)</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="fu">colnames</span>(coll_no_results) <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"H"</span>, <span class="st">"HT"</span>, <span class="st">"HO"</span>, <span class="st">"HOT"</span>)</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>data <span class="ot">=</span> coll_no_results</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>model <span class="ot">=</span> <span class="fu">rownames</span>(data)</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>data <span class="ot">=</span> data <span class="sc">%&gt;%</span> <span class="fu">pivot_longer</span>(<span class="at">cols =</span> <span class="fu">c</span>(<span class="st">"H"</span>, <span class="st">"HT"</span>, <span class="st">"HO"</span>, <span class="st">"HOT"</span>)) <span class="sc">%&gt;%</span> <span class="fu">filter</span>(name <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"HOT"</span>, <span class="st">"HT"</span>, <span class="st">"H"</span>))</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>color <span class="ot">=</span> RColorBrewer<span class="sc">::</span><span class="fu">brewer.pal</span>(<span class="dv">4</span>, <span class="st">"Set2"</span>)</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>name <span class="ot">=</span> forcats<span class="sc">::</span><span class="fu">lvls_reorder</span>(data<span class="sc">$</span>name, <span class="at">idx =</span> <span class="fu">c</span>(<span class="dv">1</span>,<span class="dv">2</span> , <span class="dv">3</span>))</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>labels <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"Conventional ML 1"</span>,<span class="st">"Conventional ML 2"</span>, <span class="st">"Causal ML"</span>)</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(data, <span class="fu">aes</span>(<span class="at">fill=</span>model, <span class="at">y=</span>value, <span class="at">x=</span>name)) <span class="sc">+</span> </span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_bar</span>(<span class="at">position=</span><span class="st">"dodge"</span>, <span class="at">stat=</span><span class="st">"identity"</span>) <span class="sc">+</span></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="st">""</span>,  <span class="at">values =</span> <span class="fu">c</span>(<span class="st">"BRT"</span> <span class="ot">=</span> color[<span class="dv">1</span>], <span class="st">"RF"</span> <span class="ot">=</span> color[<span class="dv">2</span>], <span class="st">"LM"</span> <span class="ot">=</span> color[<span class="dv">3</span>], <span class="st">"NN"</span> <span class="ot">=</span> color[<span class="dv">4</span>]) )<span class="sc">+</span></span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">""</span>, <span class="at">y =</span> <span class="st">"R2"</span>) <span class="sc">+</span></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span></span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_discrete</span>(<span class="at">labels =</span> labels, <span class="at">guide =</span> <span class="fu">guide_axis</span>(<span class="at">angle =</span> <span class="dv">45</span>)) <span class="sc">+</span></span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">panel.grid.major.x =</span> <span class="fu">element_blank</span>()) <span class="sc">+</span></span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">axis.text=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">12</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<p><embed src="Results_files/figure-html/Fig_4c_confounder-1.pdf" class="img-fluid" width="316"></p>
+</div>
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">levels</span>(data<span class="sc">$</span>name) <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"Conventional ML 1"</span>, <span class="st">"Conventional ML 2"</span>, <span class="st">"Causal ML"</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>outofsample_conf <span class="ot">=</span> data</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<div class="cell">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>(outofsample_conf <span class="sc">%&gt;%</span> <span class="fu">pivot_wider</span>(<span class="at">names_from =</span> model))[<span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">1</span>, <span class="dv">3</span>),]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 3 × 5
+  name                BRT    RF    NN    LM
+  &lt;fct&gt;             &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;
+1 Causal ML         0.853 0.732 0.936 0.972
+2 Conventional ML 1 0.605 0.554 0.669 0.675
+3 Conventional ML 2 0.893 0.755 0.971 0.986</code></pre>
 </div>
 </div>
 </section>
@@ -397,7 +443,8 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
   for (var i=0; i<noterefs.length; i++) {
     const ref = noterefs[i];
     tippyHover(ref, function() {
-      let href = ref.getAttribute('href');
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
       try { href = new URL(href).hash; } catch {}
       const id = href.replace(/^#\/?/, "");
       const note = window.document.getElementById(id);
