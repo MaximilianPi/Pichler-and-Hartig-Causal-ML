@@ -1,4 +1,4 @@
-AME = function(data, predict_f, model, epsilon = 0.1, obs_level = FALSE, ...) {
+AME = function(data, predict_f, model, epsilon = 0.1, obs_level = FALSE,interactions=TRUE, ...) {
   x0 = data
   f = function(x0) predict_f(model, x0, ...)
   n = ncol(x0)
@@ -11,11 +11,13 @@ AME = function(data, predict_f, model, epsilon = 0.1, obs_level = FALSE, ...) {
     hi <- hh[, i]
     hi = matrix(hi, N, n, byrow = TRUE )
     H[,i, i] =  (f(x0 + hi) - f_x0 )/h[i]
-    for (j in (i + 1):n) {
-      hj = hh[, j]
-      hj = matrix(hj, N, n, byrow = TRUE )
-      H[,i, j] = (f(x0 + hi + hj) - f(x0 + hi - hj) - f(x0 - hi + hj) + f(x0 - hi - hj))/(4 * h[i]^2)
-      H[,j, i] = H[,i, j]
+    if(interactions) {
+      for (j in (i + 1):n) {
+        hj = hh[, j]
+        hj = matrix(hj, N, n, byrow = TRUE )
+        H[,i, j] = (f(x0 + hi + hj) - f(x0 + hi - hj) - f(x0 - hi + hj) + f(x0 - hi - hj))/(4 * h[i]^2)
+        H[,j, i] = H[,i, j]
+      }
     }
   }
   hi = hh[, n]
@@ -31,7 +33,7 @@ AME = function(data, predict_f, model, epsilon = 0.1, obs_level = FALSE, ...) {
 
 marginalEffects = function(object, ...) UseMethod("marginalEffects")
 
-marginalEffects.citodnn = function(object, ...) {
+marginalEffects.citodnn = function(object, interactions=TRUE, epsilon = 0.1, ...) {
   data = object$data$data
   resp = object$data$Y
   Y_name = as.character( object$call$formula[[2]] )
@@ -45,7 +47,7 @@ marginalEffects.citodnn = function(object, ...) {
       colnames(df) = var_names
       return(predict(model, df))
     }, 
-    model = object, obs_level = TRUE
+    model = object, obs_level = TRUE, interactions=interactions, epsilon = epsilon
   )
   out = list()
   out$result = result
@@ -58,13 +60,15 @@ marginalEffects.citodnn = function(object, ...) {
   return(out)
 }
 
-marginalEffects.xgb.Booster = function(object, data) {
+marginalEffects.xgb.Booster = function(object, data, interactions=TRUE, epsilon = 0.1) {
   predict_xg = function(model, newdata) as.vector(predict(model, as.matrix(newdata)))
   result = AME(
     data = data, 
     predict_f = predict_xg, 
     model = object, 
-    obs_level = TRUE
+    obs_level = TRUE, 
+    interactions=interactions,
+    epsilon = epsilon
   )
   out = list()
   out$result = result
@@ -78,7 +82,7 @@ marginalEffects.xgb.Booster = function(object, data) {
 }
 
 
-marginalEffects.ranger= function(object, data, ...) {
+marginalEffects.ranger= function(object, data, interactions=TRUE, epsilon = 0.1, ...) {
   vars = object$forest$independent.variable.names
   data2 = data
   data2 = data2[,colnames(data2) %in% vars]
@@ -89,7 +93,8 @@ marginalEffects.ranger= function(object, data, ...) {
     data = data2, 
     predict_f = predict_rf, 
     model = object, 
-    obs_level = TRUE
+    obs_level = TRUE, interactions=interactions,
+    epsilon = epsilon
   )
   out = list()
   out$result = result
@@ -104,7 +109,7 @@ marginalEffects.ranger= function(object, data, ...) {
 
 
 
-marginalEffects.lm= function(object,  ...) {
+marginalEffects.lm= function(object,  interactions=TRUE, epsilon = 0.1, ...) {
   data = object$model
   Y_name = as.character(object$terms[[2]])
   data = data[,-which( colnames(data) %in% Y_name)]
@@ -115,7 +120,8 @@ marginalEffects.lm= function(object,  ...) {
     data = data, 
     predict_f = predict_lm, 
     model = object, 
-    obs_level = TRUE
+    obs_level = TRUE, interactions=interactions, 
+    epsilon = epsilon
   )
   out = list()
   out$result = result
@@ -128,7 +134,7 @@ marginalEffects.lm= function(object,  ...) {
   return(out)
 }
 
-marginalEffects.cva.glmnet= function(object, data, formula = NULL, ...) {
+marginalEffects.cva.glmnet= function(object, data, formula = NULL, interactions=TRUE, epsilon = 0.1, ...) {
   
   predict_glmnet = function(model, newdata, ...) {
     if(!is.null(formula)) newdata = formula(newdata)
@@ -139,6 +145,8 @@ marginalEffects.cva.glmnet= function(object, data, formula = NULL, ...) {
     predict_f = predict_glmnet, 
     model = object, 
     obs_level = TRUE, 
+    interactions=interactions,
+    epsilon = epsilon,
     ...
   )
   out = list()

@@ -1,12 +1,11 @@
 ---
-title: "Appendix"
-format:
-  html: 
-    code-fold: true
-    self-contained: false
-    smooth-scroll: true
-  docx: default
-editor: visual
+title: "Supporting information Appendix for Pichler & Hartig – Can machine learning be used for causal inference?"
+format: 
+  docx:
+    toc: true
+    number-sections: true
+    reference-doc: custom-reference-doc.docx
+  html: default
 ---
 
 ```{r}
@@ -18,15 +17,30 @@ library(viridis)
 library(gridExtra)
 library(tidyverse)
 library(igraph)
-addA = function(col, alpha = 0.25) apply(sapply(col, grDevices::col2rgb)/255, 2, function(x) grDevices::rgb(x[1], x[2], x[3], alpha=alpha))
+library(glmmTMB)
+library(flextable)
+library(dplyr)
+library(knitr)
+library(kableExtra)
+library(readr)
+library(tidyr)
+library(broom)
+library(ggeffects)
+library(gridExtra)
 
-knitr::opts_chunk$set(fig.path="plots/")
+set_flextable_defaults(
+  font.size = 8, theme_fun = theme_vanilla)
+
+source("utils.R")
+knitr::opts_chunk$set(fig.path="plots/", echo = FALSE)
 
 ```
 
-## Additional results
+**Summary:** This document provides supporting information on Pichler & Hartig -- Can machine learning be used for causal inference.
 
-### Proof of concept
+
+## Proof of concept
+
 ```{r}
 #| echo: false
 
@@ -41,108 +55,63 @@ files =        c("collinearity_0.5.RDS",
 Results = 
   lapply(files, function(f) {
     confounder = readRDS(paste0("results/",f))
-    Result = do.call(rbind, lapply(1:7, function(j) (apply(abind::abind(lapply(1:100, function(i) confounder[[i]][[j]]), along = 0L), 2, mean))))
+    Result = do.call(rbind, lapply(1:8, function(j) (apply(abind::abind(lapply(1:100, function(i) confounder[[i]][[j]][[1]] ), along = 0L), 2, mean))))
     colnames(Result) = LETTERS[1:5]
-    rownames(Result) = c("LM", "RF", "BRT", "NN", "l1", "l2", "l1l2")
+    rownames(Result) = c("LM", "RF", "BRT", "NN", "Dropout", "l1", "l2", "l1l2")
     return(Result)
   })
 names(Results) = unlist(strsplit(files, ".RDS", TRUE))
+
+Results_rmse = 
+  lapply(files, function(f) {
+    confounder = readRDS(paste0("results/",f))
+    Result = do.call(rbind, lapply(1:8, function(j) (apply(abind::abind(lapply(1:100, function(i) confounder[[i]][[j]][[2]] ), along = 0L), 2, mean))))
+    #colnames(Result) = LETTERS[1:5]
+    rownames(Result) = c("LM", "RF", "BRT", "NN", "Dropout", "l1", "l2", "l1l2")
+    return(Result)
+  })
+names(Results_rmse) = unlist(strsplit(files, ".RDS", TRUE))
+
+Results_rmse_sd = 
+  lapply(files, function(f) {
+    confounder = readRDS(paste0("results/",f))
+    Result = do.call(rbind, lapply(1:8, function(j) (apply(abind::abind(lapply(1:100, function(i) confounder[[i]][[j]][[2]] ), along = 0L), 2, sd))))
+    #colnames(Result) = LETTERS[1:5]
+    rownames(Result) = c("LM", "RF", "BRT", "NN", "Dropout", "l1", "l2", "l1l2")
+    return(Result)
+  })
+names(Results_rmse_sd) = unlist(strsplit(files, ".RDS", TRUE))
 
 
 Results_sd = 
   lapply(files, function(f) {
     confounder = readRDS(paste0("results/",f))
-    Result = do.call(rbind, lapply(1:7, function(j) (apply(abind::abind(lapply(1:100, function(i) confounder[[i]][[j]]), along = 0L), 2, sd))))
+    Result = do.call(rbind, lapply(1:8, function(j) (apply(abind::abind(lapply(1:100, function(i) confounder[[i]][[j]][[1]] ), along = 0L), 2, sd))))
     colnames(Result) = LETTERS[1:5]
-    rownames(Result) = c("LM", "RF", "BRT", "NN", "l1", "l2", "l1l2")
+    rownames(Result) = c("LM", "RF", "BRT", "NN", "Dropout", "l1", "l2", "l1l2")
     return(Result)
   })
 names(Results_sd) = unlist(strsplit(files, ".RDS", TRUE))
 
-eqarrowPlot <- function(graph, layout, edge.lty=rep(1, ecount(graph)),edge.width=rep(1, ecount(graph)),
-                        edge.arrow.size=rep(1, ecount(graph)), cols = c( "pink","pink", "skyblue"), edge.arrow.mode = NULL, edge.colors = NULL,
-                        rangeX = c(0, 1), rangeY = c(0, 2), ...) {
-  plot(graph, edge.lty=0, edge.arrow.size=0, layout=layout,
-       vertex.shape="none",  vertex.size=50, vertex.color = cols, rescale=FALSE, xlim = rangeX, ylim = rangeY)
-  if(is.null(edge.arrow.mode)) edge.arrow.mode = rep(">", (ecount(graph)))
-  if(is.null(edge.colors)) edge.colors = rep(NULL, ecount(graph))
-  for (e in seq_len(ecount(graph))) {
-    graph2 <- delete.edges(graph, E(graph)[(1:ecount(graph))[-e]])
-    plot(graph2, edge.lty=edge.lty[e], edge.arrow.size=edge.arrow.size[e], layout=layout,edge.color = edge.colors[e],
-         vertex.label=NA, add=TRUE, vertex.color = cols, edge.width=edge.width[e], vertex.size=50,edge.arrow.mode = edge.arrow.mode[e], rescale=FALSE, 
-         xlim = rangeX, ylim = rangeY)
-  }
-  plot(graph, edge.lty=0, 
-       edge.arrow.size=0, 
-       layout=layout, 
-       add=TRUE,
-       vertex.size=50, 
-       vertex.color = cols,
-       vertex.label.color="black", xlim = rangeX, ylim = rangeY,
-       edge.label.color = "black", rescale=FALSE,...)
-  invisible(NULL)
-}
 layout = matrix(c(0,10,
                   0,5,
                   0,0,
                   5,5), nrow = 4L, 2L, byrow = TRUE) 
-plot_scenarios = function(cex_fac = 1.3, layout = layout) {
-  g1 <- graph(c("X1", "Y", "X2", "Y", "X3", "Y"),  
-              directed=TRUE ) 
-  eqarrowPlot(g1, layout, 
-              #cols = c( "skyblue","#B0A8B9", "#B0A8B9", "#B0A8B9"),
-              cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 2), 1.0)),
-              edge.arrow.size=c(1, 0.5,1.0), 
-              edge.width=c(1, 0.5,1.0)*cex_fac,
-              edge.label = c("0.0\n","0.0\n","0.0"), 
-              edge.label.cex = 1.4,
-              edge.colors =  rep("white", 3))#c(rep("grey", 2), "grey"))
-  
-  text(letters[1], cex = 1.9, x = -1.6, y = 1.5, xpd = NA, font = 2)
-  # Collinearity
-  g1 <- graph(c("X1", "Y", "X2","Y", "X3", "Y", "X1", "X2"),  
-              directed=TRUE ) 
-  eqarrowPlot(g1, layout, 
-              #cols = c( "skyblue","#B0A8B9", "#B0A8B9", "#B0A8B9"),
-              cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 2), 1.0)),
-              edge.arrow.size=c(1.0, 0.0,1.0,0.95)*cex_fac, 
-              edge.width=c(1.0, 0.5,1.0,0.95)*cex_fac,
-              edge.label = c("1.0\n","\n","1.0", "\n0.99"), 
-              edge.label.cex = 1.4, 
-              edge.arrow.mode = c(rep(">", 3), "-"), 
-              edge.colors = c(rep("grey", 1),"white","grey", "#ffab02"))
-  text(letters[3], cex = 1.9, x = -1.6, y = 1.5, xpd = NA, font = 2)
-  
-  # Confounder
-  g1 <- graph(c("X1", "Y", "X2","Y", "X3", "Y", "X1", "X2"),  
-              directed=TRUE ) 
-  eqarrowPlot(g1, layout, 
-              #cols = c( "skyblue","#B0A8B9", "#B0A8B9", "#B0A8B9"),
-              cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 2), 1.0)),
-              edge.arrow.size=c(1.0, 0.5,1.0,0.95)*cex_fac, 
-              edge.width=c(1.0, 0.5,1.0,0.95)*cex_fac,
-              edge.label = c("-1.0\n","0.5\n","1.0", "\n0.90"), 
-              edge.label.cex = 1.4, 
-              edge.arrow.mode = c(rep(">", 3), "-"), 
-              edge.colors = c(rep("grey", 2),"grey", "#ffab02"))
-  text(letters[2], cex = 1.9, x = -1.6, y = 1.5, xpd = NA, font = 2)
-}
-
 
 ```
 
+### Variance 
 
 ```{r}
 #| label: Fig_S1
-#| fig-format: pdf
 #| fig-width: 10
 #| fig-height: 9
 sc = c("no_effects", "no_effects", "confounder", "collinearity_0.99")
 
-algorithms = c("LM","RF",  "BRT", "NN", "l1", "l2", "l1l2")
+algorithms = c("LM","RF",  "BRT", "NN","Dropout", "l1", "l2", "l1l2")
 
 par(mfcol = c(3,6), mar = c(5,0.5, 2, 1.4), oma = c(1, 2, 2, 1))
-labs =  c("LM","RF",  "BRT", "NN", "l1", "l2", "Glmnet")
+labs =  c("LM","RF",  "BRT", "NN", "Dropout", "l1", "l2", "Elastic-net")
 #plot_scenarios(1.0)
 #dev.off()
 cex_fac = 1.3
@@ -159,14 +128,14 @@ true_effs = matrix(c(
   1, 0, 1
 ), 4, 3, byrow = TRUE)
 
-for(i in c(1, 2, 3, 4, 7)) {
+for(i in c(1, 2, 3, 4, 8)) {
   counter = 1
   for(j in c(2, 4, 3)) {
 
-    tmp = Results[[sc[j]]]
+    tmp = Results_sd[[sc[j]]]**2
     sd = Results_sd[[sc[j]]][i,]
     edges = round(tmp[i,], 5)
-    bias = edges[c(1, 2, 5)] - true_effs[j,]
+    bias = edges[c(1, 2, 5)] #- true_effs[j,]
     g1 = graph(c("X1", "Y", "X2", "Y", "X3", "Y"),  
                 directed=TRUE ) 
     layout_as_tree(g1, root = "Y", circular = TRUE, flip.y = TRUE)
@@ -186,7 +155,12 @@ for(i in c(1, 2, 3, 4, 7)) {
       text(letters[counter], cex = 1.9, x = -2.2, y = 2.5, xpd = NA, font = 2)
       counter = counter + 1
     }
+    
 
+  }
+  if(i == 3) {
+    points(x = 0-1, y = -1.1*0.5, col = "#e60000", xpd = NA, pch = 15, cex = 1.8)
+    text(x = 0.1-1, y = -1.1*0.5, label = "Variance", xpd = NA, pos = 4, cex = 1.4)
   }
 }
 
@@ -194,11 +168,740 @@ for(i in c(1, 2, 3, 4, 7)) {
 ```
 
 
-### Weighted aMCE
+#### RMSE on holdout
+
+```{r}
+#| label: Fig_SRMSEPROOF
+#| fig-width: 10
+#| fig-height: 5
+
+res_rmse = do.call(rbind, lapply(Results_rmse, function(d) data.frame(values = d, method = rownames(d))))
+res_rmse$scenario = rep(names(Results_rmse), each = 8)
+res_rmse$type = "rmse"
+
+res_rmse_sd = do.call(rbind, lapply(Results_rmse_sd, function(d) data.frame(values = d, method = rownames(d))))
+res_rmse$var = res_rmse_sd$values
+
+
+res_rmse$method = forcats::lvls_reorder(res_rmse$method, c(6, 8, 1, 7, 4, 3, 5, 2))
+
+ggplot(res_rmse, aes(y=values, x=method)) + 
+  geom_bar(stat = 'identity', fill = "lightgrey") +
+  geom_errorbar(aes(ymin=values-var, ymax=values+var), width=.2) +
+  facet_grid(~ scenario) +
+  theme_bw()  + 
+  labs(x = "", y = "") +
+  theme(panel.grid.major.x = element_blank()) +
+  theme(strip.background = element_rect(fill = "white")) +
+  theme(strip.text = element_text(colour = 'black')) + 
+  theme(strip.placement = "outside") +
+  theme(strip.text = element_text(hjust = 0.5)) +
+  theme(legend.position="bottom")+
+  theme(axis.text.x = element_text(angle = 45, hjust=1))
+
+```
+
+
+
+### NN with Dropout, LASSO, and Ridge
+
+#### Bias
+
+Dropout, l1 and l2 bias
+
+```{r}
+#| label: Fig_S2
+#| fig-width: 7
+#| fig-height: 9
+
+sc = c("no_effects", "effects", "confounder_unequal", "collinearity_0.90")
+
+algorithms = c("LM","RF",  "BRT", "NN","Dropout", "l1", "l2", "l1l2")
+
+par(mfcol = c(3,4), mar = c(5,0.5, 2, 1.4), oma = c(1, 2, 2, 1))
+labs =  c("LM","RF",  "BRT", "NN","Dropout", "l1", "l2", "Elastic-net")
+#plot_scenarios(1.0)
+#dev.off()
+cex_fac = 1.3
+
+plot_scenarios(1.0, layout = matrix(c(1,1,
+                             0,1,
+                             0,0,
+                             0,2), nrow = 4L, 2L, byrow = TRUE))
+
+    points(x = 0, y = -0.55, col = "grey", xpd = NA, pch = 15, cex = 1.8)
+    text(x = 0.1, y = -0.55, label = "True effect", xpd = NA, pos = 4, cex = 1.4)
+    
+    points(x = 0, y = -0.75, col = "#ffab02", xpd = NA, pch = 15, cex = 1.8)
+    text(x = 0.1, y = -0.75, label = "Correlation", xpd = NA, pos = 4, cex = 1.4)
+
+
+true_effs = matrix(c(
+  NA, NA, NA,
+  1, 0.5, 1,
+  -1, 0.5, 1,
+  1, 0, 1
+), 4, 3, byrow = TRUE)
+
+for(i in c(5, 6, 7)) {
+  counter = 1
+  for(j in c(2, 4, 3)) {
+
+    tmp = Results[[sc[j]]]
+    edges = round(tmp[i,], 5)
+    bias = edges[c(1, 2, 5)] - true_effs[j,]
+    g1 = graph(c("x\U2081", "y", "x\U2082", "y", "x\U2083", "y"),  
+                directed=TRUE ) 
+    layout_as_tree(g1, root = "y", circular = TRUE, flip.y = TRUE)
+    eqarrowPlot(g1, matrix(c(1,1,
+                             0,1,
+                             0,0,
+                             0,2), nrow = 4L, 2L, byrow = TRUE) ,
+                #cols = c( "skyblue","#B0A8B9", "#B0A8B9", "#B0A8B9"),
+                cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 1), 1.0)),
+                edge.arrow.size=abs(bias)*2.3,#abs(edges[c(1, 2, 5)]), 
+                edge.width=abs(bias)*cex_fac*2,#abs(edges[c(1, 2, 5)])*cex_fac,
+                edge.label = c(paste0(format(round(bias, 2)[1], nsmall = 1), "\n\n"),
+                               paste0("          ",format(round(bias, 2)[2], nsmall = 1), "\n"), 
+                               paste0("          ", format(round(bias, 2)[3], nsmall=1))),
+                edge.label.cex = 1.4,
+                edge.colors = ifelse(abs(edges[c(1, 2, 5)]) < 0.001, "white", "#e60000"))
+    text(labs[i], x = 0, y = 2.3, xpd = NA, cex = 1.4, pos = 3)
+    if(i == 1) {
+      text(letters[counter], cex = 1.9, x = -2.2, y = 2.5, xpd = NA, font = 2)
+      counter = counter + 1
+    }
+
+  }
+  if(i == 3) {
+    points(x = 0-1, y = -1.1*0.5, col = "#e60000", xpd = NA, pch = 15, cex = 1.8)
+    text(x = 0.1-1, y = -1.1*0.5, label = "Bias = estiamted effect - true effect", xpd = NA, pos = 4, cex = 1.4)
+  }
+}
+
+```
+
+
+#### Variance
+
+Dropout, l1 and l2 variance
+
+```{r}
+#| label: Fig_S3
+#| fig-width: 7
+#| fig-height: 9
+
+sc = c("no_effects", "effects", "confounder_unequal", "collinearity_0.90")
+
+algorithms = c("LM","RF",  "BRT", "NN","Dropout", "l1", "l2", "l1l2")
+
+par(mfcol = c(3,4), mar = c(5,0.5, 2, 1.4), oma = c(1, 2, 2, 1))
+labs =  c("LM","RF",  "BRT", "NN","Dropout", "l1", "l2", "Elastic-net")
+#plot_scenarios(1.0)
+#dev.off()
+cex_fac = 1.3
+
+plot_scenarios(1.0, layout = matrix(c(1,1,
+                             0,1,
+                             0,0,
+                             0,2), nrow = 4L, 2L, byrow = TRUE))
+
+    points(x = 0, y = -0.55, col = "grey", xpd = NA, pch = 15, cex = 1.8)
+    text(x = 0.1, y = -0.55, label = "True effect", xpd = NA, pos = 4, cex = 1.4)
+    
+    points(x = 0, y = -0.75, col = "#ffab02", xpd = NA, pch = 15, cex = 1.8)
+    text(x = 0.1, y = -0.75, label = "Correlation", xpd = NA, pos = 4, cex = 1.4)
+
+
+true_effs = matrix(c(
+  NA, NA, NA,
+  1, 0.5, 1,
+  -1, 0.5, 1,
+  1, 0, 1
+), 4, 3, byrow = TRUE)
+
+for(i in c(5, 6, 7)) {
+  counter = 1
+  for(j in c(2, 4, 3)) {
+
+    tmp = Results_sd[[sc[j]]]**2
+    edges = round(tmp[i,], 5)
+    bias = edges[c(1, 2, 5)] #- true_effs[j,]
+    g1 = graph(c("x\U2081", "y", "x\U2082", "y", "x\U2083", "y"),  
+                directed=TRUE ) 
+    layout_as_tree(g1, root = "y", circular = TRUE, flip.y = TRUE)
+    eqarrowPlot(g1, matrix(c(1,1,
+                             0,1,
+                             0,0,
+                             0,2), nrow = 4L, 2L, byrow = TRUE) ,
+                #cols = c( "skyblue","#B0A8B9", "#B0A8B9", "#B0A8B9"),
+                cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 1), 1.0)),
+                edge.arrow.size=abs(bias)*2.3,#abs(edges[c(1, 2, 5)]), 
+                edge.width=abs(bias)*cex_fac*2,#abs(edges[c(1, 2, 5)])*cex_fac,
+                edge.label = c(paste0(format(round(bias, 2)[1], nsmall = 1), "\n\n"),
+                               paste0("          ",format(round(bias, 2)[2], nsmall = 1), "\n"), 
+                               paste0("          ", format(round(bias, 2)[3], nsmall=1))),
+                edge.label.cex = 1.4,
+                edge.colors = ifelse(abs(edges[c(1, 2, 5)]) < 0.001, "white", "#e60000"))
+    text(labs[i], x = 0, y = 2.3, xpd = NA, cex = 1.4, pos = 3)
+    if(i == 1) {
+      text(letters[counter], cex = 1.9, x = -2.2, y = 2.5, xpd = NA, font = 2)
+      counter = counter + 1
+    }
+
+  }
+  if(i == 6) {
+    points(x = 0-1, y = -1.1*0.5, col = "#e60000", xpd = NA, pch = 15, cex = 1.8)
+    text(x = 0.1-1, y = -1.1*0.5, label = "Variance", xpd = NA, pos = 4, cex = 1.4)
+  }
+}
+```
+
+
+
+## Sensitivity analysis
+
+```{r}
+
+small_10 = readRDS("results/NN_pars_100_10.RDS")
+small_100 = readRDS("results/NN_pars_100_100.RDS")
+large_10 = readRDS("results/NN_pars_1000_10.RDS")
+large_100 = readRDS("results/NN_pars_1000_100.RDS")
+results = list(small_10, small_100, large_10, large_100)
+results = lapply(results, function(r) do.call(rbind, r))
+results = lapply(results, function(r) r[abs(r$bias_1) < 0.98,])
+results = lapply(results, function(r) r[abs(r$bias_5) < 0.98,])
+
+
+models_bias_1 = lapply(results, function(data) lm(bias_1~0+activations+depth+width+sgd+dropout, data = data[complete.cases(data),]))
+models_bias_0 = lapply(results, function(data) lm(bias_0~0+activations+depth+width+sgd+dropout, data = data[complete.cases(data),]))
+
+models_rmse = lapply(results, function(data) lm(rmse~0+activations+depth+width+sgd+dropout, data = data))
+
+par(mfrow = c(1, 4), mar = rep(4, 4))
+title = c("N = 100, P = 10", "N = 100, P = 100", "N = 1000, P = 10", "N = 1000, P = 100")
+for(i in 1:4) {
+  plot(results[[i]]$bias_1, results[[i]]$rmse, las = 1, xlab = "Bias", ylab = "RMSE",
+       main = title[i])
+}
+
+
+```
+
+
+
+```{r}
+#| label: Fig_S777
+#| fig-width: 14
+#| fig-height: 13
+
+
+ggs = do.call(c, lapply(models_bias_1, function(g) plot(ggpredict(g) )))
+ggs = lapply(ggs, function(g) g+xlab("") )
+ggs[-c(1, 6, 11, 16)] = lapply(ggs[-c(1, 6, 11, 16)], function(g) g+ylab(""))
+ggs[c(1, 6, 11, 16)] = lapply(ggs[c(1, 6, 11, 16)], function(g) g+ylab("Bias of X1"))
+ggs = lapply(ggs, function(g) g+ggtitle("") )
+
+ggs[[3]] = ggs[[3]] + ggtitle("N = 100, P = 10")
+ggs[[8]] = ggs[[8]] + ggtitle("N = 100, P = 100")
+ggs[[13]] = ggs[[13]] + ggtitle("N = 1000, P = 10")
+ggs[[18]] = ggs[[18]] + ggtitle("N = 1000, P = 100")
+ggs = lapply(ggs, function(g) g+theme_bw() )
+ggs[c(1, 6, 11, 16)] = lapply(ggs[c(1, 6, 11, 16)], function(g) g+ theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)))
+
+
+do.call(grid.arrange, c(ggs, ncol = 5))
+```
+
+
+
+```{r}
+#| label: Fig_S888
+#| fig-width: 14
+#| fig-height: 13
+
+
+ggs = do.call(c, lapply(models_bias_0, function(g) plot(ggpredict(g) )))
+ggs = lapply(ggs, function(g) g+xlab("") )
+ggs[-c(1, 6, 11, 16)] = lapply(ggs[-c(1, 6, 11, 16)], function(g) g+ylab(""))
+ggs[c(1, 6, 11, 16)] = lapply(ggs[c(1, 6, 11, 16)], function(g) g+ylab("Bias of X2"))
+ggs = lapply(ggs, function(g) g+ggtitle("") )
+
+ggs[[3]] = ggs[[3]] + ggtitle("N = 100, P = 10")
+ggs[[8]] = ggs[[8]] + ggtitle("N = 100, P = 100")
+ggs[[13]] = ggs[[13]] + ggtitle("N = 1000, P = 10")
+ggs[[18]] = ggs[[18]] + ggtitle("N = 1000, P = 100")
+ggs = lapply(ggs, function(g) g+theme_bw() )
+ggs[c(1, 6, 11, 16)] = lapply(ggs[c(1, 6, 11, 16)], function(g) g+ theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)))
+
+
+do.call(grid.arrange, c(ggs, ncol = 5))
+```
+
+
+
+```{r}
+#| label: Fig_S999
+#| fig-width: 14
+#| fig-height: 13
+
+
+ggs = do.call(c, lapply(models_rmse, function(g) plot(ggpredict(g) )))
+ggs = lapply(ggs, function(g) g+xlab("") )
+ggs[-c(1, 6, 11, 16)] = lapply(ggs[-c(1, 6, 11, 16)], function(g) g+ylab(""))
+ggs[c(1, 6, 11, 16)] = lapply(ggs[c(1, 6, 11, 16)], function(g) g+ylab("RMSE"))
+ggs = lapply(ggs, function(g) g+ggtitle("") )
+
+ggs[[3]] = ggs[[3]] + ggtitle("N = 100, P = 10")
+ggs[[8]] = ggs[[8]] + ggtitle("N = 100, P = 100")
+ggs[[13]] = ggs[[13]] + ggtitle("N = 1000, P = 10")
+ggs[[18]] = ggs[[18]] + ggtitle("N = 1000, P = 100")
+ggs = lapply(ggs, function(g) g+theme_bw() )
+ggs[c(1, 6, 11, 16)] = lapply(ggs[c(1, 6, 11, 16)], function(g) g+ theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)))
+
+
+do.call(grid.arrange, c(ggs, ncol = 5))
+```
+
+
+## Data-poor simulation
+
+### RMSE data-poor without interactions
+
+```{r}
+#| label: Fig_SRMSEPDATAPOOR
+#| fig-width: 10
+#| fig-height: 5
+
+effs_true = c(1.0, 0.0, 0.0, 0.0, 1, rep(0, 95))
+
+
+inter_low = readRDS("results/data_poor_small.RDS")
+inter_med = readRDS("results/data_poor_mid.RDS")
+inter_large = readRDS("results/data_poor_big.RDS")
+extract_rmse = function(RI, exponent = 1) {
+  return(t(apply(abind::abind(lapply(1:60, function(j) t(sapply(1:8, function(i) RI[[j]][[i]][[2]]))), along = 0L), 2:3, mean)**exponent))
+}
+
+extract_rmse_sd = function(RI, exponent = 1) {
+  return(t(apply(abind::abind(lapply(1:60, function(j) t(sapply(1:8, function(i) RI[[j]][[i]][[2]]))), along = 0L), 2:3, sd)**exponent))
+}
+
+rmse_low = extract_rmse(inter_low, exponent = 1)
+rmse_med = extract_rmse(inter_med, exponent = 1)
+rmse_large = extract_rmse(inter_large, exponent = 1)
+
+sd_low = extract_rmse_sd(inter_low)
+sd_med = extract_rmse_sd(inter_med)
+sd_large =extract_rmse_sd(inter_large)
+
+rownames(rmse_low) = rownames(rmse_med) = rownames(rmse_large) = rownames(sd_low) = rownames(sd_med) = rownames(sd_large)= c( "LM","RF", "BRT", "NN","NN_Drop", "L1", "L2", "glmnet")
+
+res_rmse = do.call(rbind, lapply(list(rmse_low, rmse_med, rmse_large), function(d) data.frame(values = d, method = rownames(d))))
+res_rmse$scenario = rep(c("low", "med", "large"), each = 8)
+res_rmse$type = "rmse"
+
+res_rmse_sd = do.call(rbind, lapply(list(sd_low, sd_med, sd_large), function(d) data.frame(values = d, method = rownames(d))))
+res_rmse$var = res_rmse_sd$values
+
+
+res_rmse$method = forcats::lvls_reorder(res_rmse$method, c(6, 8, 1, 7, 4, 3, 5, 2))
+res_rmse$scenario = forcats::lvls_reorder(res_rmse$scenario, c(2, 3, 1))
+
+ggplot(res_rmse, aes(y=values, x=method)) + 
+  geom_bar(stat = 'identity', fill = "lightgrey") +
+  geom_errorbar(aes(ymin=values-var, ymax=values+var), width=.2) +
+  facet_grid(~ scenario) +
+  theme_bw()  + 
+  labs(x = "", y = "") +
+  theme(panel.grid.major.x = element_blank()) +
+  theme(strip.background = element_rect(fill = "white")) +
+  theme(strip.text = element_text(colour = 'black')) + 
+  theme(strip.placement = "outside") +
+  theme(strip.text = element_text(hjust = 0.5)) +
+  theme(legend.position="bottom")+
+  theme(axis.text.x = element_text(angle = 45, hjust=1))
+
+```
+
+
+
+### With interactions and Collinearity
+
+```{r}
+#| echo: false
+effs_true = c(1.0, 0.0, 0.0, 0.0, 1, rep(0, 24))
+inter_true = diag(effs_true)
+inter_true[1,2] = inter_true[2,1] = inter_true[3, 4] = inter_true[4,3] = 1
+
+
+inter_low = readRDS("results/data_poor_small_inter.RDS")
+inter_med = readRDS("results/data_poor_mid_inter.RDS")
+inter_large = readRDS("results/data_poor_big_inter.RDS")
+
+
+extract_B = function(RI, exponent = 1) {
+  Bias = apply(abind::abind(lapply(1:100, function(j) t(sapply(1:8, function(i) diag(RI[[j]][[i]][[1]]) - diag(inter_true)))), along = 0L), 2:3, mean)**exponent
+  
+  Bias_1 = apply(Bias[,c(diag(inter_true) > 0.5)], 1, mean)
+  Bias_0 = apply(Bias[,c(diag(inter_true) < 0.5)], 1, mean)
+  
+  Bias_Inter = apply(abind::abind(lapply(1:100, function(j) t(sapply(1:8, function(i) RI[[j]][[i]][[1]][lower.tri(diag(29))] - inter_true[lower.tri(diag(29))]  ))), along = 0L), 2:3, mean)**exponent
+  Bias_Inter_1 = apply(Bias_Inter[,c(inter_true[lower.tri(diag(29))]  > 0.5)], 1, mean)
+  Bias_Inter_0 = apply(Bias_Inter[,c(inter_true[lower.tri(diag(29))]  < 0.5)], 1, mean)
+  return(cbind(Bias_1, Bias_0, Bias_Inter_1, Bias_Inter_0))
+}
+
+extract_V= function(RI) {
+  Var = apply(abind::abind(lapply(1:100, function(j) t(sapply(1:8, function(i) diag(RI[[j]][[i]][[1]])))), along = 0L), 2:3, var)
+  Var_1 = apply(Var[,c(diag(inter_true) > 0.5)], 1, mean)
+  Var_0 = apply(Var[,c(diag(inter_true) < 0.5)], 1, mean)
+  Var_Inter = apply(abind::abind(lapply(1:100, function(j) t(sapply(1:8, function(i) RI[[j]][[i]][[1]][lower.tri(diag(29))] ))), along = 0L), 2:3, var)
+  Var_Inter_1 = apply(Var_Inter[,c(inter_true[lower.tri(diag(29))] > 0.5)], 1, mean)
+  Var_Inter_0 = apply(Var_Inter[,c(inter_true[lower.tri(diag(29))] < 0.5)], 1, mean)
+  return(cbind(Var_1, Var_0, Var_Inter_1, Var_Inter_0))
+}
+
+```
+
+
+```{r}
+#| echo: false
+
+
+bias_low = extract_B(inter_low, exponent = 1)
+bias_med = extract_B(inter_med, exponent = 1)
+bias_large = extract_B(inter_large, exponent = 1)
+
+var_low = extract_V(inter_low)
+var_med = extract_V(inter_med)
+var_large =extract_V(inter_large)
+
+colnames(bias_low) = colnames(bias_med) = colnames(bias_large) = c("bias_1_Main", "bias_0_Main", "bias_1_Inter", "bias_0_Inter")
+colnames(var_low) = colnames(var_med) = colnames(var_large) = c("var_1_Main", "var_0_Main", "var_1_Inter", "var_0_Inter")
+rownames(bias_low) = rownames(bias_med) = rownames(bias_large) = rownames(var_low) = rownames(var_med) = rownames(var_large)= c( "LM","RF", "BRT", "NN","NN_Drop", "L1", "L2", "glmnet")
+
+bias_low_L = bias_low %>% data.frame %>% mutate(method = rownames(.)) %>%  pivot_longer(cols = c("bias_1_Main", "bias_0_Main", "bias_1_Inter", "bias_0_Inter"), values_to = "bias") %>% mutate(N = "low")
+bias_med_L = bias_med %>% data.frame %>% mutate(method = rownames(.)) %>%  pivot_longer(cols = c("bias_1_Main", "bias_0_Main", "bias_1_Inter", "bias_0_Inter"), values_to = "bias") %>% mutate(N = "med")
+bias_large_L = bias_large %>% data.frame %>% mutate(method = rownames(.)) %>%   pivot_longer(cols = c("bias_1_Main", "bias_0_Main", "bias_1_Inter", "bias_0_Inter"), values_to = "bias") %>% mutate(N = "large")
+var_low_L = var_low %>% data.frame%>% mutate(method = rownames(.)) %>%   pivot_longer(cols = c("var_1_Main", "var_0_Main", "var_1_Inter", "var_0_Inter"), values_to = "var") %>% mutate(N = "low")
+var_med_L = var_med %>% data.frame %>% mutate(method = rownames(.)) %>%  pivot_longer(cols = c("var_1_Main", "var_0_Main", "var_1_Inter", "var_0_Inter"), values_to = "var") %>% mutate(N = "med")
+var_large_L = var_large %>% data.frame %>% mutate(method = rownames(.)) %>%   pivot_longer(cols = c("var_1_Main", "var_0_Main", "var_1_Inter", "var_0_Inter"), values_to = "var") %>% mutate(N = "large")
+
+data_bias = rbind(bias_low_L, bias_med_L, bias_large_L)
+data_var = rbind(var_low_L, var_med_L, var_large_L)
+data_bias$var = data_var$var
+colnames(data_bias)[2] = "which_bias"
+data = data_bias  %>% pivot_longer(cols = c("bias", "var"))
+
+data$N = forcats::lvls_reorder(data$N, c(2, 3, 1))
+data$name = forcats::lvls_reorder(data$name, c(2, 1))
+data$which_bias = forcats::lvls_reorder(data$which_bias, c(4, 3, 2, 1))
+
+data$method = forcats::lvls_reorder(data$method, c(5,8, 1, 6,7, 3, 4, 2))
+data$label = c(rep("NA", 8), rep("", nrow(data)-8))
+```
+
+```{r}
+#| label: Fig_S4
+#| fig-width: 10
+#| fig-height: 6.7
+#| warning: false
+
+levels(data$method)[8] = "Elastic-net"
+
+par(mfrow = c(3, 5), mar = c(1, 1, 1, 1)*0.5, oma = c(8, 4, 4, 4))
+methods = c("LM", "RF", "BRT", "NN", "Elastic-net")
+sizes = c("low", "med", "large")
+y_labels = c("N = 100", "N = 600", "N = 2000")
+for(j in 1:3) {
+  for(i in 1:5) {
+    if(i == 1) axes = TRUE
+    else axes = FALSE
+    if(j ==1) create_gapped_stacked(tmp = data[data$method == methods[i] & data$N== sizes[j], ], 
+                                    to2 = c(100, 2000),
+                                    labels2 = c("100", "1050", "2000"),
+                                    axes = axes, to = c(0, 1), labels1 = c("0.0", "0.2", "0.4", "0.6", "0.8", "1.0"), d_between = 0.08)
+    else create_gapped_stacked(tmp = data[data$method == methods[i] & data$N== sizes[j], ], 
+                               axes = axes, to2 = c(2.0, 5), 
+                               labels2 = c("2.0","3.0", "4.0", "5.0"), to = c(0, 1.0),
+                                labels1 = c("0.0", "0.2", "0.4", "0.6", "0.8", "1.0"), d_between = 0.08)
+    if(j == 3){
+      text(x = seq(0, 1, length.out = 6)[-c(1, 6)]-0.30,y = -0.24, 
+           labels = c("Bias+Variance for beta = 1", "Bias+Variance for beta = 0", "Bias+Variance for Inter = 1", "Bias+Variance for Inter = 0"), 
+           srt = 45,
+           xpd = NA, pos = 1)
+    }
+    
+    if(j == 1) {
+      rect(0, 1.0, 1.0, 1.1, xpd = NA, border = "black")
+      text(0.5, y = 0.98, pos = 3, xpd = NA, label = methods[i], cex = 1.3, font = 2)
+    }
+    if(i == 5) {
+      rect(1, 0, 1.15, 1.0, xpd = NA, border = "black")
+      text(y = 0.72, x = 1.01, pos = 4, xpd = NA, label = y_labels[j], cex = 1.3, font = 2, srt = -90)
+    }
+    if(i == 5 & j == 1) {
+      legend("topright", bty = "n", col = c("#96c6ed","#e0acd5" ), pch = 15, legend = c("Bias", "Variance"))
+    }
+  }
+}
+
+
+```
+
+
+#### RMSE
+
+
+```{r}
+#| label: Fig_SRMSEPDATAPOOR2
+#| fig-width: 10
+#| fig-height: 5
+
+
+
+inter_low = readRDS("results/data_poor_small_inter.RDS")
+inter_med = readRDS("results/data_poor_mid_inter.RDS")
+inter_large = readRDS("results/data_poor_big_inter.RDS")
+extract_rmse = function(RI, exponent = 1) {
+  return(t(apply(abind::abind(lapply(1:60, function(j) t(sapply(1:8, function(i) RI[[j]][[i]][[2]]))), along = 0L), 2:3, mean)**exponent))
+}
+
+extract_rmse_sd = function(RI, exponent = 1) {
+  return(t(apply(abind::abind(lapply(1:60, function(j) t(sapply(1:8, function(i) RI[[j]][[i]][[2]]))), along = 0L), 2:3, sd)**exponent))
+}
+
+rmse_low = extract_rmse(inter_low, exponent = 1)
+rmse_med = extract_rmse(inter_med, exponent = 1)
+rmse_large = extract_rmse(inter_large, exponent = 1)
+
+sd_low = extract_rmse_sd(inter_low)
+sd_med = extract_rmse_sd(inter_med)
+sd_large =extract_rmse_sd(inter_large)
+
+rownames(rmse_low) = rownames(rmse_med) = rownames(rmse_large) = rownames(sd_low) = rownames(sd_med) = rownames(sd_large)= c( "LM","RF", "BRT", "NN","NN_Drop", "L1", "L2", "glmnet")
+
+res_rmse = do.call(rbind, lapply(list(rmse_low, rmse_med, rmse_large), function(d) data.frame(values = d, method = rownames(d))))
+res_rmse$scenario = rep(c("low", "med", "large"), each = 8)
+res_rmse$type = "rmse"
+
+res_rmse_sd = do.call(rbind, lapply(list(sd_low, sd_med, sd_large), function(d) data.frame(values = d, method = rownames(d))))
+res_rmse$var = res_rmse_sd$values
+
+
+res_rmse$method = forcats::lvls_reorder(res_rmse$method, c(6, 8, 1, 7, 4, 3, 5, 2))
+res_rmse$scenario = forcats::lvls_reorder(res_rmse$scenario, c(2, 3, 1))
+
+ggplot(res_rmse, aes(y=values, x=method)) + 
+  geom_bar(stat = 'identity', fill = "lightgrey") +
+  geom_errorbar(aes(ymin=values-var, ymax=values+var), width=.2) +
+  facet_grid(~ scenario) +
+  theme_bw()  + 
+  labs(x = "", y = "") +
+  theme(panel.grid.major.x = element_blank()) +
+  theme(strip.background = element_rect(fill = "white")) +
+  theme(strip.text = element_text(colour = 'black')) + 
+  theme(strip.placement = "outside") +
+  theme(strip.text = element_text(hjust = 0.5)) +
+  theme(legend.position="bottom")+
+  theme(axis.text.x = element_text(angle = 45, hjust=1))
+
+```
+
+
+### With interactions without collinearity
+
+
+
+```{r}
+#| echo: false
+effs_true = c(1.0, 0.0, 0.0, 0.0, 1, rep(0, 24))
+inter_true = diag(effs_true)
+inter_true[1,2] = inter_true[2,1] = inter_true[3, 4] = inter_true[4,3] = 1
+
+
+inter_low = readRDS("results/data_poor_small_inter_without_coll.RDS")
+inter_med = readRDS("results/data_poor_mid_inter_without_coll.RDS")
+inter_large = readRDS("results/data_poor_big_inter_without_coll.RDS")
+
+
+extract_B = function(RI, exponent = 1) {
+  Bias = apply(abind::abind(lapply(1:100, function(j) t(sapply(1:8, function(i) diag(RI[[j]][[i]][[1]]) - diag(inter_true)))), along = 0L), 2:3, mean)**exponent
+  
+  Bias_1 = apply(Bias[,c(diag(inter_true) > 0.5)], 1, mean)
+  Bias_0 = apply(Bias[,c(diag(inter_true) < 0.5)], 1, mean)
+  
+  Bias_Inter = apply(abind::abind(lapply(1:100, function(j) t(sapply(1:8, function(i) RI[[j]][[i]][[1]][lower.tri(diag(29))] - inter_true[lower.tri(diag(29))]  ))), along = 0L), 2:3, mean)**exponent
+  Bias_Inter_1 = apply(Bias_Inter[,c(inter_true[lower.tri(diag(29))]  > 0.5)], 1, mean)
+  Bias_Inter_0 = apply(Bias_Inter[,c(inter_true[lower.tri(diag(29))]  < 0.5)], 1, mean)
+  return(cbind(Bias_1, Bias_0, Bias_Inter_1, Bias_Inter_0))
+}
+
+extract_V= function(RI) {
+  Var = apply(abind::abind(lapply(1:100, function(j) t(sapply(1:8, function(i) diag(RI[[j]][[i]][[1]])))), along = 0L), 2:3, var)
+  Var_1 = apply(Var[,c(diag(inter_true) > 0.5)], 1, mean)
+  Var_0 = apply(Var[,c(diag(inter_true) < 0.5)], 1, mean)
+  Var_Inter = apply(abind::abind(lapply(1:100, function(j) t(sapply(1:8, function(i) RI[[j]][[i]][[1]][lower.tri(diag(29))] ))), along = 0L), 2:3, var)
+  Var_Inter_1 = apply(Var_Inter[,c(inter_true[lower.tri(diag(29))] > 0.5)], 1, mean)
+  Var_Inter_0 = apply(Var_Inter[,c(inter_true[lower.tri(diag(29))] < 0.5)], 1, mean)
+  return(cbind(Var_1, Var_0, Var_Inter_1, Var_Inter_0))
+}
+
+```
+
+
+```{r}
+#| echo: false
+
+
+bias_low = extract_B(inter_low, exponent = 1)
+bias_med = extract_B(inter_med, exponent = 1)
+bias_large = extract_B(inter_large, exponent = 1)
+
+var_low = extract_V(inter_low)
+var_med = extract_V(inter_med)
+var_large =extract_V(inter_large)
+
+colnames(bias_low) = colnames(bias_med) = colnames(bias_large) = c("bias_1_Main", "bias_0_Main", "bias_1_Inter", "bias_0_Inter")
+colnames(var_low) = colnames(var_med) = colnames(var_large) = c("var_1_Main", "var_0_Main", "var_1_Inter", "var_0_Inter")
+rownames(bias_low) = rownames(bias_med) = rownames(bias_large) = rownames(var_low) = rownames(var_med) = rownames(var_large)= c( "LM","RF", "BRT", "NN","NN_Drop", "L1", "L2", "glmnet")
+
+bias_low_L = bias_low %>% data.frame %>% mutate(method = rownames(.)) %>%  pivot_longer(cols = c("bias_1_Main", "bias_0_Main", "bias_1_Inter", "bias_0_Inter"), values_to = "bias") %>% mutate(N = "low")
+bias_med_L = bias_med %>% data.frame %>% mutate(method = rownames(.)) %>%  pivot_longer(cols = c("bias_1_Main", "bias_0_Main", "bias_1_Inter", "bias_0_Inter"), values_to = "bias") %>% mutate(N = "med")
+bias_large_L = bias_large %>% data.frame %>% mutate(method = rownames(.)) %>%   pivot_longer(cols = c("bias_1_Main", "bias_0_Main", "bias_1_Inter", "bias_0_Inter"), values_to = "bias") %>% mutate(N = "large")
+var_low_L = var_low %>% data.frame%>% mutate(method = rownames(.)) %>%   pivot_longer(cols = c("var_1_Main", "var_0_Main", "var_1_Inter", "var_0_Inter"), values_to = "var") %>% mutate(N = "low")
+var_med_L = var_med %>% data.frame %>% mutate(method = rownames(.)) %>%  pivot_longer(cols = c("var_1_Main", "var_0_Main", "var_1_Inter", "var_0_Inter"), values_to = "var") %>% mutate(N = "med")
+var_large_L = var_large %>% data.frame %>% mutate(method = rownames(.)) %>%   pivot_longer(cols = c("var_1_Main", "var_0_Main", "var_1_Inter", "var_0_Inter"), values_to = "var") %>% mutate(N = "large")
+
+data_bias = rbind(bias_low_L, bias_med_L, bias_large_L)
+data_var = rbind(var_low_L, var_med_L, var_large_L)
+data_bias$var = data_var$var
+colnames(data_bias)[2] = "which_bias"
+data = data_bias  %>% pivot_longer(cols = c("bias", "var"))
+
+data$N = forcats::lvls_reorder(data$N, c(2, 3, 1))
+data$name = forcats::lvls_reorder(data$name, c(2, 1))
+data$which_bias = forcats::lvls_reorder(data$which_bias, c(4, 3, 2, 1))
+
+data$method = forcats::lvls_reorder(data$method, c(5,8, 1, 6,7, 3, 4, 2))
+data$label = c(rep("NA", 8), rep("", nrow(data)-8))
+```
+
+```{r}
+#| label: Fig_S4WOCOLL
+#| fig-width: 10
+#| fig-height: 6.7
+#| warning: false
+
+levels(data$method)[8] = "Elastic-net"
+
+par(mfrow = c(3, 5), mar = c(1, 1, 1, 1)*0.5, oma = c(8, 4, 4, 4))
+methods = c("LM", "RF", "BRT", "NN", "Elastic-net")
+sizes = c("low", "med", "large")
+y_labels = c("N = 100", "N = 600", "N = 2000")
+for(j in 1:3) {
+  for(i in 1:5) {
+    if(i == 1) axes = TRUE
+    else axes = FALSE
+    if(j ==1) create_gapped_stacked(tmp = data[data$method == methods[i] & data$N== sizes[j], ], 
+                                    to2 = c(100, 2000),
+                                    labels2 = c("100", "1050", "2000"),
+                                    axes = axes, to = c(0, 1), labels1 = c("0.0", "0.2", "0.4", "0.6", "0.8", "1.0"), d_between = 0.08)
+    else create_gapped_stacked(tmp = data[data$method == methods[i] & data$N== sizes[j], ], 
+                               axes = axes, to2 = c(2.0, 5), 
+                               labels2 = c("2.0","3.0", "4.0", "5.0"), to = c(0, 1.0),
+                                labels1 = c("0.0", "0.2", "0.4", "0.6", "0.8", "1.0"), d_between = 0.08)
+    if(j == 3){
+      text(x = seq(0, 1, length.out = 6)[-c(1, 6)]-0.30,y = -0.24, 
+           labels = c("Bias+Variance for beta = 1", "Bias+Variance for beta = 0", "Bias+Variance for Inter = 1", "Bias+Variance for Inter = 0"), 
+           srt = 45,
+           xpd = NA, pos = 1)
+    }
+    
+    if(j == 1) {
+      rect(0, 1.0, 1.0, 1.1, xpd = NA, border = "black")
+      text(0.5, y = 0.98, pos = 3, xpd = NA, label = methods[i], cex = 1.3, font = 2)
+    }
+    if(i == 5) {
+      rect(1, 0, 1.15, 1.0, xpd = NA, border = "black")
+      text(y = 0.72, x = 1.01, pos = 4, xpd = NA, label = y_labels[j], cex = 1.3, font = 2, srt = -90)
+    }
+    if(i == 5 & j == 1) {
+      legend("topright", bty = "n", col = c("#96c6ed","#e0acd5" ), pch = 15, legend = c("Bias", "Variance"))
+    }
+  }
+}
+
+
+```
+
+
+
+
+```{r}
+#| label: Fig_SRMSEPDATAPOOR22
+#| fig-width: 10
+#| fig-height: 5
+
+
+
+inter_low = readRDS("results/data_poor_small_inter_without_coll.RDS")
+inter_med = readRDS("results/data_poor_mid_inter_without_coll.RDS")
+inter_large = readRDS("results/data_poor_big_inter_without_coll.RDS")
+extract_rmse = function(RI, exponent = 1) {
+  return(t(apply(abind::abind(lapply(1:60, function(j) t(sapply(1:8, function(i) RI[[j]][[i]][[2]]))), along = 0L), 2:3, mean)**exponent))
+}
+
+extract_rmse_sd = function(RI, exponent = 1) {
+  return(t(apply(abind::abind(lapply(1:60, function(j) t(sapply(1:8, function(i) RI[[j]][[i]][[2]]))), along = 0L), 2:3, sd)**exponent))
+}
+
+rmse_low = extract_rmse(inter_low, exponent = 1)
+rmse_med = extract_rmse(inter_med, exponent = 1)
+rmse_large = extract_rmse(inter_large, exponent = 1)
+
+sd_low = extract_rmse_sd(inter_low)
+sd_med = extract_rmse_sd(inter_med)
+sd_large =extract_rmse_sd(inter_large)
+
+rownames(rmse_low) = rownames(rmse_med) = rownames(rmse_large) = rownames(sd_low) = rownames(sd_med) = rownames(sd_large)= c( "LM","RF", "BRT", "NN","NN_Drop", "L1", "L2", "glmnet")
+
+res_rmse = do.call(rbind, lapply(list(rmse_low, rmse_med, rmse_large), function(d) data.frame(values = d, method = rownames(d))))
+res_rmse$scenario = rep(c("low", "med", "large"), each = 8)
+res_rmse$type = "rmse"
+
+res_rmse_sd = do.call(rbind, lapply(list(sd_low, sd_med, sd_large), function(d) data.frame(values = d, method = rownames(d))))
+res_rmse$var = res_rmse_sd$values
+
+
+res_rmse$method = forcats::lvls_reorder(res_rmse$method, c(6, 8, 1, 7, 4, 3, 5, 2))
+res_rmse$scenario = forcats::lvls_reorder(res_rmse$scenario, c(2, 3, 1))
+
+ggplot(res_rmse, aes(y=values, x=method)) + 
+  geom_bar(stat = 'identity', fill = "lightgrey") +
+  geom_errorbar(aes(ymin=values-var, ymax=values+var), width=.2) +
+  facet_grid(~ scenario) +
+  theme_bw()  + 
+  labs(x = "", y = "") +
+  theme(panel.grid.major.x = element_blank()) +
+  theme(strip.background = element_rect(fill = "white")) +
+  theme(strip.text = element_text(colour = 'black')) + 
+  theme(strip.placement = "outside") +
+  theme(strip.text = element_text(hjust = 0.5)) +
+  theme(legend.position="bottom")+
+  theme(axis.text.x = element_text(angle = 45, hjust=1))
+
+```
+
+
+
+
+## Weighted MCE
 
 ```{r}
 #| label: Fig_Weighted
-#| fig-format: pdf
+#| message: false
 #| fig-width: 7
 #| fig-height: 6
 source("code/AME.R")
@@ -215,7 +918,7 @@ library(cito)
 dn = cito::dnn(Y~., data = data.frame(Y = Y, X1 = X1, X2 = X2), 
               activation = rep("relu", 3),
               hidden = rep(30L, 3),
-              verbose = TRUE, 
+              verbose = FALSE, 
               batchsize = 100, 
               epochs = 100L,
               shuffle = TRUE,
@@ -242,289 +945,3 @@ legend("bottomright", legend = c(paste0(round(coef(m2)[[2]], 2), "LM OLS "),
 
 ```
 
-
-
-
-### Data-poor simulation
-
-```{r}
-#| echo: false
-set.seed(42)
-n_main = 15
-n_inter = 30
-
-effs_true = sample(c(rep(1, n_main), rep(0, 29-n_main)))
-inter_true = sample(c(rep(1, n_inter), rep(0, 406-n_inter)))
-
-inter_low = readRDS("results/interactions_random_small.RDS")
-inter_med = readRDS("results/interactions_random_middle.RDS")
-inter_large = readRDS("results/interactions_random_large.RDS")
-extract_B = function(RI, exponent = 1) {
-  Bias = apply(abind::abind(lapply(1:100, function(j) t(sapply(1:8, function(i) RI[[j]][[i]]$effs - RI[[j]][[i]]$true_effs))), along = 0L), 2:3, mean)**exponent
-  Bias_1 = apply(Bias[,c(effs_true > 0.5)], 1, mean)
-  Bias_0 = apply(Bias[,c(effs_true < 0.5)], 1, mean)
-  Bias_Inter = apply(abind::abind(lapply(1:100, function(j) t(sapply(1:8, function(i) RI[[j]][[i]]$inter - RI[[j]][[i]]$true_inter))), along = 0L), 2:3, mean)**exponent
-  Bias_Inter_1 = apply(Bias_Inter[,c(inter_true > 0.5)], 1, mean)
-  Bias_Inter_0 = apply(Bias_Inter[,c(inter_true < 0.5)], 1, mean)
-  return(cbind(Bias_1, Bias_0, Bias_Inter_1, Bias_Inter_0))
-}
-
-extract_V= function(RI) {
-  Var = apply(abind::abind(lapply(1:100, function(j) t(sapply(1:8, function(i) RI[[j]][[i]]$effs))), along = 0L), 2:3, var)
-  Var_1 = apply(Var[,c(effs_true > 0.5)], 1, mean)
-  Var_0 = apply(Var[,c(effs_true < 0.5)], 1, mean)
-  Var_Inter = apply(abind::abind(lapply(1:100, function(j) t(sapply(1:8, function(i) RI[[j]][[i]]$inter))), along = 0L), 2:3, var)
-  Var_Inter_1 = apply(Var_Inter[,c(inter_true > 0.5)], 1, mean)
-  Var_Inter_0 = apply(Var_Inter[,c(inter_true < 0.5)], 1, mean)
-  return(cbind(Var_1, Var_0, Var_Inter_1, Var_Inter_0))
-}
-
-```
-
-#### Dropout, L1, and L2
-
-```{r}
-#| echo: false
-bias_low = extract_B(inter_low, exponent = 1)
-bias_med = extract_B(inter_med, exponent = 1)
-bias_large = extract_B(inter_large, exponent = 1)
-
-var_low = extract_V(inter_low)
-var_med = extract_V(inter_med)
-var_large =extract_V(inter_large)
-
-colnames(bias_low) = colnames(bias_med) = colnames(bias_large) = c("bias_1_Main", "bias_0_Main", "bias_1_Inter", "bias_0_Inter")
-colnames(var_low) = colnames(var_med) = colnames(var_large) = c("var_1_Main", "var_0_Main", "var_1_Inter", "var_0_Inter")
-rownames(bias_low) = rownames(bias_med) = rownames(bias_large) = rownames(var_low) = rownames(var_med) = rownames(var_large)= c( "LM","RF", "BRT", "NN","NN_Drop", "L1", "L2", "glmnet")
-
-bias_low_L = bias_low %>% data.frame %>% mutate(method = rownames(.)) %>%  pivot_longer(cols = c("bias_1_Main", "bias_0_Main", "bias_1_Inter", "bias_0_Inter"), values_to = "bias") %>% mutate(N = "low")
-bias_med_L = bias_med %>% data.frame %>% mutate(method = rownames(.)) %>%  pivot_longer(cols = c("bias_1_Main", "bias_0_Main", "bias_1_Inter", "bias_0_Inter"), values_to = "bias") %>% mutate(N = "med")
-bias_large_L = bias_large %>% data.frame %>% mutate(method = rownames(.)) %>%   pivot_longer(cols = c("bias_1_Main", "bias_0_Main", "bias_1_Inter", "bias_0_Inter"), values_to = "bias") %>% mutate(N = "large")
-var_low_L = var_low %>% data.frame%>% mutate(method = rownames(.)) %>%   pivot_longer(cols = c("var_1_Main", "var_0_Main", "var_1_Inter", "var_0_Inter"), values_to = "var") %>% mutate(N = "low")
-var_med_L = var_med %>% data.frame %>% mutate(method = rownames(.)) %>%  pivot_longer(cols = c("var_1_Main", "var_0_Main", "var_1_Inter", "var_0_Inter"), values_to = "var") %>% mutate(N = "med")
-var_large_L = var_large %>% data.frame %>% mutate(method = rownames(.)) %>%   pivot_longer(cols = c("var_1_Main", "var_0_Main", "var_1_Inter", "var_0_Inter"), values_to = "var") %>% mutate(N = "large")
-
-data_bias = rbind(bias_low_L, bias_med_L, bias_large_L)
-data_var = rbind(var_low_L, var_med_L, var_large_L)
-data_bias$var = data_var$var
-colnames(data_bias)[2] = "which_bias"
-data = data_bias  %>% pivot_longer(cols = c("bias", "var"))
-
-data[data$method=="LM" & data$N=="low",]$value = NA
-
-data$N = forcats::lvls_reorder(data$N, c(2, 3, 1))
-data$name = forcats::lvls_reorder(data$name, c(2, 1))
-data$which_bias = forcats::lvls_reorder(data$which_bias, c(4, 3, 2, 1))
-
-data$method = forcats::lvls_reorder(data$method, c(5,8, 1, 6,7, 3, 4, 2))
-data$label = c(rep("NA", 8), rep("", nrow(data)-8))
-```
-
-```{r}
-#| label: Fig_S2
-#| fig-format: pdf
-#| fig-width: 5
-#| fig-height: 5
-
-ggplot(data %>% filter(method %in% c("NN_Drop", "L1", "L2")), aes(fill=name, y=value, x=which_bias)) + 
-  geom_bar(stat = 'identity', position = 'stack') + 
-  facet_grid(N~ method, labeller = labeller(N = c("low" = "N = 300", "med" = "N = 500", "large" = "N = 5,000"))) +
-  geom_text(aes(x=2.5, y = median(c(min(value, na.rm = TRUE), max(value, na.rm = TRUE)) ), label = label), size = 3)+
-  theme_bw()  + 
-  scale_fill_manual("",  values = c("bias" = "grey", "Var" = "black") )+
-  labs(x = "", y = "") +
-  theme_bw() +
-  scale_x_discrete(labels = c("Main = 1", "Inter = 1", "Main = 0", "Inter = 0")) +
-  theme(panel.grid.major.x = element_blank()) +
-  theme(strip.background = element_rect(fill = "white")) +
-  theme(strip.text = element_text(colour = 'black')) + 
-  theme(strip.placement = "outside") +
-  theme(strip.text = element_text(hjust = 0.5)) +
-  theme(legend.position="bottom")+
-  theme(axis.text.x = element_text(angle = 45, hjust=1))
-```
-
-Without Bias
-
-```{r}
-#| label: Fig_S3
-#| fig-format: pdf
-#| fig-width: 5
-#| fig-height: 5
-
-ggplot(data %>% filter(method %in% c("NN_Drop", "L1", "L2")) %>% filter(name == "bias"), aes(fill=name, y=value, x=which_bias)) + 
-  geom_bar(stat = 'identity', position = 'stack') + 
-  facet_grid(N~ method, labeller = labeller(N = c("low" = "N = 300", "med" = "N = 500", "large" = "N = 5,000"))) +
-  geom_text(aes(x=2.5, y = median(c(min(value, na.rm = TRUE), max(value, na.rm = TRUE)) ), label = label), size = 3)+
-  theme_bw()  + 
-  scale_fill_manual("",  values = c("bias" = "grey") )+
-  labs(x = "", y = "") +
-  theme_bw() +
-  scale_x_discrete(labels = c("Main = 1", "Inter = 1", "Main = 0", "Inter = 0")) +
-  theme(panel.grid.major.x = element_blank()) +
-  theme(strip.background = element_rect(fill = "white")) +
-  theme(strip.text = element_text(colour = 'black')) + 
-  theme(strip.placement = "outside") +
-  theme(strip.text = element_text(hjust = 0.5)) +
-  theme(legend.position="bottom")+
-  theme(axis.text.x = element_text(angle = 45, hjust=1))
-```
-
-#### Specific effects
-
-```{r}
-#| label: Fig_S4
-#| fig-format: pdf
-#| fig-width: 9.5
-#| fig-height: 7.2
-#| message: false
-
-RI = readRDS("results/interactions_small.RDS")
-RMSE= function(pred, true) { (mean((true-pred)))}
-results_bias = 
-  sapply(2:7, function(k) {
-  effs = apply(abind::abind( lapply(1:100, function(i) RI[[i]][[k]]), along = 0), 2:3, mean)
-  return(
-  c(
-  RMSE(1, effs[1,1]),
-  RMSE(1, effs[5,5]),
-  RMSE(1, effs[1,2]),
-  RMSE(1, effs[3,4])
-  )
-  )
-  })
-results_bias = t(results_bias)
-colnames(results_bias) = c("X1", "X5", "X1:X2", "X3:X4")
-rownames(results_bias) = c("RF", "BRT", "NN", "L1", "L2", "glmnet")
-data = round(results_bias,3)
-data = data.frame(data[c(1:3, 6),])
-data$method = rownames(data)
-df_bias = data %>% pivot_longer(cols = c("X1", "X5", "X1.X2", "X3.X4"))
-
-results_var = 
-  sapply(2:7, function(k) {
-    effs = apply(abind::abind( lapply(1:100, function(i) RI[[i]][[k]]), along = 0)-1, 2:3, var)
-    return(
-      c(
-        (effs[1,1]),
-        (effs[5,5]),
-        (effs[1,2]),
-        (effs[3,4])
-      )
-    )
-  })
-results_var = t(results_var)
-colnames(results_var) = c("X1", "X5", "X1:X2", "X3:X4")
-rownames(results_var) = c( "RF", "BRT", "NN", "L1", "L2", "glmnet")
-data = round(results_var,3)
-data = data.frame(data[c(1:3, 6),])
-data$method = rownames(data)
-df_var = data %>% pivot_longer(cols = c("X1", "X5", "X1.X2", "X3.X4"))
-
-df_bias$name = as.factor(df_bias$name)
-levels(df_bias$name) = c("A", "C", "D", "B")
-df_bias$name = ordered(df_bias$name, levels = LETTERS[1:4])
-df_bias$sd = (df_var$value)
-colnames(df_bias)[2] = "Var"
-df2 = df_bias  %>% pivot_longer(cols = c("value", "sd"))
-color = RColorBrewer::brewer.pal(5, "Set2")
-
-df2$name = ifelse(df2$name == "value", "Bias", "Var")
-df2$name = factor(df2$name, levels = c("Var", "Bias"))
-#df2$value[df2$name == "Bias"] = df2$value[df2$name == "Bias"]**2
-
-df3 = df2
-
-RI = readRDS("results/interactions_big.RDS")
-
-
-RMSE = function(pred, true) { sqrt(mean((true-pred)**2))}
-RMSE= function(pred, true) { (mean((true-pred)))}
-
-results_bias = 
-  sapply(2:7, function(k) {
-    effs = apply(abind::abind( lapply(1:100, function(i) RI[[i]][[k]]), along = 0), 2:3, mean)
-    return(
-      c(
-        RMSE(1, effs[1,1]),
-        RMSE(1, effs[5,5]),
-        RMSE(1, effs[1,2]),
-        RMSE(1, effs[3,4])
-      )
-    )
-  })
-results_bias = t(results_bias)
-colnames(results_bias) = c("X1", "X5", "X1:X2", "X3:X4")
-rownames(results_bias) = c("RF", "BRT", "NN", "L1", "L2", "glmnet")
-data = round(results_bias,3)
-data = data.frame(data[c(1:3, 6),])
-data$method = rownames(data)
-df_bias = data %>% pivot_longer(cols = c("X1", "X5", "X1.X2", "X3.X4"))
-
-
-results_var = 
-  sapply(2:7, function(k) {
-    effs = apply(abind::abind( lapply(1:100, function(i) RI[[i]][[k]]), along = 0)-1, 2:3, var)
-    return(
-      c(
-        (effs[1,1]),
-        (effs[5,5]),
-        (effs[1,2]),
-        (effs[3,4])
-      )
-    )
-  })
-results_var = t(results_var)
-colnames(results_var) = c("X1", "X5", "X1:X2", "X3:X4")
-rownames(results_var) = c( "RF", "BRT", "NN", "L1", "L2", "glmnet")
-data = round(results_var,3)
-data = data.frame(data[c(1:3, 6),])
-data$method = rownames(data)
-df_var = data %>% pivot_longer(cols = c("X1", "X5", "X1.X2", "X3.X4"))
-
-df_bias$name = as.factor(df_bias$name)
-levels(df_bias$name) = c("A", "C", "D", "B")
-df_bias$name = ordered(df_bias$name, levels = LETTERS[1:4])
-df_bias$sd = (df_var$value)
-colnames(df_bias)[2] = "Var"
-df2 = df_bias  %>% pivot_longer(cols = c("value", "sd"))
-color = RColorBrewer::brewer.pal(5, "Set2")
-
-df2$name = ifelse(df2$name == "value", "Bias", "Var")
-df2$name = factor(df2$name, levels = c("Var", "Bias"))
-#df2$value[df2$name == "Bias"] = df2$value[df2$name == "Bias"]**2
-
-g1 = ggplot(df3, aes(fill=name, y=value, x=Var)) + 
-  geom_bar(stat = 'identity', position = 'stack') + 
-  facet_grid(~ method, labeller = as_labeller(c("BRT" = "BRT", "glmnet" = "glmnet", "LM" = "LM", "NN" = "NN", "RF" = "RF"))) +
-  scale_fill_manual("",  values = c("Bias" = "grey", "Var" = "black") )+
-  labs(x = "", y = "") +
-  theme_bw() +
-  scale_x_discrete(labels = c("X1", "X5", "X1:X2", "X3:X4")) +
-  theme(panel.grid.major.x = element_blank()) +
-  #theme(axis.text=element_text(size=12)) +
-  theme(strip.background = element_blank()) +
-  theme(strip.text = element_text(colour = 'black')) + 
-  theme(strip.placement = "outside") +
-  theme(strip.text = element_text(hjust = 0)) +
-  theme(legend.position="bottom")
-
-g2 = ggplot(df2, aes(fill=name, y=value, x=Var)) + 
-  geom_bar(stat = 'identity', position = 'stack') + 
-  facet_grid(~ method, labeller = as_labeller(c("BRT" = "BRT", "glmnet" = "glmnet", "LM" = "LM", "NN" = "NN", "RF" = "RF"))) +
-  scale_fill_manual("",  values = c("Bias" = "grey", "Var" = "black") )+
-  labs(x = "", y = "") +
-  theme_bw() +
-  scale_x_discrete(labels = c("X1", "X5", "X1:X2", "X3:X4")) +
-  theme(panel.grid.major.x = element_blank()) +
-  #theme(axis.text=element_text(size=12)) +
-  theme(strip.background = element_blank()) +
-  theme(strip.text = element_text(colour = 'black')) + 
-  theme(strip.placement = "outside") +
-  theme(strip.text = element_text(hjust = 0)) +
-  theme(legend.position="bottom")
-grid.arrange(g1, g2, nrow = 2)
-
-
-
-```
