@@ -5,7 +5,14 @@ format:
     toc: true
     number-sections: true
     reference-doc: custom-reference-doc.docx
-  html: default
+    keep-md: true
+    fig-format: svg
+crossref:
+  fig-title: '**Figure S**'
+  fig-labels: arabic
+  tbl-title: '**Table S**'
+  tbl-labels: arabic
+  title-delim: ":"
 ---
 
 ```{r}
@@ -38,8 +45,333 @@ knitr::opts_chunk$set(fig.path="plots/", echo = FALSE)
 
 **Summary:** This document provides supporting information on Pichler & Hartig -- Can machine learning be used for causal inference.
 
+## Hyper-parameter tuning
 
-## Proof of concept
+We performed a hyper-parameter search to check if hyper-parameters can influence the unbiasness of the models. For that, we created simulation scenarios 100 and 1,000 observations, and each with 10 and 100 features. In each simulation scenario, two features (X~1~ and X~5~) had an effect on Y and all other features had no effect on Y. Features were sampled from a multivariate normal distribution and all features were randomly correlated (Variance-covariance matrix $\Sigma$ was sampled from a Wishart distribution (degrees of freedom = number of features (10 or 100), scale matrix was the identity matrix).
+
+3,000 combinations of hyper-parameters were randomly drawn (Table S1). For each draw, the data was sampled, and bias for X~1~, X~2~, and X~5~ were calculated (bias = true effect - estimated effect, effects were estimated by MCE). In each draw, holdout data of the same size as the training data were used used to calculate the root mean squared error (RMSE) of the models.
+
+| Algorithm               | Hyper-parameter       | Range                                             |
+|---------------------|----------------------------|-----------------------|
+| Neural Network          | activation function   | \[relu, leaky_relu, tanh, selu, elu, celu, gelu\] |
+|                         | depth                 | \[1, 20\]                                         |
+|                         | width                 | \[2, 171\]                                        |
+|                         | batch size (sgd)      | \[1, 100\]                                        |
+|                         | dropout rate          | \[0, 0.3\]                                        |
+| Boosted Regression Tree | eta                   | \[0.01, 0.4\]                                     |
+|                         | max depth             | \[2, 25\]                                         |
+|                         | subsample             | \[0.5, 1\]                                        |
+|                         | max tree              | \[30, 125\]                                       |
+|                         | lambda                | \[1, 20\]                                         |
+| Random Forest           | mtry                  | \[2, 99\]                                         |
+|                         | min node size         | \[2, 70\]                                         |
+|                         | max depth             | \[2, 50\]                                         |
+|                         | regularization factor | \[0, 1\]                                          |
+
+: Overview over hyper-parameters for Neural Network, Boosted Regression Tree, and Random Forest {#tbl-Hyper}
+
+### Neural Network
+
+```{r}
+#| label: fig-Fig_S1
+#| fig-cap: "Trade-off between bias (feature X~1~, true effect = 1) and RMSE of the fittend NNs. Each point is a simulated scenario with a different set of hyper-parameters. Scenarios with 1,00 and 1,000 observations and with 100 or 10 features (P) were simulated. In each scenario, only two features (X~1~ and X~5~) had an effect (effect size = 1) on the response variable Y. Hyper-parameters (activation functions, depth and width of the hidden layers, batch_size (sgd), and dropout) were randomly sampled."
+#| fig-width: 10
+#| fig-height: 2.8
+#| warning: false
+#| message: false
+small_10 = readRDS("results/NN_pars_100_10.RDS")
+small_100 = readRDS("results/NN_pars_100_100.RDS")
+large_10 = readRDS("results/NN_pars_1000_10.RDS")
+large_100 = readRDS("results/NN_pars_1000_100.RDS")
+results = list(small_10, small_100, large_10, large_100)
+results = lapply(results, function(r) do.call(rbind, r))
+results = lapply(results, function(r) r[abs(r$bias_1) < 0.98,])
+results = lapply(results, function(r) r[abs(r$bias_5) < 0.98,])
+
+par(mfrow = c(1, 4), mar = rep(4, 4))
+title = c("N = 100, P = 10", "N = 100, P = 100", "N = 1000, P = 10", "N = 1000, P = 100")
+for(i in 1:4) {
+  plot(results[[i]]$bias_1, results[[i]]$rmse, las = 1, xlab = "Bias", ylab = "RMSE",
+       main = title[i])
+}
+
+res = 
+  do.call(rbind,
+    lapply(1:4, function(i) {
+      results[[i]]$scenario = c("N = 100, P = 10", "N = 100, P = 100", "N = 1000, P = 10", "N = 1000, P = 100")[i]
+      return(results[[i]])
+      })
+  )
+
+res$scenario = forcats::lvls_reorder(res$scenario, c(2, 1, 3, 4))
+
+```
+
+In general, we found only a weak correlation between the bias of X~1~ and the RMSE on the holdout data (Fig. S1). This correlation was slightly stronger in the data-poor situations (N = 100, P = 100, and N = 1000, P = 100; Fig. S1).
+
+```{r}
+#| label: fig-Fig_S2
+#| fig-cap: "Effects of hyper-parameters of neural networks on bias of feature X~1~. Scenarios with 1,00 and 1,000 observations and with 100 or 10 features (P) were simulated. In each scenario, only two features (X~1~ and X~5~) had an effect (effect size = 1) on the response variable Y. Hyper-parameters (activation functions, depth and width of the hidden layers, batch_size (sgd), and dropout) were randomly sampled. Effects of hyper-parameters were estimated by linear regression models."
+#| fig-width: 16.7
+#| fig-height: 14
+#| warning: false
+#| message: false
+
+
+m1 = lm(bias_1~0+scenario+scenario:(activations+depth+width+sgd+dropout), data = res[complete.cases(res),])
+m2 = lm(bias_0~0+scenario+scenario:(activations+depth+width+sgd+dropout), data = res[complete.cases(res),])
+m3 = lm(rmse~0+scenario+scenario:(activations+depth+width+sgd+dropout), data = res[complete.cases(res),])
+
+ggs = 
+  lapply(list(m1, m2, m3), function(m) {
+      g1 = plot((ggpredict(m, terms = c("scenario", "activations" )))) 
+      g2 = plot((ggpredict(m, terms = c("depth", "scenario" ))))
+      g3 = plot((ggpredict(m, terms = c("width", "scenario" ))))
+      g4 = plot((ggpredict(m, terms = c("sgd", "scenario" ))))
+      g5 = plot((ggpredict(m, terms = c("dropout", "scenario" ))))
+      return(list(g1, g2, g3, g4, g5))
+  })
+
+ggs = do.call(c, ggs)
+ggs = lapply(ggs, function(g) g+theme_bw()+ggtitle("")+ylab("") +theme(legend.position = "none"))
+ggs[-c(11:15)] = lapply(ggs[-c(11:15)], function(g) g+xlab(""))
+
+extract_legend <- function(my_ggp) {
+  step1 <- ggplot_gtable(ggplot_build(my_ggp))
+  step2 <- which(sapply(step1$grobs, function(x) x$name) == "guide-box")
+  step3 <- step1$grobs[[step2]]
+  return(step3)
+}
+leg1 =  extract_legend( plot((ggpredict(m1, terms = c("scenario", "activations" )))) + 
+                          scale_color_manual(values=RColorBrewer::brewer.pal(8, "Set2")) +
+                          theme(legend.position = "bottom"))
+leg2 = extract_legend( plot((ggpredict(m1, terms = c("dropout", "scenario" )))) + theme(legend.position = "bottom"))
+
+ggs[c(1, 6, 11)] = lapply(ggs[c(1, 6, 11)], function(g) g + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  scale_color_manual(values=RColorBrewer::brewer.pal(8, "Set2")))
+
+ggs[[1]] = ggs[[1]] + ylab("Bias of X1 (effect = 1)")
+ggs[[6]] = ggs[[6]] + ylab("Bias of X2 (effect = 0)")
+ggs[[11]] = ggs[[11]] + ylab("RMSE")
+
+do.call(grid.arrange, list(do.call(arrangeGrob, c(ggs, ncol = 5)), arrangeGrob(leg1, leg2, ncol = 2),  nrow = 2, heights = c(15, 1)))
+
+
+
+```
+
+We found significant differences between the activation functions for the bias of X (true effect = 1) and the RMSE (N = 100, P = 100). Here, the 'selu' activation function had the smallest biases and RMSE (Fig. S2). With more data, or less features, the differences between the activation functions got smaller and for data-rich situations (N = 1000, P = 10), the confidence intervals of the different activation functions were in the same range (Fig. S2).
+
+Depth had a strong effect on the bias and the RMSE, and this effect was stronger for the data-poor scenario (N = 100, P = 100; Fig. S2). Lower depth had smaller biases and lower RMSE. Width had a weak effect in the data-poor situation, but stronger effects in data-rich scenarios on the bias. But width had strong effects on the RMSE, increasing the width led to lower RMSE (this effect was weaker for the data-rich scenarios, Fig. S2). Dropout had only small effects on the biases and the RMSE.
+
+Hyper-parameters had only small effects on the bias of the zero-effect (X~2~), thus it seems that the NN can identify, reliable, zero-effects independent of the hyper-parameters (Fig. S2).
+
+### Boosted Regression Trees
+
+The correlation between RMSE and bias was stronger for data-rich scenarios than for the data-poor scenarios (Fig. S3). We found a stronger relation between RMSE and bias of X~1~ for BRT than for NN (Fig. S1, S3).
+
+```{r}
+#| label: fig-Fig_S3
+#| fig-cap: "Trade-off between bias (feature X~1~, true effect = 1) and RMSE of the fittend BRTs. Each point is a simulated scenario with a different set of hyper-parameters (3,000 samples). Scenarios with 1,00 and 1,000 observations and with 100 or 10 features (P) were simulated. In each scenario, only two features (X1 and X5) had an effect (effect size = 1) on the response variable Y. Hyper-parameters (max_depth, subsample, lambda, and max_tree) were randomly sampled."
+#| fig-width: 8
+#| fig-height: 2.5
+small_10 =  readRDS("results/BRT_pars_100_10.RDS")
+small_100 = readRDS("results/BRT_pars_100_100.RDS")
+large_10 =  readRDS("results/BRT_pars_1000_10.RDS")
+large_100 = readRDS("results/BRT_pars_1000_100.RDS")
+results = list(small_10, small_100, large_10, large_100)
+results = lapply(results, function(r) do.call(rbind, r))
+results = lapply(results, function(r) r[abs(r$bias_1) < 0.98,])
+results = lapply(results, function(r) r[abs(r$bias_5) < 0.98,])
+
+
+par(mfrow = c(1, 4), mar = rep(4, 4))
+title = c("N = 100, P = 10", "N = 100, P = 100", "N = 1000, P = 10", "N = 1000, P = 100")
+for(i in 1:4) {
+  plot(results[[i]]$bias_1, results[[i]]$rmse, las = 1, xlab = "Bias", ylab = "RMSE",
+       main = title[i])
+}
+
+res = 
+  do.call(rbind,
+    lapply(1:4, function(i) {
+      results[[i]]$scenario = c("N = 100, P = 10", "N = 100, P = 100", "N = 1000, P = 10", "N = 1000, P = 100")[i]
+      return(results[[i]])
+      })
+  )
+
+res$scenario = forcats::lvls_reorder(res$scenario, c(2, 1, 3, 4))
+
+
+```
+
+Overall, the effects on bias (X~1~ ) and RMSE were similar, although small (Fig. S4). Lambda and max tree had the largest effects on the biases and the RMSE (Fig. S3). Effects on the bias of the zero-effect, X~2~, were small and had large confidence intervals (Fig. S3).
+
+```{r}
+#| label: fig-Fig_S4
+#| fig-cap: "Effects of hyper-parameters of BRT on bias of feature X1. Scenarios with 1,00 and 1,000 observations and with 100 or 10 features (P) were simulated. In each scenario, only two features (X1 and X5) had an effect (effect size = 1) on the response variable Y. Hyper-parameters (max_depth, subsample, lambda, and max_tree) were randomly sampled. Effects of hyper-parameters were estimated by linear regression models."
+#| fig-width: 14
+#| fig-height: 13
+
+
+m1 = lm(bias_1~0+scenario+scenario:(max_depth+subsample+lambda+max_tree), data = res[complete.cases(res),])
+m2 = lm(bias_0~0+scenario+scenario:(max_depth+subsample+lambda+max_tree), data = res[complete.cases(res),])
+m3 = lm(rmse~0+scenario+scenario:(max_depth+subsample+lambda+max_tree), data = res[complete.cases(res),])
+
+ggs = 
+  lapply(list(m1, m2, m3), function(m) {
+      g2 = plot((ggpredict(m, terms = c("max_depth", "scenario" ))))
+      g3 = plot((ggpredict(m, terms = c("subsample", "scenario" ))))
+      g4 = plot((ggpredict(m, terms = c("lambda", "scenario" ))))
+      g5 = plot((ggpredict(m, terms = c("max_tree", "scenario" ))))
+      return(list( g2, g3, g4, g5))
+  })
+
+ggs = do.call(c, ggs)
+ggs = lapply(ggs, function(g) g+theme_bw()+ggtitle("")+ylab("") +theme(legend.position = "none"))
+ggs[-c(9:12)] = lapply(ggs[-c(9:12)], function(g) g+xlab(""))
+
+extract_legend <- function(my_ggp) {
+  step1 <- ggplot_gtable(ggplot_build(my_ggp))
+  step2 <- which(sapply(step1$grobs, function(x) x$name) == "guide-box")
+  step3 <- step1$grobs[[step2]]
+  return(step3)
+}
+leg2 = extract_legend( plot((ggpredict(m1, terms = c("subsample", "scenario" )))) + theme(legend.position = "bottom"))
+
+ggs[[1]] = ggs[[1]] + ylab("Bias of X1 (effect = 1)")
+ggs[[5]] = ggs[[5]] + ylab("Bias of X2 (effect = 0)")
+ggs[[9]] = ggs[[9]] + ylab("RMSE")
+
+do.call(grid.arrange, list(do.call(arrangeGrob, c(ggs, ncol = 4)), leg2,  nrow = 2, heights = c(15, 1)))
+
+```
+
+#### Confounder unequal scenario
+
+As we found large biases in the proof-of-concept simulations for BRT, we repeated the hyper-paramter tuning for the worst scenario (unequal confounder, Fig. 2C in the main text).
+
+We used the second best set (eta = 0.31, max depth = 5, subsample = 0.55, lambda = 4.29, max tree = 116) for the rest of analyses. because it had the best trade-off for the biases of three features and the RMSE (Table S2).
+
+```{r}
+#| label: tbl-Table_S1
+#| tbl-cap: "Trade-off between bias (feature X~1~, true effect = 1) and RMSE of the fittend BRT Each point is a simulated scenario with a different set of hyper-parameters. Scenarios with 1,00 and 1,000 observations and with 100 or 10 features (P) were simulated. In each scenario, only two features (X~1~ and X~5~) had an effect (effect size = 1) on the response variable Y. Hyper-parameters (max_depth, subsample, lambda, and max_tree) were randomly sampled (3,000 draws)."
+
+results = readRDS("results/BRT_pars_confounder_unequal.RDS")
+results = do.call(rbind, results)
+results = results[abs(results$bias_1) < 0.98,]
+results = results[abs(results$bias_0) < 0.98,]
+results$weighted_bias = abs(results$bias_1) + 2*(abs(results$bias_0))
+colnames(results)[c(6, 7, 8)] = c("Bias X1", "Bias X2", "Bias X3")
+
+flextable(round(head(results[order(results$weighted_bias, decreasing = FALSE),]), 2))
+
+```
+
+### Random Forest
+
+RF showed a stronger correlation between bias of X~1~ and the RMSE (Fig. S5) than NN and BRT.
+
+```{r}
+#| label: fig-Fig_S5
+#| fig-cap: "Trade-off between bias (feature X~1~, true effect = 1) and RMSE of the fittend RF. Each point is a simulated scenario with a different set of hyper-parameters. Scenarios with 1,00 and 1,000 observations and with 100 or 10 features (P) were simulated. In each scenario, only two features (X~1~ and X~5~) had an effect (effect size = 1) on the response variable Y. Hyper-parameters (max_depth, subsample, lambda, and max_tree) were randomly sampled."
+#| fig-width: 8
+#| fig-height: 2.5
+small_10 =  readRDS("results/RF_pars_100_10.RDS")
+small_100 = readRDS("results/RF_pars_100_100.RDS")
+large_10 =  readRDS("results/RF_pars_1000_10.RDS")
+large_100 = readRDS("results/RF_pars_1000_100.RDS")
+results = list(small_10, small_100, large_10, large_100)
+results = lapply(results, function(r) do.call(rbind, r))
+results = lapply(results, function(r) r[abs(r$bias_1) < 0.98,])
+results = lapply(results, function(r) r[abs(r$bias_5) < 0.98,])
+
+
+par(mfrow = c(1, 4), mar = rep(4, 4))
+title = c("N = 100, P = 10", "N = 100, P = 100", "N = 1000, P = 10", "N = 1000, P = 100")
+for(i in 1:4) {
+  plot(results[[i]]$bias_1, results[[i]]$rmse, las = 1, xlab = "Bias", ylab = "RMSE",
+       main = title[i])
+}
+
+res = 
+  do.call(rbind,
+    lapply(1:4, function(i) {
+      results[[i]]$scenario = c("N = 100, P = 10", "N = 100, P = 100", "N = 1000, P = 10", "N = 1000, P = 100")[i]
+      return(results[[i]])
+      })
+  )
+
+res$scenario = forcats::lvls_reorder(res$scenario, c(2, 1, 3, 4))
+
+
+```
+
+Bias of X~1~ was mostly only affect by the mtry parameter (Fig. S6), which was within our expectations because it controls the spill-over effect for collinear features.
+
+```{r}
+#| label: fig-Fig_S6
+#| fig-cap: "Effects of hyper-parameters of neural networks on bias of feature X~1~. Scenarios with 1,00 and 1,000 observations and with 100 or 10 features (P) were simulated. In each scenario, only two features (X~1~ and X~5~) had an effect (effect size = 1) on the response variable Y. Hyper-parameters (max_depth, subsample, lambda, and max_tree) were randomly sampled. Effects of hyper-parameters were estimated by linear regression models."
+#| fig-width: 14
+#| fig-height: 13
+
+
+m1 = lm(bias_1~0+scenario+scenario:(mtry+min.node.size+max.depth+regularization.factor), data = res[complete.cases(res),])
+m2 = lm(bias_0~0+scenario+scenario:(mtry+min.node.size+max.depth+regularization.factor), data = res[complete.cases(res),])
+m3 = lm(rmse~0+scenario+scenario:(mtry+min.node.size+max.depth+regularization.factor), data = res[complete.cases(res),])
+
+ggs = 
+  lapply(list(m1, m2, m3), function(m) {
+      g2 = plot((ggpredict(m, terms = c("mtry", "scenario" ))))
+      g3 = plot((ggpredict(m, terms = c("min.node.size", "scenario" ))))
+      g4 = plot((ggpredict(m, terms = c("max.depth", "scenario" ))))
+      g5 = plot((ggpredict(m, terms = c("regularization.factor", "scenario" ))))
+      return(list( g2, g3, g4, g5))
+  })
+
+ggs = do.call(c, ggs)
+ggs = lapply(ggs, function(g) g+theme_bw()+ggtitle("")+ylab("") +theme(legend.position = "none"))
+ggs[-c(9:12)] = lapply(ggs[-c(9:12)], function(g) g+xlab(""))
+
+extract_legend <- function(my_ggp) {
+  step1 <- ggplot_gtable(ggplot_build(my_ggp))
+  step2 <- which(sapply(step1$grobs, function(x) x$name) == "guide-box")
+  step3 <- step1$grobs[[step2]]
+  return(step3)
+}
+leg2 = extract_legend( plot((ggpredict(m1, terms = c("mtry", "scenario" )))) + theme(legend.position = "bottom"))
+
+ggs[[1]] = ggs[[1]] + ylab("Bias of X1 (effect = 1)")
+ggs[[5]] = ggs[[5]] + ylab("Bias of X2 (effect = 0)")
+ggs[[9]] = ggs[[9]] + ylab("RMSE")
+
+do.call(grid.arrange, list(do.call(arrangeGrob, c(ggs, ncol = 4)), leg2,  nrow = 2, heights = c(15, 1)))
+
+```
+
+#### Confounder unequal scenario
+
+As we found large biases in the proof-of-concept simulations for RF, we repeated the hyper-paramter tuning for the worst, the last, scenario (unequal confounder, Fig. 2C in the main text).
+
+We tried the second best set of hyper-parameters in the proof-of-concept simulations but it actually led to larger biases in Fig. 2A and 2B and we decided to fall back to the default values.
+
+```{r}
+#| label: tbl-Table_S2
+#| tbl-cap: "Trade-off between bias (feature X~1~, true effect = 1) and RMSE of the fittend RF Each point is a simulated scenario with a different set of hyper-parameters. Scenarios with 1,00 and 1,000 observations and with 100 or 10 features (P) were simulated. In each scenario, only two features (X~1~ and X~5~) had an effect (effect size = 1) on the response variable Y. Hyper-parameters (max_depth, subsample, lambda, and max_tree) were randomly sampled."
+
+results = readRDS("results/RF_pars_confounder_unequal.RDS")
+results = do.call(rbind, results)
+results = results[abs(results$bias_1) < 0.98,]
+results = results[abs(results$bias_0) < 0.98,]
+results$weighted_bias = abs(results$bias_1) + 2*(abs(results$bias_0))
+colnames(results)[c(6, 7, 8)] = c("Bias X1", "Bias X2", "Bias X3")
+
+flextable(round(head(results[order(results$weighted_bias, decreasing = FALSE),]), 2))
+
+```
+
+## Proof of concept - Additional results
 
 ```{r}
 #| echo: false
@@ -100,13 +432,16 @@ layout = matrix(c(0,10,
 
 ```
 
-### Variance 
+All models (Fig. 2) showed small variances $<0.01$ (Fig. S7)
 
 ```{r}
-#| label: Fig_S1
+#| label: fig-Fig_S7
+#| fig-cap: 'Variances of effect estimates for different ML algorithms in three different simulated causal simulations (a, b, and c). Sample sizes are so large that stochastic effects can be excluded. Effects of the ML models were inferred using marginal conditional effects. Row a) shows results for simulations with uncorrelated features with effect sizes (x~1~: 1.0, x~2~: 0.5, x~3~: 1.0). Row b) shows the results for simulations with x~1~ and x~2~ being strongly correlated (Pearson correlation factor = 0.9) but only x~1~ has an effect on y (mediator) and row c) shows the results for x~1~ and x~2~ being strongly correlated (Pearson correlation factor = 0.9 with x~1~ and x~2~ having effects on y (confounder scenario)'
 #| fig-width: 10
 #| fig-height: 9
-sc = c("no_effects", "no_effects", "confounder", "collinearity_0.99")
+
+sc = c("no_effects", "effects", "confounder_unequal", "collinearity_0.90")
+
 
 algorithms = c("LM","RF",  "BRT", "NN","Dropout", "l1", "l2", "l1l2")
 
@@ -167,51 +502,14 @@ for(i in c(1, 2, 3, 4, 8)) {
 
 ```
 
-
-#### RMSE on holdout
-
-```{r}
-#| label: Fig_SRMSEPROOF
-#| fig-width: 10
-#| fig-height: 5
-
-res_rmse = do.call(rbind, lapply(Results_rmse, function(d) data.frame(values = d, method = rownames(d))))
-res_rmse$scenario = rep(names(Results_rmse), each = 8)
-res_rmse$type = "rmse"
-
-res_rmse_sd = do.call(rbind, lapply(Results_rmse_sd, function(d) data.frame(values = d, method = rownames(d))))
-res_rmse$var = res_rmse_sd$values
-
-
-res_rmse$method = forcats::lvls_reorder(res_rmse$method, c(6, 8, 1, 7, 4, 3, 5, 2))
-
-ggplot(res_rmse, aes(y=values, x=method)) + 
-  geom_bar(stat = 'identity', fill = "lightgrey") +
-  geom_errorbar(aes(ymin=values-var, ymax=values+var), width=.2) +
-  facet_grid(~ scenario) +
-  theme_bw()  + 
-  labs(x = "", y = "") +
-  theme(panel.grid.major.x = element_blank()) +
-  theme(strip.background = element_rect(fill = "white")) +
-  theme(strip.text = element_text(colour = 'black')) + 
-  theme(strip.placement = "outside") +
-  theme(strip.text = element_text(hjust = 0.5)) +
-  theme(legend.position="bottom")+
-  theme(axis.text.x = element_text(angle = 45, hjust=1))
-
-```
-
-
-
 ### NN with Dropout, LASSO, and Ridge
 
-#### Bias
-
-Dropout, l1 and l2 bias
+We additionally tested NN with dropout (rate = 0.2), LASSO regression, and Ridge regression for the proof-of-concept simulations.
 
 ```{r}
-#| label: Fig_S2
-#| fig-width: 7
+#| label: fig-Fig_S8
+#| fig-cap: "Bias on effect estimates for additional ML algorithms (NN with Dropout, LASSO, and Ridge regression) in three different simulated causal simulations (a, b, and c).Sample sizes are so large that stochastic effects can be excluded. Effects of the ML models were inferred using marginal conditional effects. Row a) shows results for simulations with uncorrelated features with effect sizes (x~1~: 1.0, x~2~: 0.5, x~3~: 1.0). Row b) shows the results for simulations with x~1~ and x~2~ being strongly correlated (Pearson correlation factor = 0.9) but only x~1~ has an effect on y (mediator) and row c) shows the results for x~1~ and x~2~ being strongly correlated (Pearson correlation factor = 0.9 with x~1~ and x~2~ having effects on y (confounder scenario)"
+#| fig-width: 10
 #| fig-height: 9
 
 sc = c("no_effects", "effects", "confounder_unequal", "collinearity_0.90")
@@ -219,7 +517,7 @@ sc = c("no_effects", "effects", "confounder_unequal", "collinearity_0.90")
 algorithms = c("LM","RF",  "BRT", "NN","Dropout", "l1", "l2", "l1l2")
 
 par(mfcol = c(3,4), mar = c(5,0.5, 2, 1.4), oma = c(1, 2, 2, 1))
-labs =  c("LM","RF",  "BRT", "NN","Dropout", "l1", "l2", "Elastic-net")
+labs =  c("LM","RF",  "BRT", "NN","NN+Dropout", "LASSO", "Ridge", "Elastic-net")
 #plot_scenarios(1.0)
 #dev.off()
 cex_fac = 1.3
@@ -281,24 +579,21 @@ for(i in c(5, 6, 7)) {
 
 ```
 
-
-#### Variance
-
-Dropout, l1 and l2 variance
+All three methods showed biased estimates in the first scenario for effects without collinearity (Fig. S8). With collinearity, all three showed larger biases but Ridge regression showed the largest biases (Fig. S8).
 
 ```{r}
-#| label: Fig_S3
-#| fig-width: 7
+#| label: fig-Fig_S9
+#| fig-cap: "Variances of effect estimates for additional ML algorithms (NN with Dropout, LASSO, and Ridge regression) in three different simulated causal simulations (a, b, and c). Sample sizes are so large that stochastic effects can be excluded. Effects of the ML models were inferred using marginal conditional effects. Row a) shows results for simulations with uncorrelated features with effect sizes (x~1~: 1.0, x~2~: 0.5, x~3~: 1.0). Row b) shows the results for simulations with x~1~ and x~2~ being strongly correlated (Pearson correlation factor = 0.9) but only x~1~ has an effect on y (mediator) and row c) shows the results for x~1~ and x~2~ being strongly correlated (Pearson correlation factor = 0.9 with x~1~ and x~2~ having effects on y (confounder scenario)"
+#| fig-width: 10
 #| fig-height: 9
+
 
 sc = c("no_effects", "effects", "confounder_unequal", "collinearity_0.90")
 
 algorithms = c("LM","RF",  "BRT", "NN","Dropout", "l1", "l2", "l1l2")
 
 par(mfcol = c(3,4), mar = c(5,0.5, 2, 1.4), oma = c(1, 2, 2, 1))
-labs =  c("LM","RF",  "BRT", "NN","Dropout", "l1", "l2", "Elastic-net")
-#plot_scenarios(1.0)
-#dev.off()
+labs =  c("LM","RF",  "BRT", "NN","NN+Dropout", "LASSO", "Ridge", "Elastic-net")
 cex_fac = 1.3
 
 plot_scenarios(1.0, layout = matrix(c(1,1,
@@ -357,119 +652,59 @@ for(i in c(5, 6, 7)) {
 }
 ```
 
+While estimates from NN with dropout had the smallest biases, they had the largest variances (Fig. S9), though these variances were still small (Fig. S9).
 
+### RMSE on holdout
 
-## Sensitivity analysis
+In addition to bias and variance, we calculated the predictive error using the RMSE on holdout data which had the same size as the training data (N = 1000).
 
-```{r}
-
-small_10 = readRDS("results/NN_pars_100_10.RDS")
-small_100 = readRDS("results/NN_pars_100_100.RDS")
-large_10 = readRDS("results/NN_pars_1000_10.RDS")
-large_100 = readRDS("results/NN_pars_1000_100.RDS")
-results = list(small_10, small_100, large_10, large_100)
-results = lapply(results, function(r) do.call(rbind, r))
-results = lapply(results, function(r) r[abs(r$bias_1) < 0.98,])
-results = lapply(results, function(r) r[abs(r$bias_5) < 0.98,])
-
-
-models_bias_1 = lapply(results, function(data) lm(bias_1~0+activations+depth+width+sgd+dropout, data = data[complete.cases(data),]))
-models_bias_0 = lapply(results, function(data) lm(bias_0~0+activations+depth+width+sgd+dropout, data = data[complete.cases(data),]))
-
-models_rmse = lapply(results, function(data) lm(rmse~0+activations+depth+width+sgd+dropout, data = data))
-
-par(mfrow = c(1, 4), mar = rep(4, 4))
-title = c("N = 100, P = 10", "N = 100, P = 100", "N = 1000, P = 10", "N = 1000, P = 100")
-for(i in 1:4) {
-  plot(results[[i]]$bias_1, results[[i]]$rmse, las = 1, xlab = "Bias", ylab = "RMSE",
-       main = title[i])
-}
-
-
-```
-
-
+RF, BRT, and Dropout showed the highest RMSE in all three scenarios (Fig. S10). LASSO and elastic-net showed the smallest RMSE in all three scenarios (Fig. S10).
 
 ```{r}
-#| label: Fig_S777
-#| fig-width: 14
-#| fig-height: 13
+#| label: fig-Fig_S10
+#| fig-width: 7
+#| fig-height: 3
+#| fig-cap: "Root mean squared error (RMSE) for different ML algorithms in three different simulated causal simulations (a, b, and c). Sample sizes are so large that stochastic effects can be excluded. 1,000 observations were used to train the models and 1,000 observations were used to evaluate the predictive performance of the models. Column 'effects' shows results for simulations with uncorrelated features with effect sizes (x1: 1.0, x2: 0.5, x3: 1.0). Column 'collinearity_0.90' shows the results for simulations with x1 and x2 being strongly correlated (Pearson correlation factor = 0.9) but only x1 has an effect on y (mediator) and column 'confounder_unequal' shows the results for x1 and x2 being strongly correlated (Pearson correlation factor = 0.9 with x1 and x2 having effects on y (confounder scenario)."
 
+res_rmse = do.call(rbind, lapply(Results_rmse, function(d) data.frame(values = d, method = rownames(d))))
+res_rmse$scenario = rep(names(Results_rmse), each = 8)
+res_rmse$type = "rmse"
 
-ggs = do.call(c, lapply(models_bias_1, function(g) plot(ggpredict(g) )))
-ggs = lapply(ggs, function(g) g+xlab("") )
-ggs[-c(1, 6, 11, 16)] = lapply(ggs[-c(1, 6, 11, 16)], function(g) g+ylab(""))
-ggs[c(1, 6, 11, 16)] = lapply(ggs[c(1, 6, 11, 16)], function(g) g+ylab("Bias of X1"))
-ggs = lapply(ggs, function(g) g+ggtitle("") )
+res_rmse_sd = do.call(rbind, lapply(Results_rmse_sd, function(d) data.frame(values = d, method = rownames(d))))
+res_rmse$var = res_rmse_sd$values
 
-ggs[[3]] = ggs[[3]] + ggtitle("N = 100, P = 10")
-ggs[[8]] = ggs[[8]] + ggtitle("N = 100, P = 100")
-ggs[[13]] = ggs[[13]] + ggtitle("N = 1000, P = 10")
-ggs[[18]] = ggs[[18]] + ggtitle("N = 1000, P = 100")
-ggs = lapply(ggs, function(g) g+theme_bw() )
-ggs[c(1, 6, 11, 16)] = lapply(ggs[c(1, 6, 11, 16)], function(g) g+ theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)))
+res_rmse = 
+  res_rmse %>% 
+           filter(scenario %in% sc[-1])
 
+res_rmse$method = forcats::lvls_reorder(res_rmse$method, c(6, 8, 1, 7, 4, 3, 5, 2))
+res_rmse$scenario = forcats::lvls_reorder(res_rmse$scenario, c(3, 1, 2))
 
-do.call(grid.arrange, c(ggs, ncol = 5))
+ggplot(res_rmse, aes(y=values, x=method)) + 
+  geom_bar(stat = 'identity', fill = "lightgrey") +
+  geom_errorbar(aes(ymin=values-var, ymax=values+var), width=.2) +
+  facet_grid(~ scenario) +
+  theme_bw()  + 
+  labs(x = "", y = "") +
+  theme(panel.grid.major.x = element_blank()) +
+  theme(strip.background = element_rect(fill = "white")) +
+  theme(strip.text = element_text(colour = 'black')) + 
+  theme(strip.placement = "outside") +
+  theme(strip.text = element_text(hjust = 0.5)) +
+  theme(legend.position="bottom")+
+  theme(axis.text.x = element_text(angle = 45, hjust=1))
+
 ```
-
-
-
-```{r}
-#| label: Fig_S888
-#| fig-width: 14
-#| fig-height: 13
-
-
-ggs = do.call(c, lapply(models_bias_0, function(g) plot(ggpredict(g) )))
-ggs = lapply(ggs, function(g) g+xlab("") )
-ggs[-c(1, 6, 11, 16)] = lapply(ggs[-c(1, 6, 11, 16)], function(g) g+ylab(""))
-ggs[c(1, 6, 11, 16)] = lapply(ggs[c(1, 6, 11, 16)], function(g) g+ylab("Bias of X2"))
-ggs = lapply(ggs, function(g) g+ggtitle("") )
-
-ggs[[3]] = ggs[[3]] + ggtitle("N = 100, P = 10")
-ggs[[8]] = ggs[[8]] + ggtitle("N = 100, P = 100")
-ggs[[13]] = ggs[[13]] + ggtitle("N = 1000, P = 10")
-ggs[[18]] = ggs[[18]] + ggtitle("N = 1000, P = 100")
-ggs = lapply(ggs, function(g) g+theme_bw() )
-ggs[c(1, 6, 11, 16)] = lapply(ggs[c(1, 6, 11, 16)], function(g) g+ theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)))
-
-
-do.call(grid.arrange, c(ggs, ncol = 5))
-```
-
-
-
-```{r}
-#| label: Fig_S999
-#| fig-width: 14
-#| fig-height: 13
-
-
-ggs = do.call(c, lapply(models_rmse, function(g) plot(ggpredict(g) )))
-ggs = lapply(ggs, function(g) g+xlab("") )
-ggs[-c(1, 6, 11, 16)] = lapply(ggs[-c(1, 6, 11, 16)], function(g) g+ylab(""))
-ggs[c(1, 6, 11, 16)] = lapply(ggs[c(1, 6, 11, 16)], function(g) g+ylab("RMSE"))
-ggs = lapply(ggs, function(g) g+ggtitle("") )
-
-ggs[[3]] = ggs[[3]] + ggtitle("N = 100, P = 10")
-ggs[[8]] = ggs[[8]] + ggtitle("N = 100, P = 100")
-ggs[[13]] = ggs[[13]] + ggtitle("N = 1000, P = 10")
-ggs[[18]] = ggs[[18]] + ggtitle("N = 1000, P = 100")
-ggs = lapply(ggs, function(g) g+theme_bw() )
-ggs[c(1, 6, 11, 16)] = lapply(ggs[c(1, 6, 11, 16)], function(g) g+ theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)))
-
-
-do.call(grid.arrange, c(ggs, ncol = 5))
-```
-
 
 ## Data-poor simulation
 
-### RMSE data-poor without interactions
+### Without interactions
+
+#### RMSE
 
 ```{r}
-#| label: Fig_SRMSEPDATAPOOR
+#| label: fig-Fig_S11
+#| fig-cap: "Root mean squared error (RMSE) of models for data-poor simulations. N = 100 (low), 600 (med), 2,000 (large) was simulated with 100 features. All features were weakly correlated. Two features had main effects (effect sizes = 1, X1 and X5) on the response and the other 95 features had no effects. Models (LM, RF, BRT, NN, Elastic-net) were fitted on the simulated data and holdout data of the same size as the training data was used to estimate predictive error (RMSE). Simulation and model fitting were repeated 100 times. "
 #| fig-width: 10
 #| fig-height: 5
 
@@ -524,12 +759,11 @@ ggplot(res_rmse, aes(y=values, x=method)) +
 
 ```
 
+### With interactions
 
-
-### With interactions and Collinearity
+#### With Collinearity
 
 ```{r}
-#| echo: false
 effs_true = c(1.0, 0.0, 0.0, 0.0, 1, rep(0, 24))
 inter_true = diag(effs_true)
 inter_true[1,2] = inter_true[2,1] = inter_true[3, 4] = inter_true[4,3] = 1
@@ -563,7 +797,6 @@ extract_V= function(RI) {
 }
 
 ```
-
 
 ```{r}
 #| echo: false
@@ -602,11 +835,13 @@ data$method = forcats::lvls_reorder(data$method, c(5,8, 1, 6,7, 3, 4, 2))
 data$label = c(rep("NA", 8), rep("", nrow(data)-8))
 ```
 
+##### Bias
+
 ```{r}
-#| label: Fig_S4
+#| label: fig-Fig_S14
+#| fig-cap: "Bias and variance of estimated effects in a data-poor situation. N = 100, 600, 2,000 was simulated with 29 features. All features were weakly correlated. Two features had main effects (effect sizes = 1) on the response and 4 features had two interaction effects (effect sizes = 1) on the response. Models (LM, RF, BRT, NN, Elastic-net) were fitted on the simulated data and effect estimates were approximated using MCEs. LM and elastic-net received all possible two-way interactions (406) as features. Simulation and model fitting were repeated 100 times. For all effects (Main = 1, Inter = 1) and non-effects (Main = 0, Inter = 0), bias and variance of the effect estimates were calculated."
 #| fig-width: 10
 #| fig-height: 6.7
-#| warning: false
 
 levels(data$method)[8] = "Elastic-net"
 
@@ -650,15 +885,13 @@ for(j in 1:3) {
 
 ```
 
-
-#### RMSE
-
+##### RMSE
 
 ```{r}
-#| label: Fig_SRMSEPDATAPOOR2
+#| label: fig-Fig_S15
+#| fig-cap: "Root mean squared error (RMSE) of models for data-poor simulations. N = 100 (low), 600 (med), 2,000 (large) was simulated with 29 features. All features were weakly correlated. Two features had main effects (effect sizes = 1, X1 and X5) and there were two interaction effects (X1:X2 and X3:X4) on the response and the other 95 features had no effects. Models (LM, RF, BRT, NN, Elastic-net) were fitted on the simulated data and holdout data of the same size as the training data was used to estimate predictive error (RMSE). LM and elastic-net received all possible two-way interactions (406) as features. Simulation and model fitting were repeated 100 times. "
 #| fig-width: 10
 #| fig-height: 5
-
 
 
 inter_low = readRDS("results/data_poor_small_inter.RDS")
@@ -709,10 +942,7 @@ ggplot(res_rmse, aes(y=values, x=method)) +
 
 ```
 
-
-### With interactions without collinearity
-
-
+#### Without collinearity
 
 ```{r}
 #| echo: false
@@ -749,7 +979,6 @@ extract_V= function(RI) {
 }
 
 ```
-
 
 ```{r}
 #| echo: false
@@ -788,11 +1017,13 @@ data$method = forcats::lvls_reorder(data$method, c(5,8, 1, 6,7, 3, 4, 2))
 data$label = c(rep("NA", 8), rep("", nrow(data)-8))
 ```
 
+##### Bias
+
 ```{r}
-#| label: Fig_S4WOCOLL
+#| label: fig-Fig_S16
+#| fig-cap: "Bias and variance of estimated effects in a data-poor situation. N = 100, 600, 2,000 was simulated with 29 features. All features were uncorrelated. Two features had main effects (effect sizes = 1) on the response and 4 features had two interaction effects (effect sizes = 1) on the response. Models (LM, RF, BRT, NN, Elastic-net) were fitted on the simulated data and effect estimates were approximated using MCEs. LM and elastic-net received all possible two-way interactions (406) as features. Simulation and model fitting were repeated 100 times. For all effects (Main = 1, Inter = 1) and non-effects (Main = 0, Inter = 0), bias and variance of the effect estimates were calculated."
 #| fig-width: 10
 #| fig-height: 6.7
-#| warning: false
 
 levels(data$method)[8] = "Elastic-net"
 
@@ -836,11 +1067,11 @@ for(j in 1:3) {
 
 ```
 
-
-
+##### RMSE
 
 ```{r}
-#| label: Fig_SRMSEPDATAPOOR22
+#| label: fig-Fig_S17
+#| fig-cap: "Root mean squared error (RMSE) of models for data-poor simulations. N = 100 (low), 600 (med), 2,000 (large) was simulated with 29 features. All features were uncorrelated. Two features had main effects (effect sizes = 1, X1 and X5) and there were two interaction effects (X1:X2 and X3:X4) on the response and the other 95 features had no effects. Models (LM, RF, BRT, NN, Elastic-net) were fitted on the simulated data and holdout data of the same size as the training data was used to estimate predictive error (RMSE). LM and elastic-net received all possible two-way interactions (406) as features. Simulation and model fitting were repeated 100 times. "
 #| fig-width: 10
 #| fig-height: 5
 
@@ -893,15 +1124,13 @@ ggplot(res_rmse, aes(y=values, x=method)) +
   theme(axis.text.x = element_text(angle = 45, hjust=1))
 
 ```
-
-
-
 
 ## Weighted MCE
 
 ```{r}
-#| label: Fig_Weighted
+#| label: fig-Fig_S18
 #| message: false
+#| fig-cap: Comparison of weighted versus unweighted MCE.
 #| fig-width: 7
 #| fig-height: 6
 source("code/AME.R")
@@ -944,4 +1173,3 @@ legend("bottomright", legend = c(paste0(round(coef(m2)[[2]], 2), "LM OLS "),
                                  ), col = c("red", "blue", "darkgreen"), lty = 1, bty = "n")
 
 ```
-

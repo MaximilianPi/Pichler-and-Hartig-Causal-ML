@@ -18,9 +18,10 @@ library(tidyverse)
 library(igraph)
 library(Cairo)
 source("utils.R")
+
 ```
 
-## Results 2
+## Results
 
 ### Proof of concept
 
@@ -69,10 +70,7 @@ Results_sd =
   })
 names(Results_sd) = unlist(strsplit(files, ".RDS", TRUE))
 
-layout = matrix(c(0,10,
-                  0,5,
-                  0,0,
-                  5,5), nrow = 4L, 2L, byrow = TRUE) 
+
 
 ```
 
@@ -90,6 +88,7 @@ cairo_pdf("plots/Fig_2.pdf", width = 10, height = 9)
 
 par(mfcol = c(3,6), mar = c(5,0.5, 2, 1.4), oma = c(1, 2, 2, 1))
 labs =  c("LM","RF",  "BRT", "NN","Dropout", "l1", "l2", "Elastic-net")
+
 #plot_scenarios(1.0)
 #dev.off()
 cex_fac = 1.3
@@ -150,6 +149,7 @@ for(i in c(1, 2, 3, 4, 8)) {
   }
 }
 
+
 dev.off()
 
 ```
@@ -166,14 +166,14 @@ inter_low = readRDS("results/data_poor_small.RDS")
 inter_med = readRDS("results/data_poor_mid.RDS")
 inter_large = readRDS("results/data_poor_big.RDS")
 extract_B = function(RI, exponent = 1) {
-  Bias = apply(abind::abind(lapply(1:60, function(j) t(sapply(1:8, function(i) RI[[j]][[i]][[1]] - effs_true))), along = 0L), 2:3, mean)**exponent
+  Bias = apply(abind::abind(lapply(1:50, function(j) t(sapply(1:8, function(i) RI[[j]][[i]][[1]] - effs_true))), along = 0L), 2:3, mean)**exponent
   Bias_1 = apply(Bias[,c(effs_true > 0.5)], 1, mean)
   Bias_0 = apply(Bias[,c(effs_true < 0.5)], 1, mean)
   return(cbind(Bias_1, Bias_0)) #, Bias_Inter_1, Bias_Inter_0))
 }
 
 extract_V= function(RI) {
-  Var = apply(abind::abind(lapply(1:60, function(j) t(sapply(1:8, function(i) RI[[j]][[i]][[1]]))), along = 0L), 2:3, var)
+  Var = apply(abind::abind(lapply(1:50, function(j) t(sapply(1:8, function(i) RI[[j]][[i]][[1]]))), along = 0L), 2:3, var)
   Var_1 = apply(Var[,c(effs_true > 0.5)], 1, mean)
   Var_0 = apply(Var[,c(effs_true < 0.5)], 1, mean)
   return(cbind(Var_1, Var_0))  #, Var_Inter_1, Var_Inter_0))
@@ -262,6 +262,7 @@ for(j in 1:3) {
 dev.off()
 
 ```
+
 
 ### Case Study
 

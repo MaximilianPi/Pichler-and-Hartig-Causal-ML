@@ -54,7 +54,11 @@ get_result = function(sim ) {
       ## BRT
       m = xgboost::xgboost(data=xgboost::xgb.DMatrix(as.matrix(train)[,-1],
                                                      label = (as.matrix(train)[,1, drop=TRUE])),
-                           nrounds = 140L,
+                           nrounds = 116,
+                           eta = 0.31,
+                           max_depth = 5,
+                           subsample = 0.55, 
+                           lambda = 4.3,
                            objective="reg:squarederror", nthread = 1, verbose = 0)
       
       eff = (marginalEffects(m, data = data.frame(train)[,-1], interactions=TRUE)$mean)

@@ -14,10 +14,10 @@ source("code/AME.R")
 source("code/Scenarios.R")
 
 get_result = function(sim ) {
-  samples = 60L
+  samples = 100L
   result_list = vector("list", samples)
   
-  cl = parallel::makeCluster(20L)
+  cl = parallel::makeCluster(50L)
   parallel::clusterExport(cl, varlist = ls(envir = .GlobalEnv))
   parallel::clusterEvalQ(cl, {library(ranger);library(xgboost);library(cito);library(glmnet);library(glmnetUtils);Sys.setenv(OMP_NUM_THREADS=3);torch::torch_set_num_threads(1L);torch::torch_set_num_interop_threads(1L)
 })
@@ -54,7 +54,11 @@ get_result = function(sim ) {
       ## BRT
       m = xgboost::xgboost(data=xgboost::xgb.DMatrix(as.matrix(train)[,-1],
                                                      label = (as.matrix(train)[,1, drop=FALSE])),
-                           nrounds = 140L,
+                           nrounds = 116,
+                           eta = 0.31,
+                           max_depth = 5,
+                           subsample = 0.55, 
+                           lambda = 4.3,
                            objective="reg:squarederror", nthread = 1, verbose = 0)
       
       eff = diag(marginalEffects(m, data = data.frame(train)[,-1], interactions=FALSE)$mean)

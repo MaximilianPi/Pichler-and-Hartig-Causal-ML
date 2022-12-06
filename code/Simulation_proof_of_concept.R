@@ -14,10 +14,10 @@ source("code/Scenarios.R")
 torch::torch_set_num_threads(3L)
 
 get_result = function(sim ) {
-  samples = 500L
+  samples = 100L
   result_list = vector("list", samples)
   
-  cl = parallel::makeCluster(30L)
+  cl = parallel::makeCluster(50L)
   parallel::clusterExport(cl, varlist = ls(envir = .GlobalEnv))
   parallel::clusterEvalQ(cl, {library(ranger);library(xgboost);library(cito);library(glmnet);library(glmnetUtils);Sys.setenv(OMP_NUM_THREADS=3)
 })
@@ -41,7 +41,8 @@ get_result = function(sim ) {
       
       
       ## RF
-      m = ranger(Y ~., data = data.frame(train), num.trees = 100L,num.threads = 3L)
+      m = ranger(Y ~., data = data.frame(train), 
+                 num.threads = 3L)
       eff = diag(marginalEffects(m, data = data.frame(train))$mean)
       pred = predict(m, data = data.frame(test))$predictions
       result[[2]] = list(eff, rmse(test[,1], pred))
@@ -49,7 +50,11 @@ get_result = function(sim ) {
       ## BRT
       m = xgboost::xgboost(data=xgboost::xgb.DMatrix(as.matrix(train)[,-1],
                                                      label = (as.matrix(train)[,1, drop=FALSE])),
-                           nrounds = 140L,
+                           nrounds = 116,
+                           eta = 0.31,
+                           max_depth = 5,
+                           subsample = 0.55, 
+                           lambda = 4.3,
                            objective="reg:squarederror", nthread = 1, verbose = 0)
       (eff = diag(marginalEffects(m, data = data.frame(train)[,-1])$mean))
       pred = predict(m, newdata = xgboost::xgb.DMatrix(test[,-1]))
