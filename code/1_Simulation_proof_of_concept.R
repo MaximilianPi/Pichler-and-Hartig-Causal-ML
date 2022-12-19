@@ -50,11 +50,7 @@ get_result = function(sim ) {
       ## BRT
       m = xgboost::xgboost(data=xgboost::xgb.DMatrix(as.matrix(train)[,-1],
                                                      label = (as.matrix(train)[,1, drop=FALSE])),
-                           nrounds = 116,
-                           eta = 0.31,
-                           max_depth = 5,
-                           subsample = 0.55, 
-                           lambda = 4.3,
+                           nrounds = 100,
                            objective="reg:squarederror", nthread = 1, verbose = 0)
       (eff = diag(marginalEffects(m, data = data.frame(train)[,-1])$mean))
       pred = predict(m, newdata = xgboost::xgb.DMatrix(test[,-1]))
@@ -62,9 +58,7 @@ get_result = function(sim ) {
 
       ## DNN
       m = cito::dnn(Y~., data = as.data.frame(train), 
-                    activation = rep("selu", 3),
                     hidden = rep(50L, 3),
-                    batchsize = 50, 
                     verbose = FALSE, 
                     plot=FALSE, lambda = 0.00, alpha = 1., 
                     epochs = 300,
@@ -78,14 +72,12 @@ get_result = function(sim ) {
       ## DNN with dropout
       
       m = cito::dnn(Y~., data = as.data.frame(train), 
-                    activation = rep("selu", 3),
                     hidden = rep(50L, 3),
                     batchsize = 50, 
                     verbose = FALSE, 
                     plot=FALSE, lambda = 0.00, alpha = 1., 
                     epochs = 300,
                     lr = 0.05,
-                    dropout = 0.2,
                     lr_scheduler = config_lr_scheduler("reduce_on_plateau", factor = 0.90, patience = 4), early_stopping = 6)
       eff = diag(marginalEffects(m)$mean)
       pred = predict(m, newdata = data.frame(test))

@@ -17,7 +17,7 @@ get_result = function(sim ) {
   samples = 100L
   result_list = vector("list", samples)
   
-  cl = parallel::makeCluster(50L)
+  cl = parallel::makeCluster(25L)
   parallel::clusterExport(cl, varlist = ls(envir = .GlobalEnv))
   parallel::clusterEvalQ(cl, {library(ranger);library(xgboost);library(cito);library(glmnet);library(glmnetUtils);Sys.setenv(OMP_NUM_THREADS=3);torch::torch_set_num_threads(1L);torch::torch_set_num_interop_threads(1L)
 })
@@ -46,7 +46,13 @@ get_result = function(sim ) {
       
       
       ## RF
-      m = ranger(Y ~., data = data.frame(train), num.trees = 100L,num.threads = 3L)
+      m = ranger(Y ~., 
+                 data = data.frame(train), 
+                 max.depth = RF_max.depth,
+                 min.node.size = RF_min.node.size,
+                 mtry = max(1, floor(RF_mtry*ncol(train))),
+                 num.trees = 100L,
+                 num.threads = 3L)
       eff = diag(marginalEffects(m, data = data.frame(train), interactions=FALSE)$mean)
       pred = predict(m, data = data.frame(test))$predictions
       result[[2]] = list(eff, rmse(test[,1], pred))
@@ -54,11 +60,11 @@ get_result = function(sim ) {
       ## BRT
       m = xgboost::xgboost(data=xgboost::xgb.DMatrix(as.matrix(train)[,-1],
                                                      label = (as.matrix(train)[,1, drop=FALSE])),
-                           nrounds = 116,
-                           eta = 0.31,
-                           max_depth = 5,
-                           subsample = 0.55, 
-                           lambda = 4.3,
+                           nrounds = BRT_max_tree,
+                           eta = BRT_eta,
+                           max_depth = BRT_max_depth,
+                           subsample = BRT_subsample, 
+                           lambda = BRT_lambda,
                            objective="reg:squarederror", nthread = 1, verbose = 0)
       
       eff = diag(marginalEffects(m, data = data.frame(train)[,-1], interactions=FALSE)$mean)
@@ -68,11 +74,14 @@ get_result = function(sim ) {
       
       ## DNN
       m = cito::dnn(Y~., data = as.data.frame(train), 
-                    activation = rep("selu", 2),
-                    hidden = rep(20, 2),
-                    batchsize = 50, 
+                    activation = rep(NN_activations, NN_depth),
+                    hidden = rep(NN_width, NN_depth),
+                    batchsize = max(1, floor(NN_sgd*nrow(train))),
+                    dropout = NN_dropout,
                     verbose = FALSE, 
-                    plot=FALSE, lambda = 0.00, alpha = 1., 
+                    plot=FALSE, 
+                    lambda = NN_lambda, 
+                    alpha = NN_alpha, 
                     epochs = 300,
                     lr = 0.05,
                     lr_scheduler = config_lr_scheduler("reduce_on_plateau", factor = 0.90, patience = 4), early_stopping = 6)
@@ -83,48 +92,58 @@ get_result = function(sim ) {
       
       ## DNN with dropout
       
-      m = cito::dnn(Y~., data = as.data.frame(train), 
-                    activation = rep("selu", 2),
-                    hidden = rep(20, 2),
-                    verbose = FALSE, 
-                    batchsize = 50, 
-                    dropout = 0.15,
-                    lr = 0.05,
-                    plot=FALSE, lambda = 0.00, alpha = 1., 
-                    epochs = 300,
-                    lr_scheduler = config_lr_scheduler("reduce_on_plateau", factor = 0.90, patience = 4), early_stopping = 6)
-      eff = diag(marginalEffects(m, interactions = FALSE)$mean)
-      pred = predict(m, newdata = data.frame(test))
+      # m = cito::dnn(Y~., data = as.data.frame(train), 
+      #               activation = rep(NN_activations, NN_depth),
+      #               hidden = rep(NN_width, NN_depth),
+      #               batchsize = max(1, floor(NN_sgd*nrow(train))),
+      #               dropout = NN_dropout*6,
+      #               verbose = FALSE,
+      #               lr = 0.05,
+      #               plot=FALSE, 
+      #               lambda = NN_lambda, 
+      #               alpha = NN_alpha, 
+      #               epochs = 300,
+      #               lr_scheduler = config_lr_scheduler("reduce_on_plateau", factor = 0.90, patience = 4), early_stopping = 6)
+      # eff = diag(marginalEffects(m, interactions = FALSE)$mean)
+      # pred = predict(m, newdata = data.frame(test))
+      # result[[5]] = list(eff, rmse(test[,1], pred))
       result[[5]] = list(eff, rmse(test[,1], pred))
       
       
       
-      ## L1
-      m = cva.glmnet(train[,-1], train[,1], alpha = 1.0)
-      eff = diag(marginalEffects(m, data = train[,-1],alpha = 1.0, interactions = FALSE)$mean)
-      pred = predict(m, newx = test[,-1], alpha = 1.0)
-      result[[6]] = list(eff, rmse(test[,1], pred))
+      
+      # ## L1
+      # m = cva.glmnet(train[,-1], train[,1], alpha = 1.0)
+      # eff = diag(marginalEffects(m, data = train[,-1],alpha = 1.0, interactions = FALSE)$mean)
+      # pred = predict(m, newx = test[,-1], alpha = 1.0)
+      # result[[6]] = list(eff, rmse(test[,1], pred))
+      # 
+      # 
+      # ## L2 
+      # m = cva.glmnet(train[,-1], train[,1], alpha = 0.0)
+      # eff = diag(marginalEffects(m, data = train[,-1],alpha = 0.0, interactions = FALSE)$mean)
+      # pred = predict(m, newx = test[,-1], alpha = 0.0)
+      # result[[7]] = list(eff, rmse(test[,1], pred))
       
       
-      ## L2 
-      m = cva.glmnet(train[,-1], train[,1], alpha = 0.0)
-      eff = diag(marginalEffects(m, data = train[,-1],alpha = 0.0, interactions = FALSE)$mean)
-      pred = predict(m, newx = test[,-1], alpha = 0.0)
-      result[[7]] = list(eff, rmse(test[,1], pred))
-      
-      
-      ## L1 + L2 
-      m = cva.glmnet(train[,-1], train[,1], alpha = 0.2)
-      eff = diag(marginalEffects(m, data = train[,-1],alpha = 0.2, interactions = FALSE)$mean)
-      pred = predict(m, newx = test[,-1], alpha = 0.2)
+      ## Elastic-net tuned
+      m = glmnet(train[,-1], train[,1], alpha = EN_alpha, lambda = EN_lambda)
+      eff = diag(marginalEffects(m, data = train[,-1],alpha = EN_alpha, lambda = EN_lambda, interactions = FALSE)$mean)
+      pred = predict(m, newx = test[,-1])
       result[[8]] = list(eff, rmse(test[,1], pred))
       
+      result[[6]] = result[[7]] =  list(eff, rmse(test[,1], pred))
       
+
       return(result)
     })
   parallel::stopCluster(cl)
   return(result_list)
 }
+
+source("code/hyper_param_config_100_100.R")
+
+
 sim = function(Sigma) {
   return(
     simulate(r = Sigma ,
@@ -137,6 +156,9 @@ results = get_result(sim)
 saveRDS(results, "results/data_poor_small.RDS")
 
 
+source("code/hyper_param_config_600_100.R")
+
+
 sim = function(Sigma) {
   return(
     simulate(r = Sigma ,
@@ -147,6 +169,9 @@ sim = function(Sigma) {
 
 results = get_result(sim)
 saveRDS(results, "results/data_poor_mid.RDS")
+
+
+source("code/hyper_param_config_2000_100.R")
 
 
 sim = function(Sigma) {

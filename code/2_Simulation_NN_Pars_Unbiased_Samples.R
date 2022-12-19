@@ -16,20 +16,22 @@ source("code/Scenarios.R")
 
 
 set.seed(42)
-NN = 3000
+NN = 300
 activations = sample(c("relu", "leaky_relu", "tanh", "selu", "elu", "celu", "gelu"), size = NN, replace = TRUE)
-sgd = sample(1:100, NN, replace = TRUE)
-depth = sample(1:20, NN, replace = TRUE)
-width = ceiling( rexp(NN, rate = 0.05))+1
+sgd = runif(NN, 0, 1)
+depth = 3 #sample(1:20, NN, replace = TRUE)
+width = 50 #ceiling( rexp(NN, rate = 0.05))+5
 dropout = runif(NN, 0, 0.3)
-pars = data.frame(activations, sgd, depth, width, dropout)
+alpha = runif(NN, 0, 1.0)
+lambda = runif(NN, 0.005, 0.4)**2
+pars = data.frame(activations, sgd, depth, width, dropout, alpha, lambda)
 pars$bias_1 = NA
 pars$bias_5 = NA
 pars$bias_0 = NA
 pars$rmse = NA
 
 get_result = function(sim ) {
-  cl = parallel::makeCluster(30L)
+  cl = parallel::makeCluster(20L)
   parallel::clusterExport(cl, varlist = ls(envir = .GlobalEnv))
   parallel::clusterEvalQ(cl, {library(ranger);library(xgboost);library(cito);library(glmnet);library(glmnetUtils);Sys.setenv(OMP_NUM_THREADS=1L);torch::torch_set_num_threads(1L);torch::torch_set_num_interop_threads(1L)
   })
@@ -42,7 +44,7 @@ get_result = function(sim ) {
       
       try({
         res= 
-          sapply(1:1, function(j) {
+          sapply(1:10, function(j) {
           
           Sigma = cov2cor(rWishart(1, N_pred, diag(1.0, N_pred))[,,1])
           data = sim(Sigma)
@@ -60,9 +62,11 @@ get_result = function(sim ) {
                         hidden = rep(parameter$width, parameter$depth),
                         verbose = TRUE, 
                         epochs = 300,
-                        batchsize = parameter$sgd, 
+                        lambda = parameter$lambda,
+                        alpha = parameter$alpha,
+                        batchsize = max(1, floor(nrow(train)*parameter$sgd)), 
                         lr = 0.05,
-                        plot=FALSE, lambda = 0.00, alpha = 1.,
+                        plot=FALSE, 
                         lr_scheduler = config_lr_scheduler("reduce_on_plateau", factor = 0.90, patience = 4), early_stopping = 8)
           eff = diag(marginalEffects(m, interactions = FALSE)$mean)[c(1,2, 5)]
           bias = eff - c(1, 0, 1)
@@ -72,10 +76,10 @@ get_result = function(sim ) {
           return(c(bias,  rmse(test[,1], pred)))
           
           })
-        parameter$bias_1 = res[1,1]
-        parameter$bias_5 = res[3,1]
-        parameter$bias_0 = res[2,1]
-        parameter$rmse = res[4, 1]
+        parameter$bias_1 = mean(res[1,])
+        parameter$bias_5 = mean(res[3,])
+        parameter$bias_0 = mean(res[2,])
+        parameter$rmse =   mean(res[4, ])
         #parameter$var = apply(res, 1, var)[1]
       
       }, silent = FALSE)
@@ -94,18 +98,7 @@ sim = function(Sigma) {
              n = 100*2))
 }
 system.time({results = get_result(sim)})
-saveRDS(results, file = "results/NN_pars_100_100.RDS")
-
-
-N_pred = 10
-sim = function(Sigma) {
-  return(
-    simulate(r = Sigma ,
-             effs = c(1.0, 0.0, 0.0, 0.0, 1, rep(0, 5)), 
-             n = 100*2)) 
-}
-system.time({results = get_result(sim)})
-saveRDS(results, file = "results/NN_pars_100_10.RDS")
+saveRDS(results, file = "results/NN_pars_100_100_SS.RDS")
 
 
 
@@ -114,10 +107,44 @@ sim = function(Sigma) {
   return(
     simulate(r = Sigma ,
              effs = c(1.0, 0.0, 0.0, 0.0, 1, rep(0, 95)), 
-             n = 1000*2)) 
+             n = 600*2)) 
 }
 system.time({results = get_result(sim)})
-saveRDS(results, file = "results/NN_pars_1000_100.RDS")
+saveRDS(results, file = "results/NN_pars_600_100_SS.RDS")
+
+
+
+N_pred = 100
+sim = function(Sigma) {
+  return(
+    simulate(r = Sigma ,
+             effs = c(1.0, 0.0, 0.0, 0.0, 1, rep(0, 95)),
+             n = 2000*2))
+}
+system.time({results = get_result(sim)})
+saveRDS(results, file = "results/NN_pars_2000_100_SS.RDS")
+
+
+N_pred = 10
+sim = function(Sigma) {
+  return(
+    simulate(r = Sigma ,
+             effs = c(1.0, 0.0, 0.0, 0.0, 1, rep(0, 5)),
+             n = 100*2))
+}
+system.time({results = get_result(sim)})
+saveRDS(results, file = "results/NN_pars_100_10_SS.RDS")
+
+
+N_pred = 100
+sim = function(Sigma) {
+  return(
+    simulate(r = Sigma ,
+             effs = c(1.0, 0.0, 0.0, 0.0, 1, rep(0, 95)),
+             n = 1000*2))
+}
+system.time({results = get_result(sim)})
+saveRDS(results, file = "results/NN_pars_1000_100_SS.RDS")
 
 
 
@@ -125,9 +152,12 @@ N_pred = 10
 sim = function(Sigma) {
   return(
     simulate(r = Sigma ,
-             effs = c(1.0, 0.0, 0.0, 0.0, 1, rep(0, 5)), 
-             n = 1000*2)) 
+             effs = c(1.0, 0.0, 0.0, 0.0, 1, rep(0, 5)),
+             n = 1000*2))
 }
 system.time({results = get_result(sim)})
-saveRDS(results, file = "results/NN_pars_1000_10.RDS")
+saveRDS(results, file = "results/NN_pars_1000_10_SS.RDS")
+
+
+
 

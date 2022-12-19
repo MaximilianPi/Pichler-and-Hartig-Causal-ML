@@ -16,8 +16,8 @@ source("code/Scenarios.R")
 
 
 set.seed(42)
-NN = 3000
-mtry = sample(2:99, NN, replace = TRUE)
+NN = 300
+mtry = runif(NN, 0, 1)
 min.node.size = sample(2:70, NN, replace = TRUE)
 max.depth = sample(2:50, NN, replace = TRUE)
 regularization.factor = runif(NN, 0, 1)
@@ -29,7 +29,7 @@ pars$bias_0 = NA
 pars$rmse = NA
 
 get_result = function(sim ) {
-  cl = parallel::makeCluster(50L)
+  cl = parallel::makeCluster(20L)
   parallel::clusterExport(cl, varlist = ls(envir = .GlobalEnv))
   parallel::clusterEvalQ(cl, {library(ranger);library(xgboost);library(cito);library(glmnet);library(glmnetUtils);Sys.setenv(OMP_NUM_THREADS=1L);torch::torch_set_num_threads(1L);torch::torch_set_num_interop_threads(1L)
   })
@@ -42,7 +42,7 @@ get_result = function(sim ) {
       
       try({
         res= 
-          sapply(1:1, function(j) {
+          sapply(1:10, function(j) {
           
           Sigma = cov2cor(rWishart(1, N_pred, diag(1.0, N_pred))[,,1])
           data = sim(Sigma)
@@ -56,7 +56,7 @@ get_result = function(sim ) {
           
           ## RF
           m = ranger(Y ~., data = data.frame(train), 
-                     mtry = parameter$mtry,
+                     mtry = max(1, floor(parameter$mtry*ncol(train))),
                      min.node.size = parameter$min.node.size,
                      max.depth = parameter$max.depth,
                      regularization.factor = parameter$regularization.factor,
@@ -69,10 +69,10 @@ get_result = function(sim ) {
           return(c(bias,  rmse(test[,1], pred)))
           
           })
-        parameter$bias_1 = res[1,1]
-        parameter$bias_5 = res[3,1]
-        parameter$bias_0 = res[2,1]
-        parameter$rmse = res[4, 1]
+        parameter$bias_1 = mean(res[1,])
+        parameter$bias_5 = mean(res[3,])
+        parameter$bias_0 = mean(res[2,])
+        parameter$rmse =   mean(res[4, ])
       
       }, silent = FALSE)
       
@@ -90,7 +90,7 @@ sim = function(Sigma) {
              n = 100*2))
 }
 system.time({results = get_result(sim)})
-saveRDS(results, file = "results/RF_pars_100_100.RDS")
+saveRDS(results, file = "results/RF_pars_100_100_SS.RDS")
 
 
 N_pred = 10
@@ -101,8 +101,18 @@ sim = function(Sigma) {
              n = 100*2))
 }
 system.time({results = get_result(sim)})
-saveRDS(results, file = "results/RF_pars_100_10.RDS")
+saveRDS(results, file = "results/RF_pars_100_10_SS.RDS")
 
+
+N_pred = 100
+sim = function(Sigma) {
+  return(
+    simulate(r = Sigma ,
+             effs = c(1.0, 0.0, 0.0, 0.0, 1, rep(0, 95)), 
+             n = 600*2)) 
+}
+system.time({results = get_result(sim)})
+saveRDS(results, file = "results/RF_pars_600_100_SS.RDS")
 
 
 N_pred = 100
@@ -113,7 +123,7 @@ sim = function(Sigma) {
              n = 1000*2)) 
 }
 system.time({results = get_result(sim)})
-saveRDS(results, file = "results/RF_pars_1000_100.RDS")
+saveRDS(results, file = "results/RF_pars_1000_100_SS.RDS")
 
 
 
@@ -125,5 +135,16 @@ sim = function(Sigma) {
              n = 1000*2))
 }
 system.time({results = get_result(sim)})
-saveRDS(results, file = "results/RF_pars_1000_10.RDS")
+saveRDS(results, file = "results/RF_pars_1000_10_SS.RDS")
+
+
+N_pred = 100
+sim = function(Sigma) {
+  return(
+    simulate(r = Sigma ,
+             effs = c(1.0, 0.0, 0.0, 0.0, 1, rep(0, 95)), 
+             n = 2000*2)) 
+}
+system.time({results = get_result(sim)})
+saveRDS(results, file = "results/RF_pars_2000_100_SS.RDS")
 

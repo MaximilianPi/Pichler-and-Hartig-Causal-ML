@@ -160,6 +160,34 @@ marginalEffects.cva.glmnet= function(object, data, formula = NULL, interactions=
   return(out)
 }
 
+
+marginalEffects.glmnet= function(object, data, formula = NULL, interactions=TRUE, epsilon = 0.1, ...) {
+  
+  predict_glmnet = function(model, newdata, ...) {
+    if(!is.null(formula)) newdata = formula(newdata)
+    return(predict(model, newx = newdata, ...))
+  }
+  result = AME(
+    data = data, 
+    predict_f = predict_glmnet, 
+    model = object, 
+    obs_level = TRUE, 
+    interactions=interactions,
+    epsilon = epsilon,
+    ...
+  )
+  out = list()
+  out$result = result
+  out$mean = apply(result, 2:3, mean)
+  colnames(out$mean) = colnames(data)
+  rownames(out$mean) = colnames(data)
+  out$abs = apply(result, 2:3, function(d) mean(abs(d)))
+  out$sd = apply(result, 2:3, function(d) sd(d))
+  class(out) = "marginalEffects"
+  return(out)
+}
+
+
 print.marginalEffects = function(x, ...) {
   print(x$mean)
 }

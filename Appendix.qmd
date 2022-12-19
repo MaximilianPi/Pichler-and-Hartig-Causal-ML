@@ -45,6 +45,20 @@ knitr::opts_chunk$set(fig.path="plots/", echo = FALSE)
 
 **Summary:** This document provides supporting information on Pichler & Hartig -- Can machine learning be used for causal inference.
 
+## Extending MCE to two-way interactions
+
+MCE can be extended to \$n\$-dimensions to detect $n$ way feature interactions. Here, we extended MCEs to two dimensions to detect two-way feature interactions by asking what the change is of $\hat{f}(\cdot)$ when features $x_m$ and $x_k$ change together:
+
+$$\mathbf{MCE}_{mk} = \frac{\partial^2 \hat{f} (\mathbf{X} )}{ \partial x_m \partial x_k }$$
+
+We can approximate $\mathbf{MCE}_{mk}$ with the finite difference method:
+
+$$
+\mathbf{MCE}_{mk} \approx \frac{ \hat{f} (x_1, x_2, ..., x_m + h, x_k + h, ..., x_j ) }{2(h_m + h_k)} -  \frac{ \hat{f} (x_1, x_2, ..., x_m - h, x_k + h, ..., x_j ) }{2(h_m + h_k)} -  \frac{ \hat{f} (x_1, x_2, ..., x_m + h, x_k - h, ..., x_j ) }{2(h_m + h_k)} - \frac{ \hat{f} (x_1, x_2, ..., x_m - h, x_k - h, ..., x_j ) }{2(h_m + h_k)}
+$$
+
+$h_m$ and $h_k$ are set to $0.1 \cdot sd(x_m)$ and $0.1 \cdot sd(x_k)$. All features are centered and standardized.
+
 ## Hyper-parameter tuning
 
 We performed a hyper-parameter search to check if hyper-parameters can influence the unbiasness of the models. For that, we created simulation scenarios 100 and 1,000 observations, and each with 10 and 100 features. In each simulation scenario, two features (X~1~ and X~5~) had an effect on Y and all other features had no effect on Y. Features were sampled from a multivariate normal distribution and all features were randomly correlated (Variance-covariance matrix $\Sigma$ was sampled from a Wishart distribution (degrees of freedom = number of features (10 or 100), scale matrix was the identity matrix).
@@ -52,7 +66,7 @@ We performed a hyper-parameter search to check if hyper-parameters can influence
 3,000 combinations of hyper-parameters were randomly drawn (Table S1). For each draw, the data was sampled, and bias for X~1~, X~2~, and X~5~ were calculated (bias = true effect - estimated effect, effects were estimated by MCE). In each draw, holdout data of the same size as the training data were used used to calculate the root mean squared error (RMSE) of the models.
 
 | Algorithm               | Hyper-parameter       | Range                                             |
-|---------------------|----------------------------|-----------------------|
+|-------------------|-------------------|----------------------------------|
 | Neural Network          | activation function   | \[relu, leaky_relu, tanh, selu, elu, celu, gelu\] |
 |                         | depth                 | \[1, 20\]                                         |
 |                         | width                 | \[2, 171\]                                        |
@@ -93,7 +107,10 @@ title = c("N = 100, P = 10", "N = 100, P = 100", "N = 1000, P = 10", "N = 1000, 
 for(i in 1:4) {
   plot(results[[i]]$bias_1, results[[i]]$rmse, las = 1, xlab = "Bias", ylab = "RMSE",
        main = title[i])
+  
 }
+
+models_NN_R2 = (sapply(1:4, function(i) summary(lm(results[[i]]$rmse ~ results[[i]]$bias_1) )$r.squared ))
 
 res = 
   do.call(rbind,
@@ -105,9 +122,13 @@ res =
 
 res$scenario = forcats::lvls_reorder(res$scenario, c(2, 1, 3, 4))
 
+NN_rmse = (res %>% arrange(rmse))
+NN_bias = (res %>% arrange(abs(bias_1)))
+
+
 ```
 
-In general, we found only a weak correlation between the bias of X~1~ and the RMSE on the holdout data (Fig. S1). This correlation was slightly stronger in the data-poor situations (N = 100, P = 100, and N = 1000, P = 100; Fig. S1).
+For our data-poor simulation experiments with n $\gtrapprox$ p, we found only a weak correlation between the bias of X~1~ and the RMSE on the holdout data (Fig. S1). This correlation was slightly stronger in the data-poor situations (N = 100, P = 100, and N = 1000, P = 100; Fig. S1).
 
 ```{r}
 #| label: fig-Fig_S2
@@ -193,6 +214,9 @@ for(i in 1:4) {
        main = title[i])
 }
 
+models_BRT_R2 = (sapply(1:4, function(i) summary(lm(results[[i]]$rmse ~ results[[i]]$bias_1) )$r.squared ))
+
+
 res = 
   do.call(rbind,
     lapply(1:4, function(i) {
@@ -203,7 +227,8 @@ res =
 
 res$scenario = forcats::lvls_reorder(res$scenario, c(2, 1, 3, 4))
 
-
+BRT_rmse = (res  %>% arrange(rmse))
+BRT_bias = (res  %>% arrange(abs(bias_1)))
 ```
 
 Overall, the effects on bias (X~1~ ) and RMSE were similar, although small (Fig. S4). Lambda and max tree had the largest effects on the biases and the RMSE (Fig. S3). Effects on the bias of the zero-effect, X~2~, were small and had large confidence intervals (Fig. S3).
@@ -248,30 +273,30 @@ do.call(grid.arrange, list(do.call(arrangeGrob, c(ggs, ncol = 4)), leg2,  nrow =
 
 ```
 
-#### Confounder unequal scenario
+<!-- #### Confounder unequal scenario -->
 
-As we found large biases in the proof-of-concept simulations for BRT, we repeated the hyper-paramter tuning for the worst scenario (unequal confounder, Fig. 2C in the main text).
+<!-- As we found large biases in the proof-of-concept simulations for BRT, we repeated the hyper-paramter tuning for the worst scenario (unequal confounder, Fig. 2C in the main text). -->
 
-We used the second best set (eta = 0.31, max depth = 5, subsample = 0.55, lambda = 4.29, max tree = 116) for the rest of analyses. because it had the best trade-off for the biases of three features and the RMSE (Table S2).
+<!-- We used the second best set (eta = 0.31, max depth = 5, subsample = 0.55, lambda = 4.29, max tree = 116) for the rest of analyses. because it had the best trade-off for the biases of three features and the RMSE (Table S2). -->
 
-```{r}
-#| label: tbl-Table_S1
-#| tbl-cap: "Trade-off between bias (feature X~1~, true effect = 1) and RMSE of the fittend BRT Each point is a simulated scenario with a different set of hyper-parameters. Scenarios with 1,00 and 1,000 observations and with 100 or 10 features (P) were simulated. In each scenario, only two features (X~1~ and X~5~) had an effect (effect size = 1) on the response variable Y. Hyper-parameters (max_depth, subsample, lambda, and max_tree) were randomly sampled (3,000 draws)."
+<!-- ```{r} -->
+<!-- #| label: tbl-Table_S1 -->
+<!-- #| tbl-cap: "Trade-off between bias (feature X~1~, true effect = 1) and RMSE of the fittend BRT Each point is a simulated scenario with a different set of hyper-parameters. Scenarios with 1,00 and 1,000 observations and with 100 or 10 features (P) were simulated. In each scenario, only two features (X~1~ and X~5~) had an effect (effect size = 1) on the response variable Y. Hyper-parameters (max_depth, subsample, lambda, and max_tree) were randomly sampled (3,000 draws)." -->
 
-results = readRDS("results/BRT_pars_confounder_unequal.RDS")
-results = do.call(rbind, results)
-results = results[abs(results$bias_1) < 0.98,]
-results = results[abs(results$bias_0) < 0.98,]
-results$weighted_bias = abs(results$bias_1) + 2*(abs(results$bias_0))
-colnames(results)[c(6, 7, 8)] = c("Bias X1", "Bias X2", "Bias X3")
+<!-- results = readRDS("results/BRT_pars_confounder_unequal.RDS") -->
+<!-- results = do.call(rbind, results) -->
+<!-- results = results[abs(results$bias_1) < 0.98,] -->
+<!-- results = results[abs(results$bias_0) < 0.98,] -->
+<!-- results$weighted_bias = abs(results$bias_1) + 2*(abs(results$bias_0)) -->
+<!-- colnames(results)[c(6, 7, 8)] = c("Bias X1", "Bias X2", "Bias X3") -->
 
-flextable(round(head(results[order(results$weighted_bias, decreasing = FALSE),]), 2))
+<!-- flextable(round(head(results[order(results$weighted_bias, decreasing = FALSE),]), 3)) -->
 
-```
+<!-- ``` -->
 
 ### Random Forest
 
-RF showed a stronger correlation between bias of X~1~ and the RMSE (Fig. S5) than NN and BRT.
+For our data-poor simulation experiments with n $\gtrapprox$ p, RF showed a stronger correlation between bias of X~1~ and the RMSE (Fig. S5) than NN and BRT.
 
 ```{r}
 #| label: fig-Fig_S5
@@ -295,6 +320,8 @@ for(i in 1:4) {
        main = title[i])
 }
 
+models_RF_R2 = (sapply(1:4, function(i) summary(lm(results[[i]]$rmse ~ results[[i]]$bias_1) )$r.squared ))
+
 res = 
   do.call(rbind,
     lapply(1:4, function(i) {
@@ -305,7 +332,8 @@ res =
 
 res$scenario = forcats::lvls_reorder(res$scenario, c(2, 1, 3, 4))
 
-
+RF_rmse = (res %>% arrange(rmse))
+RF_bias = (res %>%  arrange(abs(bias_1)))
 ```
 
 Bias of X~1~ was mostly only affect by the mtry parameter (Fig. S6), which was within our expectations because it controls the spill-over effect for collinear features.
@@ -350,26 +378,180 @@ do.call(grid.arrange, list(do.call(arrangeGrob, c(ggs, ncol = 4)), leg2,  nrow =
 
 ```
 
-#### Confounder unequal scenario
+<!-- #### Confounder unequal scenario -->
 
-As we found large biases in the proof-of-concept simulations for RF, we repeated the hyper-paramter tuning for the worst, the last, scenario (unequal confounder, Fig. 2C in the main text).
+<!-- As we found large biases in the proof-of-concept simulations for RF, we repeated the hyper-paramter tuning for the worst, the last, scenario (unequal confounder, Fig. 2C in the main text). -->
 
-We tried the second best set of hyper-parameters in the proof-of-concept simulations but it actually led to larger biases in Fig. 2A and 2B and we decided to fall back to the default values.
+<!-- We tried the second best set of hyper-parameters in the proof-of-concept simulations but it actually led to larger biases in Fig. 2A and 2B and we decided to fall back to the default values. -->
+
+<!-- ```{r} -->
+<!-- #| label: tbl-Table_S2 -->
+<!-- #| tbl-cap: "Trade-off between bias (feature X~1~, true effect = 1) and RMSE of the fittend RF Each point is a simulated scenario with a different set of hyper-parameters. Scenarios with 1,00 and 1,000 observations and with 100 or 10 features (P) were simulated. In each scenario, only two features (X~1~ and X~5~) had an effect (effect size = 1) on the response variable Y. Hyper-parameters (max_depth, subsample, lambda, and max_tree) were randomly sampled." -->
+
+<!-- results = readRDS("results/RF_pars_confounder_unequal.RDS") -->
+<!-- results = do.call(rbind, results) -->
+<!-- results = results[abs(results$bias_1) < 0.98,] -->
+<!-- results = results[abs(results$bias_0) < 0.98,] -->
+<!-- results$weighted_bias = abs(results$bias_1) + 2*(abs(results$bias_0)) -->
+<!-- colnames(results)[c(6, 7, 8)] = c("Bias X1", "Bias X2", "Bias X3") -->
+
+<!-- flextable(round(head(results[order(results$weighted_bias, decreasing = FALSE),]), 3)) -->
+
+<!-- ``` -->
+
+### Elastic net
+
+For our data-poor simulation experiments with n $\gtrapprox$ p, RF showed a stronger correlation between bias of X~1~ and the RMSE (Fig. S5) than NN and BRT.
 
 ```{r}
-#| label: tbl-Table_S2
-#| tbl-cap: "Trade-off between bias (feature X~1~, true effect = 1) and RMSE of the fittend RF Each point is a simulated scenario with a different set of hyper-parameters. Scenarios with 1,00 and 1,000 observations and with 100 or 10 features (P) were simulated. In each scenario, only two features (X~1~ and X~5~) had an effect (effect size = 1) on the response variable Y. Hyper-parameters (max_depth, subsample, lambda, and max_tree) were randomly sampled."
+#| label: fig-Fig_S55
+#| fig-cap: "Trade-off between bias (feature X~1~, true effect = 1) and RMSE of the fittend Elastic-net. Each point is a simulated scenario with a different set of hyper-parameters. Scenarios with 1,00 and 1,000 observations and with 100 or 10 features (P) were simulated. In each scenario, only two features (X~1~ and X~5~) had an effect (effect size = 1) on the response variable Y. Hyper-parameters (alpha and lambda) were randomly sampled."
+#| fig-width: 8
+#| fig-height: 2.5
+small_10 =  readRDS("results/Elastic_net_pars_100_10.RDS")
+small_100 = readRDS("results/Elastic_net_pars_100_100.RDS")
+large_10 =  readRDS("results/Elastic_net_pars_1000_10.RDS")
+large_100 = readRDS("results/Elastic_net_pars_1000_100.RDS")
+results = list(small_10, small_100, large_10, large_100)
+results = lapply(results, function(r) do.call(rbind, r))
+results = lapply(results, function(r) r[abs(r$bias_1) < 0.98,])
+results = lapply(results, function(r) r[abs(r$bias_5) < 0.98,])
 
-results = readRDS("results/RF_pars_confounder_unequal.RDS")
-results = do.call(rbind, results)
-results = results[abs(results$bias_1) < 0.98,]
-results = results[abs(results$bias_0) < 0.98,]
-results$weighted_bias = abs(results$bias_1) + 2*(abs(results$bias_0))
-colnames(results)[c(6, 7, 8)] = c("Bias X1", "Bias X2", "Bias X3")
 
-flextable(round(head(results[order(results$weighted_bias, decreasing = FALSE),]), 2))
+par(mfrow = c(1, 4), mar = rep(4, 4))
+title = c("N = 100, P = 10", "N = 100, P = 100", "N = 1000, P = 10", "N = 1000, P = 100")
+for(i in 1:4) {
+  plot(results[[i]]$bias_1, results[[i]]$rmse, las = 1, xlab = "Bias", ylab = "RMSE",
+       main = title[i])
+}
+
+models_EN_R2 = (sapply(1:4, function(i) summary(lm(results[[i]]$rmse ~ results[[i]]$bias_1) )$r.squared ))
+
+
+res = 
+  do.call(rbind,
+    lapply(1:4, function(i) {
+      results[[i]]$scenario = c("N = 100, P = 10", "N = 100, P = 100", "N = 1000, P = 10", "N = 1000, P = 100")[i]
+      return(results[[i]])
+      })
+  )
+
+res$scenario = forcats::lvls_reorder(res$scenario, c(2, 1, 3, 4))
+EN_rmse = (res  %>% arrange(rmse))
+EN_bias = (res  %>% arrange(abs(bias_1)))
 
 ```
+
+Bias of X~1~ was mostly only affect by the mtry parameter (Fig. S6), which was within our expectations because it controls the spill-over effect for collinear features.
+
+```{r}
+#| label: fig-Fig_S66
+#| fig-cap: "Effects of hyper-parameters of Elastic-net on bias of feature X~1~. Scenarios with 1,00 and 1,000 observations and with 100 or 10 features (P) were simulated. In each scenario, only two features (X~1~ and X~5~) had an effect (effect size = 1) on the response variable Y. Hyper-parameters (alpha and lambda) were randomly sampled. Effects of hyper-parameters were estimated by linear regression models."
+#| fig-width: 14
+#| fig-height: 13
+
+
+m1 = lm(bias_1~0+scenario+scenario:(alpha + lambda), data = res[complete.cases(res),])
+m2 = lm(bias_0~0+scenario+scenario:(alpha + lambda), data = res[complete.cases(res),])
+m3 = lm(rmse~0+scenario+scenario:(alpha + lambda), data = res[complete.cases(res),])
+
+ggs = 
+  lapply(list(m1, m2, m3), function(m) {
+      g2 = plot((ggpredict(m, terms = c("alpha", "scenario" ))))
+      g3 = plot((ggpredict(m, terms = c("lambda", "scenario" ))))
+      return(list( g2, g3))
+  })
+
+ggs = do.call(c, ggs)
+ggs = lapply(ggs, function(g) g+theme_bw()+ggtitle("")+ylab("") +theme(legend.position = "none"))
+ggs[-c(5, 6)] = lapply(ggs[-c(5, 6)], function(g) g+xlab(""))
+
+extract_legend <- function(my_ggp) {
+  step1 <- ggplot_gtable(ggplot_build(my_ggp))
+  step2 <- which(sapply(step1$grobs, function(x) x$name) == "guide-box")
+  step3 <- step1$grobs[[step2]]
+  return(step3)
+}
+leg2 = extract_legend( plot((ggpredict(m1, terms = c("alpha", "scenario" )))) + theme(legend.position = "bottom"))
+
+ggs[[1]] = ggs[[1]] + ylab("Bias of X1 (effect = 1)")
+ggs[[3]] = ggs[[3]] + ylab("Bias of X2 (effect = 0)")
+ggs[[5]] = ggs[[5]] + ylab("RMSE")
+
+do.call(grid.arrange, list(do.call(arrangeGrob, c(ggs, ncol = 2)), leg2,  nrow = 2, heights = c(15, 1)))
+
+```
+
+<!-- #### Confounder unequal scenario -->
+
+<!-- As we found large biases in the proof-of-concept simulations for elastic-net, we repeated the hyper-paramter tuning for the worst, the last, scenario (unequal confounder, Fig. 2C in the main text). -->
+
+<!-- We tried the second best set of hyper-parameters in the proof-of-concept simulations but it actually led to larger biases in Fig. 2A and 2B and we decided to fall back to the default values. -->
+
+<!-- ```{r} -->
+<!-- #| label: tbl-Table_S22 -->
+<!-- #| tbl-cap: "Trade-off between bias (feature X~1~, true effect = 1) and RMSE of the fittend ELastic-net Each point is a simulated scenario with a different set of hyper-parameters. Scenarios with 1,00 and 1,000 observations and with 100 or 10 features (P) were simulated. In each scenario, only two features (X~1~ and X~5~) had an effect (effect size = 1) on the response variable Y. Hyper-parameters (max_depth, subsample, lambda, and max_tree) were randomly sampled." -->
+
+<!-- results = readRDS("results/Elastic_net_pars_confounder_unequal.RDS") -->
+<!-- results = do.call(rbind, results) -->
+<!-- results = results[abs(results$bias_1) < 0.98,] -->
+<!-- results = results[abs(results$bias_0) < 0.98,] -->
+<!-- results$weighted_bias = abs(results$bias_1) + 2*(abs(results$bias_0)) -->
+<!-- colnames(results)[c(3, 5, 4)] = c("Bias X1", "Bias X2", "Bias X3") -->
+
+<!-- flextable(round(head(results[order(results$weighted_bias, decreasing = FALSE),]), 3)) -->
+
+<!-- ``` -->
+
+### Comparison of algorithms
+
+<!-- |                                    | RF                                                                              | BRT                                                                             | NN                                                                            | elastic-net                                                                   | -->
+<!-- |---------------|---------------|---------------|---------------|---------------| -->
+<!-- | R^2^ between RMSE and bias of X~1~ | `r round(models_RF_R2[3], 3)`                                                   | `r round((models_BRT_R2)[3], 3)`                                                | `r round((models_NN_R2)[3], 3)`                                               | `r round((models_EN_R2)[3], 3)`                                               | -->
+<!-- | RMSE tuned bias of X~1~            | `r round( (RF_rmse %>% filter(scenario == "N = 1000, P = 10")) [1,]$bias_1, 3)` | `r round( (BRT_rmse %>% filter(scenario == "N = 1000, P = 10"))[1,]$bias_1, 3)` | `r round((NN_rmse %>% filter(scenario == "N = 1000, P = 10"))[1,]$bias_1, 3)` | `r round((EN_rmse %>% filter(scenario == "N = 1000, P = 10"))[1,]$bias_1, 3)` | -->
+<!-- | RMSE tuned RMSE                    | `r round( (RF_rmse %>% filter(scenario == "N = 1000, P = 10")) [1,]$rmse, 3)`   | `r round( (BRT_rmse %>% filter(scenario == "N = 1000, P = 10"))[1,]$rmse, 3)`   | `r round((NN_rmse %>% filter(scenario == "N = 1000, P = 10"))[1,]$rmse, 3)`   | `r round((EN_rmse %>% filter(scenario == "N = 1000, P = 10"))[1,]$rmse, 3)`   | -->
+<!-- | Bias-tuned bias of X~1~            | `r round( (RF_bias %>% filter(scenario == "N = 1000, P = 10")) [1,]$bias_1, 3)` | `r round( (BRT_bias %>% filter(scenario == "N = 1000, P = 10"))[1,]$bias_1, 3)` | `r round((NN_bias %>% filter(scenario == "N = 1000, P = 10"))[1,]$bias_1, 3)` | `r round((EN_bias %>% filter(scenario == "N = 1000, P = 10"))[1,]$bias_1, 3)` | -->
+<!-- | Bias-tuned (X~1~ ) RMSE            | `r round( (RF_bias %>% filter(scenario == "N = 1000, P = 10")) [1,]$rmse, 3)`   | `r round( (BRT_bias %>% filter(scenario == "N = 1000, P = 10"))[1,]$rmse, 3)`   | `r round((NN_bias %>% filter(scenario == "N = 1000, P = 10"))[1,]$rmse, 3)`   | `r round((EN_bias %>% filter(scenario == "N = 1000, P = 10"))[1,]$rmse, 3)`   | -->
+
+<!-- : Comparison of hyper-parameter tuning of ML algorithms for N = 1000 and P = 10 {#tbl-Hyper_large} -->
+
+|                                    | RF                                                                              | BRT                                                                             | NN                                                                            | elastic-net                                                                   |
+|---------------|---------------|---------------|---------------|---------------|
+| R^2^ between RMSE and bias of X~1~ | `r round(models_RF_R2[2], 3)`                                                   | `r round((models_BRT_R2)[2], 3)`                                                | `r round((models_NN_R2)[2], 3)`                                               | `r round((models_EN_R2)[2], 3)`                                               |
+| RMSE tuned bias of X~1~            | `r round( (RF_rmse %>% filter(scenario == "N = 100, P = 100")) [1,]$bias_1, 3)` | `r round( (BRT_rmse %>% filter(scenario == "N = 100, P = 100"))[1,]$bias_1, 3)` | `r round((NN_rmse %>% filter(scenario == "N = 100, P = 100"))[1,]$bias_1, 3)` | `r round((EN_rmse %>% filter(scenario == "N = 100, P = 100"))[1,]$bias_1, 3)` |
+| RMSE tuned RMSE                    | `r round( (RF_rmse %>% filter(scenario == "N = 100, P = 100")) [1,]$rmse, 3)`   | `r round( (BRT_rmse %>% filter(scenario == "N = 100, P = 100"))[1,]$rmse, 3)`   | `r round((NN_rmse %>% filter(scenario == "N = 100, P = 100"))[1,]$rmse, 3)`   | `r round((EN_rmse %>% filter(scenario == "N = 100, P = 100"))[1,]$rmse, 3)`   |
+| Bias-tuned bias of X~1~            | `r round( (RF_bias %>% filter(scenario == "N = 100, P = 100")) [1,]$bias_1, 3)` | `r round( (BRT_bias %>% filter(scenario == "N = 100, P = 100"))[1,]$bias_1, 3)` | `r round((NN_bias %>% filter(scenario == "N = 100, P = 100"))[1,]$bias_1, 3)` | `r round((EN_bias %>% filter(scenario == "N = 100, P = 100"))[1,]$bias_1, 3)` |
+| Bias-tuned (X~1~ ) RMSE            | `r round( (RF_bias %>% filter(scenario == "N = 100, P = 100")) [1,]$rmse, 3)`   | `r round( (BRT_bias %>% filter(scenario == "N = 100, P = 100"))[1,]$rmse, 3)`   | `r round((NN_bias %>% filter(scenario == "N = 100, P = 100"))[1,]$rmse, 3)`   | `r round((EN_bias %>% filter(scenario == "N = 100, P = 100"))[1,]$rmse, 3)`   |
+
+```{r}
+#| echo: false
+hyper_to_text = function(tmp) {
+  return(paste0(names(unlist(tmp)), "=",unlist(tmp), collapse = ",  "))
+}
+```
+
+<!-- | Algorithm   | Selected hyper-parameters (data-rich)                                                                                | Selected hyper-parameters (data-poor)                                                                                | -->
+<!-- |----------------|----------------------------|----------------------------| -->
+<!-- | RF          | `r hyper_to_text((RF_rmse %>% filter(scenario == "N = 1000, P = 10"))[2,-(ncol(RF_rmse): (ncol(RF_rmse) -4 ) )])`    | `r hyper_to_text((RF_rmse %>% filter(scenario == "N = 100, P = 100"))[2,-(ncol(RF_rmse): (ncol(RF_rmse) -4 ) )])`    | -->
+<!-- | BRT         | `r hyper_to_text((BRT_rmse %>% filter(scenario == "N = 1000, P = 10"))[2,-(ncol(BRT_rmse): (ncol(BRT_rmse) -4 ) )])` | `r hyper_to_text((BRT_rmse %>% filter(scenario == "N = 100, P = 100"))[2,-(ncol(BRT_rmse): (ncol(BRT_rmse) -4 ) )])` | -->
+<!-- | NN          | `r hyper_to_text((NN_rmse %>% filter(scenario == "N = 1000, P = 10"))[2,-(ncol(NN_rmse): (ncol(NN_rmse) -4 ) )])`    | `r hyper_to_text((NN_rmse %>% filter(scenario == "N = 100, P = 100"))[2,-(ncol(NN_rmse): (ncol(NN_rmse) -4 ) )])`    | -->
+<!-- | elastic-net | `r hyper_to_text((EN_rmse %>% filter(scenario == "N = 1000, P = 10"))[2,-(ncol(EN_rmse): (ncol(EN_rmse) -4 ) )])`    | `r hyper_to_text((EN_rmse %>% filter(scenario == "N = 100, P = 100"))[2,-(ncol(EN_rmse): (ncol(EN_rmse) -4 ) )])`    | -->
+
+<!-- : Selected hyper-parameterfor ML algorithms {#tbl-Hyper_selected} -->
+
+
+| Algorithm   |  | Selected hyper-parameters (data-poor)                                                                                |
+|----------------|----------------------------|
+| RF          | `r hyper_to_text((RF_rmse %>% filter(scenario == "N = 100, P = 100"))[2,-(ncol(RF_rmse): (ncol(RF_rmse) -4 ) )])`    |
+| BRT         | `r hyper_to_text((BRT_rmse %>% filter(scenario == "N = 100, P = 100"))[2,-(ncol(BRT_rmse): (ncol(BRT_rmse) -4 ) )])` |
+| NN          | `r hyper_to_text((NN_rmse %>% filter(scenario == "N = 100, P = 100"))[2,-(ncol(NN_rmse): (ncol(NN_rmse) -4 ) )])`    |
+| elastic-net | `r hyper_to_text((EN_rmse %>% filter(scenario == "N = 100, P = 100"))[2,-(ncol(EN_rmse): (ncol(EN_rmse) -4 ) )])`    |
+
+: Selected hyper-parameterfor ML algorithms {#tbl-Hyper_selected}
+
+
+
+
 
 ## Proof of concept - Additional results
 
@@ -698,13 +880,13 @@ ggplot(res_rmse, aes(y=values, x=method)) +
 
 ## Data-poor simulation
 
-### Without interactions
+### Without feature interactions
 
-#### RMSE
+We additionally calculated the RMSE on holdout-data of the same size as the training data for the data-poor simulations (Fig. 3). For N = 100, LM showed the highest RMSE, which is explained by the large biases and variances (Fig. 3). Overall, RF and Ridge regression showed the highest RMSE (Fig. S11).
 
 ```{r}
 #| label: fig-Fig_S11
-#| fig-cap: "Root mean squared error (RMSE) of models for data-poor simulations. N = 100 (low), 600 (med), 2,000 (large) was simulated with 100 features. All features were weakly correlated. Two features had main effects (effect sizes = 1, X1 and X5) on the response and the other 95 features had no effects. Models (LM, RF, BRT, NN, Elastic-net) were fitted on the simulated data and holdout data of the same size as the training data was used to estimate predictive error (RMSE). Simulation and model fitting were repeated 100 times. "
+#| fig-cap: "Root mean squared error (RMSE) of models for data-poor simulations. N = 100 (low), 600 (med), 2,000 (large) was simulated with 100 features. All features were weakly correlated. Two features had main effects (effect sizes = 1, X~1~ and X~5~) on the response and the other 95 features had no effects. Models (LM, RF, BRT, NN, Elastic-net) were fitted on the simulated data and holdout data of the same size as the training data was used to estimate predictive error (RMSE). Simulation and model fitting were repeated 100 times. "
 #| fig-width: 10
 #| fig-height: 5
 
@@ -759,9 +941,15 @@ ggplot(res_rmse, aes(y=values, x=method)) +
 
 ```
 
-### With interactions
+### With feature interactions and collinearity
 
-#### With Collinearity
+Moreover, we simulated scenarios with only 29 features but with interactions between features. We sampled the 29 features from a multivariate normal distribution (mean vector $\mu=[0, 0, ...0]$ ) and the covariance matrix was sampled from a Wishart distribution (degress of freedom = 29) to create a weak collinear structure between all 29 features.
+
+The data-generating model was $y \approx N(1⋅X_1+1⋅X_5+1⋅X_2⋅X_3+1⋅X_4⋅X_5, \sigma )$ with $\sigma=0.2$ . All other features had no effects on the outcome.
+
+We sampled 100, 600, and 2,000 observations from the data-generating model. Holdout-data of the same size was used to calculate the RMSE of the model. Simulation and model fitting was repeated 100 times.
+
+For the main effects, we found similar results as for the main effects from Fig. 3, for the interactions, we found that the biases were higher than as for the main effects (Fig. S14) but it also decreased with the number of observations. Here, elastic-net showed the best performance, however, only elastic-net and LM received all combinatorical possible feature interactions as features where as RF, BRT, and NN had to infer the interactions automatically from the features. Again, BRT and NN showed significant lower biases than RF.
 
 ```{r}
 effs_true = c(1.0, 0.0, 0.0, 0.0, 1, rep(0, 24))
@@ -833,12 +1021,11 @@ data$which_bias = forcats::lvls_reorder(data$which_bias, c(4, 3, 2, 1))
 
 data$method = forcats::lvls_reorder(data$method, c(5,8, 1, 6,7, 3, 4, 2))
 data$label = c(rep("NA", 8), rep("", nrow(data)-8))
+
 ```
 
-##### Bias
-
 ```{r}
-#| label: fig-Fig_S14
+#| label: fig-Fig_S12
 #| fig-cap: "Bias and variance of estimated effects in a data-poor situation. N = 100, 600, 2,000 was simulated with 29 features. All features were weakly correlated. Two features had main effects (effect sizes = 1) on the response and 4 features had two interaction effects (effect sizes = 1) on the response. Models (LM, RF, BRT, NN, Elastic-net) were fitted on the simulated data and effect estimates were approximated using MCEs. LM and elastic-net received all possible two-way interactions (406) as features. Simulation and model fitting were repeated 100 times. For all effects (Main = 1, Inter = 1) and non-effects (Main = 0, Inter = 0), bias and variance of the effect estimates were calculated."
 #| fig-width: 10
 #| fig-height: 6.7
@@ -854,12 +1041,12 @@ for(j in 1:3) {
     if(i == 1) axes = TRUE
     else axes = FALSE
     if(j ==1) create_gapped_stacked(tmp = data[data$method == methods[i] & data$N== sizes[j], ], 
-                                    to2 = c(100, 2000),
-                                    labels2 = c("100", "1050", "2000"),
-                                    axes = axes, to = c(0, 1), labels1 = c("0.0", "0.2", "0.4", "0.6", "0.8", "1.0"), d_between = 0.08)
+                                    to2 = c(100, 5000),
+                                    labels2 = c("100", "2550", "5000"),
+                                    axes = axes, to = c(0, 3), labels1 = c("0.0", "0.6", "1.2", "1.8", "2.4", "3.0"), d_between = 0.08)
     else create_gapped_stacked(tmp = data[data$method == methods[i] & data$N== sizes[j], ], 
-                               axes = axes, to2 = c(2.0, 5), 
-                               labels2 = c("2.0","3.0", "4.0", "5.0"), to = c(0, 1.0),
+                               axes = axes, to2 = c(1.0, 3), 
+                               labels2 = c("1.0","2.0", "3.0"), to = c(0, 1.0),
                                 labels1 = c("0.0", "0.2", "0.4", "0.6", "0.8", "1.0"), d_between = 0.08)
     if(j == 3){
       text(x = seq(0, 1, length.out = 6)[-c(1, 6)]-0.30,y = -0.24, 
@@ -885,10 +1072,8 @@ for(j in 1:3) {
 
 ```
 
-##### RMSE
-
 ```{r}
-#| label: fig-Fig_S15
+#| label: fig-Fig_S13
 #| fig-cap: "Root mean squared error (RMSE) of models for data-poor simulations. N = 100 (low), 600 (med), 2,000 (large) was simulated with 29 features. All features were weakly correlated. Two features had main effects (effect sizes = 1, X1 and X5) and there were two interaction effects (X1:X2 and X3:X4) on the response and the other 95 features had no effects. Models (LM, RF, BRT, NN, Elastic-net) were fitted on the simulated data and holdout data of the same size as the training data was used to estimate predictive error (RMSE). LM and elastic-net received all possible two-way interactions (406) as features. Simulation and model fitting were repeated 100 times. "
 #| fig-width: 10
 #| fig-height: 5
@@ -942,7 +1127,11 @@ ggplot(res_rmse, aes(y=values, x=method)) +
 
 ```
 
-#### Without collinearity
+### With feature interactions and without collinearity
+
+We repeated the simulation with feature interactions but without collinearity, i.e. $\Sigma$ of the multivariate normal distribution, from we sampled the 29 features, was the identity matrix.
+
+We found similar results as before, i) bias was larger for the feature interactions for RF, BRT, and NN as on the main effects, ii) biases decreased with number of observations, and iii) RF showed the largest biases for 2,000 observations (Fig. S14).
 
 ```{r}
 #| echo: false
@@ -1017,10 +1206,8 @@ data$method = forcats::lvls_reorder(data$method, c(5,8, 1, 6,7, 3, 4, 2))
 data$label = c(rep("NA", 8), rep("", nrow(data)-8))
 ```
 
-##### Bias
-
 ```{r}
-#| label: fig-Fig_S16
+#| label: fig-Fig_S14
 #| fig-cap: "Bias and variance of estimated effects in a data-poor situation. N = 100, 600, 2,000 was simulated with 29 features. All features were uncorrelated. Two features had main effects (effect sizes = 1) on the response and 4 features had two interaction effects (effect sizes = 1) on the response. Models (LM, RF, BRT, NN, Elastic-net) were fitted on the simulated data and effect estimates were approximated using MCEs. LM and elastic-net received all possible two-way interactions (406) as features. Simulation and model fitting were repeated 100 times. For all effects (Main = 1, Inter = 1) and non-effects (Main = 0, Inter = 0), bias and variance of the effect estimates were calculated."
 #| fig-width: 10
 #| fig-height: 6.7
@@ -1036,8 +1223,8 @@ for(j in 1:3) {
     if(i == 1) axes = TRUE
     else axes = FALSE
     if(j ==1) create_gapped_stacked(tmp = data[data$method == methods[i] & data$N== sizes[j], ], 
-                                    to2 = c(100, 2000),
-                                    labels2 = c("100", "1050", "2000"),
+                                    to2 = c(10, 40),
+                                    labels2 = c("10", "25", "40"),
                                     axes = axes, to = c(0, 1), labels1 = c("0.0", "0.2", "0.4", "0.6", "0.8", "1.0"), d_between = 0.08)
     else create_gapped_stacked(tmp = data[data$method == methods[i] & data$N== sizes[j], ], 
                                axes = axes, to2 = c(2.0, 5), 
@@ -1067,10 +1254,10 @@ for(j in 1:3) {
 
 ```
 
-##### RMSE
+For 100 observations (low), again, LM should the highest RMSE which is not surprising given the large biases and variances (Fig. S14). RF, BRT, and NN with dropout showed the largest RMSE, whereas elastic-net, LASSO, Ridge showed the lowest RMSE (Fig. S15).
 
 ```{r}
-#| label: fig-Fig_S17
+#| label: fig-Fig_S15
 #| fig-cap: "Root mean squared error (RMSE) of models for data-poor simulations. N = 100 (low), 600 (med), 2,000 (large) was simulated with 29 features. All features were uncorrelated. Two features had main effects (effect sizes = 1, X1 and X5) and there were two interaction effects (X1:X2 and X3:X4) on the response and the other 95 features had no effects. Models (LM, RF, BRT, NN, Elastic-net) were fitted on the simulated data and holdout data of the same size as the training data was used to estimate predictive error (RMSE). LM and elastic-net received all possible two-way interactions (406) as features. Simulation and model fitting were repeated 100 times. "
 #| fig-width: 10
 #| fig-height: 5
@@ -1127,10 +1314,16 @@ ggplot(res_rmse, aes(y=values, x=method)) +
 
 ## Weighted MCE
 
+If the instances of a feature x_j are not uniformly distributed, we propose to calculate a weighted $wMCE_k = \Sigma^{N}_{i=1} w_i MCE_{ik}$ with the $w_i$ being, for example, the inverse probabilities of an estimated density function over the feature space of $x_k$.
+
+To demonstrate the idea of weighted MCE, we simulated a scenario with one feature where the $\beta_1 = 2$ for values of the feature $< 2$ and for the other feature values $\beta_1=0$ (Fig. S4). The feature was sampled from a log-Normal distribution. We fitted a linear regression model and a NN on the data and compared the effect estimated by the LM, the unweighted MCE, and the weighted MCE.
+
+The LM estimated an effect of 1.48, the unweighted MCE was 1.95, and the weighted MCE was 1.48 (Fig. S16).
+
 ```{r}
-#| label: fig-Fig_S18
+#| label: fig-Fig_S16
 #| message: false
-#| fig-cap: Comparison of weighted versus unweighted MCE.
+#| fig-cap: Simulation example with non-uniform sampled feature X1 (log normal distributed). The red line is the effect estimated by a LM OLS. The blue line is the effect reported by an unweighted MCE from a NN. The green line is the effect reported by a weighted MCE from a NN. 
 #| fig-width: 7
 #| fig-height: 6
 source("code/AME.R")
@@ -1171,5 +1364,83 @@ legend("bottomright", legend = c(paste0(round(coef(m2)[[2]], 2), "LM OLS "),
                                  paste0(round(mean(effs), 2), " DNN aMCE"), 
                                  paste0(round(sum((1/(f(X1))*effs))/sum(1/f(X1)), 2), " DNN waMCE")
                                  ), col = c("red", "blue", "darkgreen"), lty = 1, bty = "n")
+
+```
+
+## Case study - RMSE
+
+```{r}
+#| label: tbl-Table_S4
+#| tbl-cap: "In-sample R2 of BRT, RF, NN, and LM in predicting the risk of Lung Cancer"
+
+
+coll_no = readRDS("results/res_changed_no.RDS")
+coll_no_results = apply(coll_no [1:10, ,], 2:3, mean)
+coll_no_results = as.data.frame(coll_no_results)[1:4,]
+rownames(coll_no_results) = c("BRT", "RF", "NN", "LM")
+colnames(coll_no_results) = c("H", "HT", "HO", "HOT")
+data = coll_no_results
+data$model = rownames(data)
+data = data %>% pivot_longer(cols = c("H", "HT", "HO", "HOT")) 
+data = data %>% filter(name %in% c("HO", "H"))
+color = RColorBrewer::brewer.pal(4, "Set2")
+labels = c("Conventional ML 1", "Causal ML")
+data$name = forcats::lvls_reorder(data$name, c(2, 1))
+
+levels(data$name) = c("Conventional ML 1", "Causal ML")
+insample = data
+
+ft = flextable((data %>% pivot_wider(names_from = model))) %>% colformat_double(digits = 2)
+ft
+
+```
+
+```{r}
+#| label: tbl-Table_S5
+#| tbl-cap: "Out-of-sample R2 of BRT, RF, NN, and LM in predicting the risk of Lung Cancer with intervention on Lung Volume"
+
+coll_no = readRDS("results/res_changed_intervention.RDS")
+coll_no_results = apply(coll_no [1:10, ,], 2:3, mean)
+coll_no_results = as.data.frame(coll_no_results)[1:4,]
+rownames(coll_no_results) = c("BRT", "RF", "NN", "LM")
+colnames(coll_no_results) = c("H", "HT", "HO", "HOT")
+data = coll_no_results
+data$model = rownames(data)
+data = data %>% pivot_longer(cols = c("H", "HT", "HO", "HOT")) %>% filter(name %in% c("HO", "H"))
+color = RColorBrewer::brewer.pal(4, "Set2")
+labels = c("Conventional ML 1", "Causal ML")
+data$name = forcats::lvls_reorder(data$name, c(2, 1))
+
+
+levels(data$name) = c("Conventional ML 1", "Causal ML")
+outofsample = data
+
+ft = flextable((data %>% pivot_wider(names_from = model))) %>% colformat_double(digits = 2)
+ft
+
+```
+
+```{r}
+#| label: tbl-Table_S6
+#| tbl-cap: "Out-of-sample R2 of BRT, RF, NN, and LM in predicting the risk of Lung Cancer with changed correlation structure because of the unobservable confounder Stress"
+
+coll_no = readRDS("results/res_changed_coll.RDS")
+coll_no_results = apply(coll_no [1:10, ,], 2:3, mean)
+coll_no_results = as.data.frame(coll_no_results)[1:4,]
+rownames(coll_no_results) = c("BRT", "RF", "NN", "LM")
+colnames(coll_no_results) = c("H", "HT", "HO", "HOT")
+data = coll_no_results
+data$model = rownames(data)
+data = data %>% pivot_longer(cols = c("H", "HT", "HO", "HOT")) %>% filter(name %in% c("HOT", "HT", "H"))
+color = RColorBrewer::brewer.pal(4, "Set2")
+
+data$name = forcats::lvls_reorder(data$name, idx = c(1,2 , 3))
+labels = c("Conventional ML 1","Conventional ML 2", "Causal ML")
+
+
+levels(data$name) = c("Conventional ML 1", "Conventional ML 2", "Causal ML")
+outofsample_conf = data
+ft = flextable((data %>% pivot_wider(names_from = model))) %>% colformat_double(digits = 2)
+ft
 
 ```
