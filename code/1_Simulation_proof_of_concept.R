@@ -51,6 +51,7 @@ get_result = function(sim ) {
       m = xgboost::xgboost(data=xgboost::xgb.DMatrix(as.matrix(train)[,-1],
                                                      label = (as.matrix(train)[,1, drop=FALSE])),
                            nrounds = 100,
+                           lambda = 0,
                            objective="reg:squarederror", nthread = 1, verbose = 0)
       (eff = diag(marginalEffects(m, data = data.frame(train)[,-1])$mean))
       pred = predict(m, newdata = xgboost::xgb.DMatrix(test[,-1]))
@@ -61,9 +62,9 @@ get_result = function(sim ) {
                     hidden = rep(50L, 3),
                     verbose = FALSE, 
                     plot=FALSE, lambda = 0.00, alpha = 1., 
-                    epochs = 300,
-                    lr = 0.05,
-                    lr_scheduler = config_lr_scheduler("reduce_on_plateau", factor = 0.90, patience = 4), early_stopping = 6)
+                    epochs = 500,
+                    lr = 0.01,
+                    lr_scheduler = config_lr_scheduler("reduce_on_plateau", factor = 0.80, patience = 7), early_stopping = 20)
       eff = diag(marginalEffects(m)$mean)
       pred = predict(m, newdata = data.frame(test))
       result[[4]] = list(eff, rmse(test[,1], pred))
@@ -76,9 +77,9 @@ get_result = function(sim ) {
                     batchsize = 50, 
                     verbose = FALSE, 
                     plot=FALSE, lambda = 0.00, alpha = 1., 
-                    epochs = 300,
-                    lr = 0.05,
-                    lr_scheduler = config_lr_scheduler("reduce_on_plateau", factor = 0.90, patience = 4), early_stopping = 6)
+                    epochs = 500,
+                    lr = 0.01,
+                    lr_scheduler = config_lr_scheduler("reduce_on_plateau", factor = 0.80, patience = 7), early_stopping = 20)
       eff = diag(marginalEffects(m)$mean)
       pred = predict(m, newdata = data.frame(test))
       result[[5]] = list(eff, rmse(test[,1], pred))
@@ -112,13 +113,15 @@ get_result = function(sim ) {
   return(result_list)
 }
 
-sim = function() simulate(r = 0.9, effs = c(1, 1, 0, 0, 1),n = 2000)
+sim = function() simulate(r = 0.9, effs = c(1, -0.5, 0, 0, 1),n = 2000)
+results = get_result(sim)
+saveRDS(results, "results/confounder_unequal.RDS")
+
+sim = function() simulate(r = 0.9, effs = c(1, 0.5, 0, 0, 1),n = 2000)
 results = get_result(sim)
 saveRDS(results, "results/confounder.RDS")
 
-sim = function() simulate(r = 0.9, effs = c(-1, 0.5, 0, 0, 1),n = 2000)
-results = get_result(sim)
-saveRDS(results, "results/confounder_unequal.RDS")
+
 
 sim = function() simulate(r = 0.9, effs = c(1, 0, 0, 0, 1),n = 2000)
 results = get_result(sim)
@@ -132,7 +135,7 @@ sim = function() simulate(r = 0.99, effs = c(1, 0, 0, 0, 1),n = 2000)
 results = get_result(sim)
 saveRDS(results, "results/collinearity_0.99.RDS")
 
-sim = function() simulate(effs = c(1.0, 0.5, 1.0, 0.0, 1.0), r = 0.0,n = 2000)
+sim = function() simulate(effs = c(1.0, 0.0, 1.0, 0.0, 1.0), r = 0.0,n = 2000)
 results = get_result(sim)
 saveRDS(results, "results/effects.RDS")
 

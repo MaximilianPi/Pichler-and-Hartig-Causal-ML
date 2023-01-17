@@ -3,12 +3,12 @@
 library(tidyverse)
 
 scenarios = c(
-  "_pars_100_10.RDS", 
-  "_pars_100_100.RDS",
-  "_pars_600_100.RDS",
-  "_pars_1000_10.RDS",
-  "_pars_1000_100.RDS",
-  "_pars_2000_100.RDS"
+  "_pars_100_10_SS.RDS", 
+  "_pars_100_100_SS.RDS",
+  "_pars_600_100_SS.RDS",
+  "_pars_1000_10_SS.RDS",
+  "_pars_1000_100_SS.RDS",
+  "_pars_2000_100_SS.RDS"
   )
 names(scenarios) = c(
   "N = 100, P = 10", 
@@ -20,15 +20,7 @@ names(scenarios) = c(
 )
 
 ## NN
- scenarios2 = c(
-  "_pars_100_10.RDS", 
-  "_pars_100_100_SS.RDS",
-  "_pars_600_100_SS.RDS",
-  "_pars_1000_10.RDS",
-  "_pars_1000_100.RDS",
-  "_pars_2000_100_SS.RDS"
-)
-results = lapply(scenarios2, function(p) readRDS(paste0("results/NN", p)) )
+results = lapply(scenarios, function(p) readRDS(paste0("results/NN", p)) )
 results = lapply(results, function(r) do.call(rbind, r))
 results = lapply(results, function(r) r[abs(r$bias_1) < 0.98,])
 results = lapply(results, function(r) r[abs(r$bias_5) < 0.98,])
@@ -43,6 +35,8 @@ res =
 
 NN_rmse = (res %>% arrange(rmse))
 NN_bias = (res %>% arrange(abs(bias_1)))
+NN_mse = res %>% mutate(mse_eff = bias_1**2 + var_1) %>% arrange(mse_eff)
+
 
 
 ## BRT
@@ -61,6 +55,8 @@ res =
 
 BRT_rmse = (res  %>% arrange(rmse))
 BRT_bias = (res  %>% arrange(abs(bias_1)))
+BRT_mse = res %>% mutate(mse_eff = bias_1**2 + var_1) %>% arrange(mse_eff)
+
 
 
 ## RF
@@ -78,6 +74,8 @@ res =
 
 RF_rmse = (res %>% arrange(rmse))
 RF_bias = (res %>%  arrange(abs(bias_1)))
+RF_mse = res %>% mutate(mse_eff = bias_1**2 + var_1) %>% arrange(mse_eff)
+
 
 
 ## Elasticnet
@@ -96,6 +94,8 @@ res =
 
 EN_rmse = (res  %>% arrange(rmse))
 EN_bias = (res  %>% arrange(abs(bias_1)))
+EN_mse = res %>% mutate(mse_eff = bias_1**2 + var_1) %>% arrange(mse_eff)
+
 
 
 
@@ -108,18 +108,41 @@ hyper_to_text = function(x, pre="", NN = FALSE) {x
 }
 
 
+### MSE
+
 settings = matrix(c(100, 100, 600, 100, 2000, 100), ncol = 2, byrow = TRUE)
 
 sapply(1:3, function(k) {
   tmp = as.integer(settings[k,])
-  conn = file(paste0("code/hyper_param_config_",tmp[1],"_",tmp[2],".R"))
+  conn = file(paste0("code/hyper-parameter/BIAS_hyper_param_config_",tmp[1],"_",tmp[2],".R"))
   writeLines(
     paste0(
       paste0("## Hyper-parameters for data-poor scenarios created by 'create_hyper_config_.R' file\n"),
-       hyper_to_text((RF_rmse %>% filter(scenario == paste0("N = ", tmp[1],", P = ", tmp[2])))[2,-(ncol(RF_rmse): (ncol(RF_rmse) -4 ) )], "RF_"),
-      hyper_to_text((BRT_rmse %>% filter(scenario == paste0("N = ", tmp[1],", P = ", tmp[2])))[2,-(ncol(BRT_rmse): (ncol(BRT_rmse) -4 ) )], "BRT_"),
-       hyper_to_text((NN_rmse %>% filter(scenario == paste0("N = ", tmp[1],", P = ", tmp[2])))[2,-(ncol(NN_rmse): (ncol(NN_rmse) -4 ) )], "NN_", TRUE),
-       hyper_to_text((EN_rmse %>% filter(scenario == paste0("N = ", tmp[1],", P = ", tmp[2])))[2,-(ncol(EN_rmse): (ncol(EN_rmse) -4 ) )], "EN_")), 
+      hyper_to_text((RF_mse %>% filter(scenario == paste0("N = ", tmp[1],", P = ", tmp[2])))[2,-(ncol(RF_rmse): (ncol(RF_rmse) -8 ) )], "RF_"),
+      hyper_to_text((BRT_mse %>% filter(scenario == paste0("N = ", tmp[1],", P = ", tmp[2])))[2,-(ncol(BRT_rmse): (ncol(BRT_rmse) -8 ) )], "BRT_"),
+      hyper_to_text((NN_mse %>% filter(scenario == paste0("N = ", tmp[1],", P = ", tmp[2])))[2,-(ncol(NN_rmse): (ncol(NN_rmse) -8 ) )], "NN_", TRUE),
+      hyper_to_text((EN_mse %>% filter(scenario == paste0("N = ", tmp[1],", P = ", tmp[2])))[2,-(ncol(EN_rmse): (ncol(EN_rmse) -8 ) )], "EN_")), 
+    conn )
+  close(conn)
+})
+
+
+
+
+### RMSE
+
+settings = matrix(c(100, 100, 600, 100, 2000, 100), ncol = 2, byrow = TRUE)
+
+sapply(1:3, function(k) {
+  tmp = as.integer(settings[k,])
+  conn = file(paste0("code/hyper-parameter/RMSE_hyper_param_config_",tmp[1],"_",tmp[2],".R"))
+  writeLines(
+    paste0(
+      paste0("## Hyper-parameters for data-poor scenarios created by 'create_hyper_config_.R' file\n"),
+       hyper_to_text((RF_rmse %>% filter(scenario == paste0("N = ", tmp[1],", P = ", tmp[2])))[2,-(ncol(RF_rmse): (ncol(RF_rmse) -7 ) )], "RF_"),
+      hyper_to_text((BRT_rmse %>% filter(scenario == paste0("N = ", tmp[1],", P = ", tmp[2])))[2,-(ncol(BRT_rmse): (ncol(BRT_rmse) -7 ) )], "BRT_"),
+       hyper_to_text((NN_rmse %>% filter(scenario == paste0("N = ", tmp[1],", P = ", tmp[2])))[2,-(ncol(NN_rmse): (ncol(NN_rmse) -7 ) )], "NN_", TRUE),
+       hyper_to_text((EN_rmse %>% filter(scenario == paste0("N = ", tmp[1],", P = ", tmp[2])))[2,-(ncol(EN_rmse): (ncol(EN_rmse) -7 ) )], "EN_")), 
     conn )
   close(conn)
 })

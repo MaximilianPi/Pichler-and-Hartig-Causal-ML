@@ -93,10 +93,10 @@ We performed a hyper-parameter search to check if hyper-parameters can influence
 #| fig-height: 2.8
 #| warning: false
 #| message: false
-small_10 = readRDS("results/NN_pars_100_10.RDS")
-small_100 = readRDS("results/NN_pars_100_100.RDS")
-large_10 = readRDS("results/NN_pars_1000_10.RDS")
-large_100 = readRDS("results/NN_pars_1000_100.RDS")
+small_10 = readRDS("results/NN_pars_100_10_SS.RDS")
+small_100 = readRDS("results/NN_pars_100_100_SS.RDS")
+large_10 = readRDS("results/NN_pars_1000_10_SS.RDS")
+large_100 = readRDS("results/NN_pars_1000_100_SS.RDS")
 results = list(small_10, small_100, large_10, large_100)
 results = lapply(results, function(r) do.call(rbind, r))
 results = lapply(results, function(r) r[abs(r$bias_1) < 0.98,])
@@ -197,10 +197,10 @@ The correlation between RMSE and bias was stronger for data-rich scenarios than 
 #| fig-cap: "Trade-off between bias (feature X~1~, true effect = 1) and RMSE of the fittend BRTs. Each point is a simulated scenario with a different set of hyper-parameters (3,000 samples). Scenarios with 1,00 and 1,000 observations and with 100 or 10 features (P) were simulated. In each scenario, only two features (X1 and X5) had an effect (effect size = 1) on the response variable Y. Hyper-parameters (max_depth, subsample, lambda, and max_tree) were randomly sampled."
 #| fig-width: 8
 #| fig-height: 2.5
-small_10 =  readRDS("results/BRT_pars_100_10.RDS")
-small_100 = readRDS("results/BRT_pars_100_100.RDS")
-large_10 =  readRDS("results/BRT_pars_1000_10.RDS")
-large_100 = readRDS("results/BRT_pars_1000_100.RDS")
+small_10 =  readRDS("results/BRT_pars_100_10_SS.RDS")
+small_100 = readRDS("results/BRT_pars_100_100_SS.RDS")
+large_10 =  readRDS("results/BRT_pars_1000_10_SS.RDS")
+large_100 = readRDS("results/BRT_pars_1000_100_SS.RDS")
 results = list(small_10, small_100, large_10, large_100)
 results = lapply(results, function(r) do.call(rbind, r))
 results = lapply(results, function(r) r[abs(r$bias_1) < 0.98,])
@@ -303,10 +303,10 @@ For our data-poor simulation experiments with n $\gtrapprox$ p, RF showed a stro
 #| fig-cap: "Trade-off between bias (feature X~1~, true effect = 1) and RMSE of the fittend RF. Each point is a simulated scenario with a different set of hyper-parameters. Scenarios with 1,00 and 1,000 observations and with 100 or 10 features (P) were simulated. In each scenario, only two features (X~1~ and X~5~) had an effect (effect size = 1) on the response variable Y. Hyper-parameters (max_depth, subsample, lambda, and max_tree) were randomly sampled."
 #| fig-width: 8
 #| fig-height: 2.5
-small_10 =  readRDS("results/RF_pars_100_10.RDS")
-small_100 = readRDS("results/RF_pars_100_100.RDS")
-large_10 =  readRDS("results/RF_pars_1000_10.RDS")
-large_100 = readRDS("results/RF_pars_1000_100.RDS")
+small_10 =  readRDS("results/RF_pars_100_10_SS.RDS")
+small_100 = readRDS("results/RF_pars_100_100_SS.RDS")
+large_10 =  readRDS("results/RF_pars_1000_10_SS.RDS")
+large_100 = readRDS("results/RF_pars_1000_100_SS.RDS")
 results = list(small_10, small_100, large_10, large_100)
 results = lapply(results, function(r) do.call(rbind, r))
 results = lapply(results, function(r) r[abs(r$bias_1) < 0.98,])
@@ -408,10 +408,10 @@ For our data-poor simulation experiments with n $\gtrapprox$ p, RF showed a stro
 #| fig-cap: "Trade-off between bias (feature X~1~, true effect = 1) and RMSE of the fittend Elastic-net. Each point is a simulated scenario with a different set of hyper-parameters. Scenarios with 1,00 and 1,000 observations and with 100 or 10 features (P) were simulated. In each scenario, only two features (X~1~ and X~5~) had an effect (effect size = 1) on the response variable Y. Hyper-parameters (alpha and lambda) were randomly sampled."
 #| fig-width: 8
 #| fig-height: 2.5
-small_10 =  readRDS("results/Elastic_net_pars_100_10.RDS")
-small_100 = readRDS("results/Elastic_net_pars_100_100.RDS")
-large_10 =  readRDS("results/Elastic_net_pars_1000_10.RDS")
-large_100 = readRDS("results/Elastic_net_pars_1000_100.RDS")
+small_10 =  readRDS("results/Elastic_net_pars_100_10_SS.RDS")
+small_100 = readRDS("results/Elastic_net_pars_100_100_SS.RDS")
+large_10 =  readRDS("results/Elastic_net_pars_1000_10_SS.RDS")
+large_100 = readRDS("results/Elastic_net_pars_1000_100_SS.RDS")
 results = list(small_10, small_100, large_10, large_100)
 results = lapply(results, function(r) do.call(rbind, r))
 results = lapply(results, function(r) r[abs(r$bias_1) < 0.98,])

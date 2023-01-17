@@ -64,21 +64,21 @@ plot_scenarios = function(cex_fac = 1.3, layout = layout, x00 = 1.4) {
   
   segments(x0 = x00, x1 = x00, y0 = -0.5, y1 = 3.5, xpd = NA)
   # Confounder
-  g1 <- graph(c("x\U2081", "y", "x\U2082","y", "x\U2083", "y", "x\U2081", "x\U2082"),  
-              directed=TRUE ) 
-  eqarrowPlot(g1, layout, 
-              #cols = c( "skyblue","#B0A8B9", "#B0A8B9", "#B0A8B9"),
-              cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 2), 1.0)),
-              edge.arrow.size=c(1.0, 0.5,1.0,0.95)*cex_fac, 
-              edge.width=c(1.0, 0.5,1.0,0.95)*cex_fac,
-              edge.label = c("-1.0\n\n","0.5\n","1.0", "\n0.90"), 
-              edge.label.cex = 1.4, 
-              edge.arrow.mode = c(rep(">", 3), "-"), 
-              edge.colors = c(rep("grey", 2),"grey", "#ffab02"))
-  text(letters[2], cex = 1.9, x = -1.6, y = 1.5, xpd = NA, font = 2)
-  text("Simulation", x = 0.3, y = 2.3, xpd = NA, cex = 1.4, pos = 3)
-  
-  segments(x0 = x00, x1 = x00, y0 = -0.5, y1 = 3.5, xpd = NA)
+  # g1 <- graph(c("x\U2081", "y", "x\U2082","y", "x\U2083", "y", "x\U2081", "x\U2082"),  
+  #             directed=TRUE ) 
+  # eqarrowPlot(g1, layout, 
+  #             #cols = c( "skyblue","#B0A8B9", "#B0A8B9", "#B0A8B9"),
+  #             cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 2), 1.0)),
+  #             edge.arrow.size=c(1.0, 0.5,1.0,0.95)*cex_fac, 
+  #             edge.width=c(1.0, 0.5,1.0,0.95)*cex_fac,
+  #             edge.label = c("-1.0\n\n","0.5\n","1.0", "\n0.90"), 
+  #             edge.label.cex = 1.4, 
+  #             edge.arrow.mode = c(rep(">", 3), "-"), 
+  #             edge.colors = c(rep("grey", 2),"grey", "#ffab02"))
+  # text(letters[2], cex = 1.9, x = -1.6, y = 1.5, xpd = NA, font = 2)
+  # text("Simulation", x = 0.3, y = 2.3, xpd = NA, cex = 1.4, pos = 3)
+  # 
+  # segments(x0 = x00, x1 = x00, y0 = -0.5, y1 = 3.5, xpd = NA)
   
 }
 
