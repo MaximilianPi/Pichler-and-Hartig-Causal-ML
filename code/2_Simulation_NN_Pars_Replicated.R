@@ -117,25 +117,25 @@ results = lapply(1:20, function(replicate) {
 saveRDS(results, file = "results/NN_pars_100_100_replicate.RDS")
 
 
-set.seed(42)
-results = lapply(1:20, function(replicate) {
-  print(replicate)
-  print(Sys.time())
-  N_pred = 100
-  Sigma = trialr::rlkjcorr(1, N_pred, 2)
-  effs = c(1, seq(0, 1, length.out = 99))
-  sim = function(Sigma) {
-    return(
-      simulate(r = Sigma ,
-               effs = effs,
-               n = 600*2))
-  }
-  data = sim(Sigma)
-  res = get_result(data)
-  return(do.call(rbind, res))
-})
-
-saveRDS(results, file = "results/NN_pars_600_100_replicate.RDS")
+# set.seed(42)
+# results = lapply(1:20, function(replicate) {
+#   print(replicate)
+#   print(Sys.time())
+#   N_pred = 100
+#   Sigma = trialr::rlkjcorr(1, N_pred, 2)
+#   effs = c(1, seq(0, 1, length.out = 99))
+#   sim = function(Sigma) {
+#     return(
+#       simulate(r = Sigma ,
+#                effs = effs,
+#                n = 600*2))
+#   }
+#   data = sim(Sigma)
+#   res = get_result(data)
+#   return(do.call(rbind, res))
+# })
+# 
+# saveRDS(results, file = "results/NN_pars_600_100_replicate.RDS")
 
 set.seed(42)
 results = lapply(1:20, function(replicate) {
