@@ -6,8 +6,6 @@ library(cito)
 library(glmnet)
 library(glmnetUtils)
 library(MASS)
-set.seed(2)
-
 Sys.setenv(OMP_NUM_THREADS=5)
 
 source("code/AME.R")
@@ -26,9 +24,8 @@ pars$eff_2 = NA
 pars$pred_bias = NA
 pars$pred_var = NA
 pars$pred_mse = NA
-
 get_result = function(data ) {
-  cl = parallel::makeCluster(20L)
+  cl = parallel::makeCluster(40L)
   parallel::clusterExport(cl, varlist = ls(envir = .GlobalEnv))
   parallel::clusterEvalQ(cl, {library(ranger);library(xgboost);library(cito);library(glmnet);library(glmnetUtils);Sys.setenv(OMP_NUM_THREADS=1L);torch::torch_set_num_threads(1L);torch::torch_set_num_interop_threads(1L)
   })
@@ -67,24 +64,7 @@ get_result = function(data ) {
   return(result_list)
 }
 
-results = lapply(1:20, function(replicate) {
-  print(replicate)
-  N_pred = 100
-  Sigma = trialr::rlkjcorr(1, N_pred, 2)
-  effs = c(1, seq(0, 1, length.out = 99))
-  sim = function(Sigma) {
-    return(
-      simulate(r = Sigma ,
-               effs = effs,
-               n = 100*2))
-  }
-  data = sim(Sigma)
-  res = get_result(data)
-  return(do.call(rbind, res))
-})
-
-
-saveRDS(results, file = "results/Elastic_net_pars_100_100_replicate.RDS")
+set.seed(42)
 
 results = lapply(1:20, function(replicate) {
   print(replicate)
@@ -95,7 +75,7 @@ results = lapply(1:20, function(replicate) {
     return(
       simulate(r = Sigma ,
                effs = effs,
-               n = 600*2))
+               n = 50*2))
   }
   data = sim(Sigma)
   res = get_result(data)
@@ -103,26 +83,65 @@ results = lapply(1:20, function(replicate) {
 })
 
 
-saveRDS(results, file = "results/Elastic_net_pars_600_100_replicate.RDS")
-
-results = lapply(1:20, function(replicate) {
-  print(replicate)
-  N_pred = 100
-  Sigma = trialr::rlkjcorr(1, N_pred, 2)
-  effs = c(1, seq(0, 1, length.out = 99))
-  sim = function(Sigma) {
-    return(
-      simulate(r = Sigma ,
-               effs = effs,
-               n = 2000*2))
-  }
-  data = sim(Sigma)
-  res = get_result(data)
-  return(do.call(rbind, res))
-})
+saveRDS(results, file = "results/Elastic_net_pars_50_100_replicate.RDS")
 
 
-saveRDS(results, file = "results/Elastic_net_pars_2000_100_replicate.RDS")
+# results = lapply(1:200, function(replicate) {
+#   print(replicate)
+#   N_pred = 100
+#   Sigma = trialr::rlkjcorr(1, N_pred, 2)
+#   effs = c(1, seq(0, 1, length.out = 99))
+#   sim = function(Sigma) {
+#     return(
+#       simulate(r = Sigma ,
+#                effs = effs,
+#                n = 100*2))
+#   }
+#   data = sim(Sigma)
+#   res = get_result(data)
+#   return(do.call(rbind, res))
+# })
+# 
+# 
+# saveRDS(results, file = "results/Elastic_net_pars_100_100_replicate.RDS")
+# 
+# results = lapply(1:200, function(replicate) {
+#   print(replicate)
+#   N_pred = 100
+#   Sigma = trialr::rlkjcorr(1, N_pred, 2)
+#   effs = c(1, seq(0, 1, length.out = 99))
+#   sim = function(Sigma) {
+#     return(
+#       simulate(r = Sigma ,
+#                effs = effs,
+#                n = 600*2))
+#   }
+#   data = sim(Sigma)
+#   res = get_result(data)
+#   return(do.call(rbind, res))
+# })
+# 
+# 
+# saveRDS(results, file = "results/Elastic_net_pars_600_100_replicate.RDS")
+# 
+# results = lapply(1:200, function(replicate) {
+#   print(replicate)
+#   N_pred = 100
+#   Sigma = trialr::rlkjcorr(1, N_pred, 2)
+#   effs = c(1, seq(0, 1, length.out = 99))
+#   sim = function(Sigma) {
+#     return(
+#       simulate(r = Sigma ,
+#                effs = effs,
+#                n = 2000*2))
+#   }
+#   data = sim(Sigma)
+#   res = get_result(data)
+#   return(do.call(rbind, res))
+# })
+# 
+# 
+# saveRDS(results, file = "results/Elastic_net_pars_2000_100_replicate.RDS")
 
 
 

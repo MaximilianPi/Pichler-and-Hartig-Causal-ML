@@ -158,59 +158,51 @@ for(i in c(1, 2, 3, 4, 8)) {
 
 ```{r}
 #| echo: false
-
-effs_true = c(1.0, 0.0, 0.0, 0.0, 0)
-
-
-inter_low = readRDS("results/data_poor_small_RMSE.RDS")
-inter_med = readRDS("results/data_poor_mid_RMSE.RDS")
-inter_large = readRDS("results/data_poor_big_RMSE.RDS")
 extract_B = function(RI, exponent = 1) {
-  Bias = apply(abind::abind(lapply(1:length(RI), function(j) t(sapply(1:8, function(i) RI[[j]][[i]][[1]][1:5]  - effs_true))), along = 0L), 2:3, mean)**exponent
+  Bias = apply(abind::abind(lapply(1:length(RI), function(j) t(sapply(1:5, function(i) RI[[j]][[i]][1:2]  - effs_true))), along = 0L), 2:3, mean)**exponent
   Bias_1 = apply(Bias[,1, drop=FALSE], 1, mean)
   Bias_0 = apply(Bias[,2, drop=FALSE], 1, mean)
   return(cbind(Bias_1, Bias_0)) #, Bias_Inter_1, Bias_Inter_0))
 }
 
 extract_V= function(RI) {
-  Var = apply(abind::abind(lapply(1:length(RI), function(j) t(sapply(1:8, function(i) RI[[j]][[i]][[1]][1:5] ))), along = 0L), 2:3, var)
+  Var = apply(abind::abind(lapply(1:length(RI), function(j) t(sapply(1:5, function(i) RI[[j]][[i]][1:2] ))), along = 0L), 2:3, var)
   Var_1 = apply(Var[,1, drop=FALSE], 1, mean)
   Var_0 = apply(Var[,2, drop=FALSE], 1, mean)
   return(cbind(Var_1, Var_0))  #, Var_Inter_1, Var_Inter_0))
 }
 
-bias_low = extract_B(inter_low, exponent = 1)
-bias_med = extract_B(inter_med, exponent = 1)
-bias_large = extract_B(inter_large, exponent = 1)
+extract_results = function(path, N = "low", tuned = "pred") {
 
-var_low = extract_V(inter_low)
-var_med = extract_V(inter_med)
-var_large =extract_V(inter_large)
+  effs_true = c(1.0, 0.0)
+  
+  inter_low = readRDS(path)
+  bias_low = extract_B(inter_low, exponent = 1)
+  var_low = extract_V(inter_low)
+  
+  colnames(bias_low) = c("bias_1_Main", "bias_0_Main") #, "bias_1_Inter", "bias_0_Inter")
+  colnames(var_low) = c("var_1_Main", "var_0_Main") #, "var_1_Inter", "var_0_Inter")
+  rownames(bias_low) = rownames(var_low) = c( "LM","RF", "BRT", "NN","glmnet")
+  
+  bias_low_L = bias_low %>% data.frame %>% mutate(method = rownames(.)) %>%  pivot_longer(cols = c("bias_1_Main", "bias_0_Main"), values_to = "bias") %>% mutate(N = N, tuned = tuned)
+  var_low_L = var_low %>% data.frame %>% mutate(method = rownames(.)) %>%  pivot_longer(cols = c("var_1_Main", "var_0_Main"), values_to = "var") %>% mutate(N = N, tuned = tuned)
+  
+  data_bias = bias_low_L
+  data_var = var_low_L
+  data_bias$var = data_var$var
+  colnames(data_bias)[2] = "which_bias"
+  data = data_bias  %>% pivot_longer(cols = c("bias", "var"))
+  return(data)
+}
 
-colnames(bias_low) = colnames(bias_med) = colnames(bias_large) = c("bias_1_Main", "bias_0_Main") #, "bias_1_Inter", "bias_0_Inter")
-colnames(var_low) = colnames(var_med) = colnames(var_large) = c("var_1_Main", "var_0_Main") #, "var_1_Inter", "var_0_Inter")
-rownames(bias_low) = rownames(bias_med) = rownames(bias_large) = rownames(var_low) = rownames(var_med) = rownames(var_large)= c( "LM","RF", "BRT", "NN","NN_Drop", "L1", "L2", "glmnet")
+res_pred = do.call(rbind, lapply(c("small", "mid", "big"), function(n) extract_results(paste0("results/data_poor_",n ,"_MSE.RDS"), n, "pred")))
+
+res_eff = do.call(rbind, lapply(c("small", "mid", "big"), function(n) extract_results(paste0("results/data_poor_",n ,"_BIAS.RDS"), n, "eff")))
+
+res_pred = do.call(rbind, lapply(c("small"), function(n) extract_results(paste0("results/data_poor_",n ,"_MSE_50.RDS"), n, "pred")))
+res_eff= do.call(rbind, lapply(c("small"), function(n) extract_results(paste0("results/data_poor_",n ,"_MSE_50.RDS"), n, "pred")))
 
 
-bias_low_L = bias_low %>% data.frame %>% mutate(method = rownames(.)) %>%  pivot_longer(cols = c("bias_1_Main", "bias_0_Main"), values_to = "bias") %>% mutate(N = "low")
-bias_med_L = bias_med %>% data.frame %>% mutate(method = rownames(.)) %>%  pivot_longer(cols = c("bias_1_Main", "bias_0_Main"), values_to = "bias") %>% mutate(N = "med")
-bias_large_L = bias_large %>% data.frame %>% mutate(method = rownames(.)) %>%   pivot_longer(cols = c("bias_1_Main", "bias_0_Main"), values_to = "bias") %>% mutate(N = "large")
-var_low_L = var_low %>% data.frame%>% mutate(method = rownames(.)) %>%   pivot_longer(cols = c("var_1_Main", "var_0_Main"), values_to = "var") %>% mutate(N = "low")
-var_med_L = var_med %>% data.frame %>% mutate(method = rownames(.)) %>%  pivot_longer(cols = c("var_1_Main", "var_0_Main"), values_to = "var") %>% mutate(N = "med")
-var_large_L = var_large %>% data.frame %>% mutate(method = rownames(.)) %>%   pivot_longer(cols = c("var_1_Main", "var_0_Main"), values_to = "var") %>% mutate(N = "large")
-
-data_bias = rbind(bias_low_L, bias_med_L, bias_large_L)
-data_var = rbind(var_low_L, var_med_L, var_large_L)
-data_bias$var = data_var$var
-colnames(data_bias)[2] = "which_bias"
-data = data_bias  %>% pivot_longer(cols = c("bias", "var"))
-
-data$N = forcats::lvls_reorder(data$N, c(2, 3, 1))
-data$name = forcats::lvls_reorder(data$name, c(2, 1))
-data$which_bias = forcats::lvls_reorder(data$which_bias, c(2, 1))
-
-data$method = forcats::lvls_reorder(data$method, c(5,8, 1, 6,7, 3, 4, 2))
-data$label = ""#c(rep("NA", 8), rep("", nrow(data)-8))
 ```
 
 ```{r}
@@ -222,23 +214,29 @@ data$label = ""#c(rep("NA", 8), rep("", nrow(data)-8))
 
 #cairo_pdf("plots/Fig_3.pdf", width = 10, height = 7)
 
-levels(data$method)[8] = "Elastic-net"
+#levels(data$method)[8] = "Elastic-net"
+
+data = res_pred
+levels(data$method)
 
 par(mfrow = c(3, 5), mar = c(1, 1, 1, 1)*0.5, oma = c(8, 4, 4, 4))
-methods = c("LM", "RF", "BRT", "NN_Drop", "Elastic-net")
-sizes = c("low", "med", "large")
+methods = c("LM", "RF", "BRT", "NN", "glmnet")
+sizes = c("small", "mid", "big")
 y_labels = c("N = 100", "N = 600", "N = 2000")
-for(j in 1:3) {
+for(j in 1:1) {
   for(i in 1:5) {
     if(i == 1) axes = TRUE
     else axes = FALSE
-    if(j ==1) create_gapped_stacked(tmp = data[data$method == methods[i] & data$N== sizes[j], ], 
-                                    to2 = c(100, 2000),labels2 = c("100","1050", "2000"),
-                                    axes = axes, to = c(0, 4.0), labels1 = c("0.0", "1.0", "2.0", "3.0", "4.0"))
-    else create_gapped_stacked(tmp = data[data$method == methods[i] & data$N== sizes[j], ], 
-                               axes = axes, to2 = c(1.0, 3), 
-                               labels2 = c("1.0","2.0", "3.0"), to = c(0, 0.8),
-                                labels1 = c("0.0", "0.2", "0.4", "0.6", "0.8"))
+    if(j ==1) create_gapped_stacked(tmp = rbind(res_pred[res_pred$method == methods[i] & res_pred$N== sizes[j], ],
+                                                res_eff[res_pred$method == methods[i] & res_eff$N== sizes[j], ]), 
+                                    upper = 1.0,
+                                    axes = axes, to = c(0, 1.0), labels1 = c("0.0", "1.0", "2.0", "3.0", "4.0"), gapped = FALSE)
+    else create_gapped_stacked(tmp = rbind(res_pred[res_pred$method == methods[i] & res_pred$N== sizes[j], ],
+                                                res_eff[res_pred$method == methods[i] & res_eff$N== sizes[j], ]), 
+                               upper = 1.0,
+                               to = c(0, 1.0),
+                               axes = axes,
+                                labels1 = c("0.0", "0.2", "0.4", "0.6", "0.8"), gapped = FALSE)
     if(j == 3){
       text(x = c(0.33, 0.66)-0.25,y = -0.24, 
            labels = c("Bias+Variance for beta = 1", "Bias+Variance for beta = 0"), 
@@ -262,6 +260,32 @@ for(j in 1:3) {
 
 #dev.off()
 
+
+
+
+
+
+
+par(mfrow = c(3, 5), mar = c(1, 1, 1, 1)*0.5, oma = c(8, 4, 4, 4))
+methods = c("LM", "RF", "BRT", "NN", "glmnet")
+sizes = c("small", "mid", "big")
+y_labels = c("N = 100", "N = 600", "N = 2000")
+for(j in 1:3) {
+  for(i in 1:5) {
+    if(i == 1) axes = TRUE
+    else axes = FALSE
+    
+    tmp_data = rbind(res_pred[res_pred$method == methods[i] & res_pred$N== sizes[j], ],
+                                                res_eff[res_pred$method == methods[i] & res_eff$N== sizes[j], ])
+    
+    
+    
+    create_gapped_stacked(tmp = rbind(res_pred[res_pred$method == methods[i] & res_pred$N== sizes[j], ],
+                                                res_eff[res_pred$method == methods[i] & res_eff$N== sizes[j], ]), 
+                                    upper = 1.0,
+                                    axes = axes, to = c(0, 1.0), labels1 = c("0.0", "1.0", "2.0", "3.0", "4.0"), gapped = FALSE)
+  }
+}
 
 ```
 
@@ -525,16 +549,18 @@ get_coefficients = function(i, gam = TRUE) {
 
 
 ```{r}
-paths = c(
-  "results/NN_pars_100_100_replicate.RDS",
-  "results/BRT_pars_100_100_replicate.RDS",
-  "results/RF_pars_100_100_replicate.RDS",
-  "results/Elastic_net_pars_100_100_replicate.RDS"
-)
-methods = c("NN", "BRT", "RF", "Elastic_net")
-results = lapply(1:4, get_coefficients)
-data = do.call(rbind, lapply(1:4, function(i) results[[i]]$data ))
-saveRDS(results, "results/hyper_parameter_aggregation.RDS")
+for(n in c(50, 100, 600, 2000)) {
+  paths = c(
+    paste0("results/NN_pars_",n,"_100_replicate.RDS"),
+    paste0("results/BRT_pars_",n,"_100_replicate.RDS"),
+    paste0("results/RF_pars_",n,"_100_replicate.RDS"),
+    paste0("results/Elastic_net_pars_",n,"_100_replicate.RDS")
+  )
+  methods = c("NN", "BRT", "RF", "Elastic_net")
+  results = lapply(1:4, get_coefficients)
+  data = do.call(rbind, lapply(1:4, function(i) results[[i]]$data ))
+  saveRDS(results, paste0("results/hyper_parameter_aggregation_",n,".RDS"))
+}
 ```
 
 
@@ -743,7 +769,7 @@ hyper_to_text = function(x, pre="", NN = FALSE) {x
   return(paste0(paste0(paste0(pre, names(x)), "=", x, collapse = "\n"), "\n") )
 }
 
-settings = matrix(c(100, 100, 600, 100, 2000, 100), ncol = 2, byrow = TRUE)
+settings = matrix(c(50, 100, 100, 100, 600, 100), ncol = 2, byrow = TRUE)
 
 sapply(1:3, function(k) {
   tmp = as.integer(settings[k,])
@@ -782,7 +808,7 @@ sapply(1:3, function(k) {
   )
   methods = c("NN", "BRT", "RF", "Elastic_net")
   results = lapply(1:4, function(i) {
-    tmp = get_coefficients(i)$hyper$pred %>% select(-var_effect, -bias_zero, -var_zero, -bias_pred, -var_pred, -mse_eff, -mse_zero, -bias_effect, -mse_pred)
+    tmp = get_coefficients(i, gam=FALSE)$hyper$pred %>% select(-var_effect, -bias_zero, -var_zero, -bias_pred, -var_pred, -mse_eff, -mse_zero, -bias_effect, -mse_pred)
     names(tmp) = paste0(c("NN", "BRT", "RF", "EN")[i], "_", names(tmp))
     return(tmp)
     })

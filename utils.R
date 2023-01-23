@@ -130,6 +130,46 @@ create_gapped_stacked = function(tmp,
   }
   if(axes) {
     axis(2, at = seq(0, upper-0.004, length.out = length(labels1)), labels = labels1, las = 1)
-    axis(2, at = seq(upper+dd*2, 0.97, length.out = length(labels2)), labels = labels2, las = 1)
+    if(gapped) axis(2, at = seq(upper+dd*2, 0.97, length.out = length(labels2)), labels = labels2, las = 1)
+  }
+  
+}
+
+
+
+create_stacked_grouped = function(tmp, 
+                                 upper = 0.75, 
+                                 dd = 0.03, 
+                                 to = c(0, 0.75), 
+                                 cols = c("#96c6ed","#e0acd5" ),
+                                 labels1 = c("0.00", "0.25", "0.50", "0.75"),
+                                 axes = TRUE,
+                                 d_between = 0.1
+) {
+  scale_upper = 1.025
+  plot(NULL, NULL, xlim = c(0, 1), ylim = c(0, 1), yaxt = "n", xaxt = "n", xaxs = "i", yaxs = "i", xlab = "", ylab = "")
+  biases = abs(tmp %>% filter(name == "bias") %>% pull(value))
+  vars = abs(tmp %>% filter(name == "var") %>% pull(value))
+  
+  inters = seq(0, 1, length.out = length(biases)+2)
+  inters = inters[-c(1, length(inters))]
+  
+  for(i in 1:length(biases)) {
+    rect(inters[i]-d_between, 0, inters[i]+d_between, ytop = scales::rescale(biases[i], to = c(0, upper), from = to), col = cols[1])
+    upperB = scales::rescale(biases[i], to = c(0, upper), from = to) + scales::rescale(vars[i], to = c(0, upper), from = to)
+    if(upperB > upper) {
+      rect(inters[i]-d_between, scales::rescale(biases[i], to = c(0, upper), from = to) , inters[i]+d_between, 
+           ytop = upper*scale_upper+0.001, col = cols[2]) 
+      rect(inters[i]-d_between, upper*scale_upper+0.001, inters[i]+d_between, 
+           ytop = scales::rescale(biases[i]+vars[i], to = c(upper+dd*2, 0.97), from = to2), col = cols[2]) 
+    } else {
+      rect(inters[i]-d_between, scales::rescale(biases[i], to = c(0, upper), from = to) , inters[i]+d_between, 
+           ytop = upperB,  col = cols[2]) 
+    }
+  }
+ 
+  if(axes) {
+    axis(2, at = seq(0, upper-0.004, length.out = length(labels1)), labels = labels1, las = 1)
+    if(gapped) axis(2, at = seq(upper+dd*2, 0.97, length.out = length(labels2)), labels = labels2, las = 1)
   }
 }

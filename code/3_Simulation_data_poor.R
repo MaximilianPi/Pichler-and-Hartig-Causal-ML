@@ -14,9 +14,9 @@ source("code/AME.R")
 source("code/Scenarios.R")
 
 get_result = function(sim) {
-  samples = 100L
+  samples = 1000L
   result_list = vector("list", samples)
-  cl = parallel::makeCluster(50L)
+  cl = parallel::makeCluster(25L)
   nodes = unlist(parallel::clusterEvalQ(cl, paste(Sys.info()[['nodename']], Sys.getpid(), sep='-')))
   
   parallel::clusterExport(cl, varlist = ls(envir = .GlobalEnv))
@@ -120,15 +120,16 @@ get_result = function(sim) {
 
 ##### Predictive RMSE #######
 
+
 N_pred = 100
 effs = c(1, seq(0, 1, length.out = 99))
 
-source("code/hyper-parameter/MSE_hyper_param_config_100_100.R")
+source("code/hyper-parameter/MSE_hyper_param_config_50_100.R")
 sim = function(Sigma) {
   return(
     simulate(r = Sigma ,
-             effs = effs, 
-             n = 100*2)) 
+             effs = effs,
+             n = 50*2))
 }
 
 
@@ -136,12 +137,12 @@ results = get_result(sim)
 
 saveRDS(results, "results/data_poor_small_MSE.RDS")
 
-source("code/hyper-parameter/MSE_hyper_param_config_600_100.R")
+source("code/hyper-parameter/MSE_hyper_param_config_100_100.R")
 sim = function(Sigma) {
   return(
     simulate(r = Sigma ,
              effs = effs,
-             n = 600*2))
+             n = 100*2))
 }
 
 
@@ -150,12 +151,12 @@ results = get_result(sim)
 saveRDS(results, "results/data_poor_mid_MSE.RDS")
 
 
-source("code/hyper-parameter/MSE_hyper_param_config_2000_100.R")
+source("code/hyper-parameter/MSE_hyper_param_config_600_100.R")
 sim = function(Sigma) {
   return(
     simulate(r = Sigma ,
              effs = effs,
-             n = 2000*2))
+             n = 600*2))
 }
 
 results = get_result(sim)
@@ -166,17 +167,30 @@ saveRDS(results, "results/data_poor_big_MSE.RDS")
 ##### MSE effect #######
 
 
-source("code/hyper-parameter/BIAS_hyper_param_config_100_100.R")
+source("code/hyper-parameter/BIAS_hyper_param_config_50_100.R")
 sim = function(Sigma) {
   return(
     simulate(r = Sigma ,
-             effs = effs, 
-             n = 100*2)) 
+             effs = effs,
+             n = 50*2))
 }
 
 
 results = get_result(sim)
 saveRDS(results, "results/data_poor_small_BIAS.RDS")
+
+
+source("code/hyper-parameter/BIAS_hyper_param_config_100_100.R")
+sim = function(Sigma) {
+  return(
+    simulate(r = Sigma ,
+             effs = effs,
+             n = 100*2))
+}
+
+
+results = get_result(sim)
+saveRDS(results, "results/data_poor_mid_BIAS.RDS")
 
 
 source("code/hyper-parameter/BIAS_hyper_param_config_600_100.R")
@@ -185,19 +199,6 @@ sim = function(Sigma) {
     simulate(r = Sigma ,
              effs = effs,
              n = 600*2))
-}
-
-
-results = get_result(sim)
-saveRDS(results, "results/data_poor_mid_BIAS.RDS")
-
-
-source("code/hyper-parameter/BIAS_hyper_param_config_2000_100.R")
-sim = function(Sigma) {
-  return(
-    simulate(r = Sigma ,
-             effs = effs,
-             n = 2000*2))
 }
 
 results = get_result(sim)

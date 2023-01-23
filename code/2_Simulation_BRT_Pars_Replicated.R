@@ -78,7 +78,7 @@ get_result = function(data ) {
   return(result_list)
 }
 
-
+set.seed(42)
 results = lapply(1:20, function(replicate) {
   print(replicate)
   N_pred = 100
@@ -88,54 +88,73 @@ results = lapply(1:20, function(replicate) {
       return(
         simulate(r = Sigma ,
                  effs = effs,
-                 n = 100*2))
+                 n = 50*2))
     }
     data = sim(Sigma)
     res = get_result(data)
     return(do.call(rbind, res))
   })
 
-saveRDS(results, file = "results/BRT_pars_100_100_replicate.RDS")
+saveRDS(results, file = "results/BRT_pars_50_100_replicate.RDS")
 
 
-
-results = lapply(1:20, function(replicate) {
-  print(replicate)
-  N_pred = 100
-  Sigma = trialr::rlkjcorr(1, N_pred, 2)
-  effs = c(1, seq(0, 1, length.out = 99))
-  sim = function(Sigma) {
-    return(
-      simulate(r = Sigma ,
-               effs = effs,
-               n = 600*2))
-  }
-  data = sim(Sigma)
-  res = get_result(data)
-  return(do.call(rbind, res))
-})
-
-saveRDS(results, file = "results/BRT_pars_600_100_replicate.RDS")
-
-
-
-results = lapply(1:20, function(replicate) {
-  print(replicate)
-  N_pred = 100
-  Sigma = trialr::rlkjcorr(1, N_pred, 2)
-  effs = c(1, seq(0, 1, length.out = 99))
-  sim = function(Sigma) {
-    return(
-      simulate(r = Sigma ,
-               effs = effs,
-               n = 2000*2))
-  }
-  data = sim(Sigma)
-  res = get_result(data)
-  return(do.call(rbind, res))
-})
-
-saveRDS(results, file = "results/BRT_pars_2000_100_replicate.RDS")
+# results = lapply(1:20, function(replicate) {
+#   print(replicate)
+#   N_pred = 100
+#   Sigma = trialr::rlkjcorr(1, N_pred, 2)
+#   effs = c(1, seq(0, 1, length.out = 99))
+#   sim = function(Sigma) {
+#       return(
+#         simulate(r = Sigma ,
+#                  effs = effs,
+#                  n = 100*2))
+#     }
+#     data = sim(Sigma)
+#     res = get_result(data)
+#     return(do.call(rbind, res))
+#   })
+# 
+# saveRDS(results, file = "results/BRT_pars_100_100_replicate.RDS")
+# 
+# 
+# 
+# results = lapply(1:20, function(replicate) {
+#   print(replicate)
+#   N_pred = 100
+#   Sigma = trialr::rlkjcorr(1, N_pred, 2)
+#   effs = c(1, seq(0, 1, length.out = 99))
+#   sim = function(Sigma) {
+#     return(
+#       simulate(r = Sigma ,
+#                effs = effs,
+#                n = 600*2))
+#   }
+#   data = sim(Sigma)
+#   res = get_result(data)
+#   return(do.call(rbind, res))
+# })
+# 
+# saveRDS(results, file = "results/BRT_pars_600_100_replicate.RDS")
+# 
+# 
+# 
+# results = lapply(1:20, function(replicate) {
+#   print(replicate)
+#   N_pred = 100
+#   Sigma = trialr::rlkjcorr(1, N_pred, 2)
+#   effs = c(1, seq(0, 1, length.out = 99))
+#   sim = function(Sigma) {
+#     return(
+#       simulate(r = Sigma ,
+#                effs = effs,
+#                n = 2000*2))
+#   }
+#   data = sim(Sigma)
+#   res = get_result(data)
+#   return(do.call(rbind, res))
+# })
+# 
+# saveRDS(results, file = "results/BRT_pars_2000_100_replicate.RDS")
 # 
 # 
 # 
