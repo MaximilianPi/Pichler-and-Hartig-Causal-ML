@@ -5,12 +5,13 @@ library(iml)
 library(cito)
 library(glmnet)
 library(glmnetUtils)
-set.seed(42)
+
 Sys.setenv(OMP_NUM_THREADS=3)
 
 source("code/AME.R")
 source("code/Scenarios.R")
 
+torch::torch_set_num_threads(3L)
 
 get_result = function(sim ) {
   samples = 200L
@@ -43,7 +44,8 @@ get_result = function(sim ) {
       
       ## LM
       m = lm(Y~., data = data.frame(train))
-      eff = diag(marginalEffects(m, interactions = FALSE)$mean)
+      eff = (marginalEffects(m, interactions = FALSE)$mean)
+      eff = c(diag(eff), eff[1, 2])
       pred = predict(m, newdata = data.frame(test))
       result[[1]] = list(eff, mse(test[,1], pred))
       
@@ -51,7 +53,8 @@ get_result = function(sim ) {
       ## RF
       m = ranger(Y ~., data = data.frame(train), 
                  num.threads = 3L)
-      eff = diag(marginalEffects(m, data = data.frame(train), interactions = FALSE)$mean)
+      eff = (marginalEffects(m, data = data.frame(train), interactions = FALSE)$mean)
+      eff = c(diag(eff), eff[1, 2])
       pred = predict(m, data = data.frame(test))$predictions
       result[[2]] = list(eff, mse(test[,1], pred))
 
@@ -61,7 +64,8 @@ get_result = function(sim ) {
                            nrounds = 100,
                            lambda = 0,
                            objective="reg:squarederror", nthread = 1, verbose = 0)
-      (eff = diag(marginalEffects(m, data = data.frame(train)[,-1], interactions = FALSE)$mean))
+      (eff = (marginalEffects(m, data = data.frame(train)[,-1], interactions = FALSE)$mean))
+      eff = c(diag(eff), eff[1, 2])
       pred = predict(m, newdata = xgboost::xgb.DMatrix(test[,-1]))
       result[[3]] = list(eff, mse(test[,1], pred))
 
@@ -75,7 +79,8 @@ get_result = function(sim ) {
                     device = device,
                     lr_scheduler = config_lr_scheduler("reduce_on_plateau", factor = 0.80, patience = 7), early_stopping = 20)
       m$use_model_epoch = length(m$weights)
-      eff = diag(marginalEffects(m, interactions = FALSE)$mean)
+      eff = (marginalEffects(m, interactions = TRUE)$mean)
+      eff = c(diag(eff), eff[1, 2])
       pred = predict(m, newdata = data.frame(test))
       result[[4]] = list(eff, mse(test[,1], pred))
       
@@ -90,33 +95,37 @@ get_result = function(sim ) {
                     lr = 0.01,
                     device = device,
                     lr_scheduler = config_lr_scheduler("reduce_on_plateau", factor = 0.80, patience = 7), early_stopping = 20)
-      m$use_model_epoch = length(m$weights)
-      eff = diag(marginalEffects(m, interactions = FALSE)$mean)
+      m$use_model_epoch = length(m$weights)      
+      eff = (marginalEffects(m, interactions = FALSE)$mean)
+      eff = c(diag(eff), eff[1, 2])      
       pred = predict(m, newdata = data.frame(test))
       result[[5]] = list(eff, mse(test[,1], pred))
       
       
       
+      
       ## L1
-      m = cva.glmnet(train[,-1], train[,1], alpha = 1.0)
-      eff = diag(marginalEffects(m, data = train[,-1],alpha = 1.0, interactions = FALSE)$mean)
-      pred = predict(m, newx = test[,-1], alpha = 1.0)
+      m = cva.glmnet(model.matrix(~.^2, data = data.frame(train[,-1])), train[,1], alpha = 1.0)
+      eff = (marginalEffects(m, data = train[,-1],alpha = 1.0, interactions = TRUE, formula = function(d) model.matrix(~.^2, data = data.frame(d)))$mean)
+      eff = c(diag(eff), eff[1, 2])
+      pred = predict(m, newx = model.matrix(~.^2, data = data.frame(test[,-1])), alpha = 1.0)
       result[[6]] = list(eff, mse(test[,1], pred))
       
       
       ## L2 
-      m = cva.glmnet(train[,-1], train[,1], alpha = 0.0)
-      eff = diag(marginalEffects(m, data = train[,-1],alpha = 0.0, interactions = FALSE)$mean)
-      pred = predict(m, newx = test[,-1], alpha = 0.0)
+      m = cva.glmnet(model.matrix(~.^2, data = data.frame(train[,-1])), train[,1], alpha = 0.0)
+      eff = (marginalEffects(m, data = train[,-1],alpha = 0.0, interactions = TRUE, formula = function(d) model.matrix(~.^2, data = data.frame(d)))$mean)
+      eff = c(diag(eff), eff[1, 2])
+      pred = predict(m, newx = model.matrix(~.^2, data = data.frame(test[,-1])), alpha = 0.0)
       result[[7]] = list(eff, mse(test[,1], pred))
       
       
       ## L1 + L2 
-      m = cva.glmnet(train[,-1], train[,1], alpha = 0.2)
-      eff = diag(marginalEffects(m, data = train[,-1],alpha = 0.2, interactions = FALSE)$mean)
-      pred = predict(m, newx = test[,-1], alpha = 0.2)
+      m = cva.glmnet(model.matrix(~.^2, data = data.frame(train[,-1])), train[,1], alpha = 0.2)
+      eff = (marginalEffects(m, data = train[,-1],alpha = 0.2, interactions = TRUE, formula = function(d) model.matrix(~.^2, data = data.frame(d)))$mean)
+      eff = c(diag(eff), eff[1, 2])
+      pred = predict(m, newx = model.matrix(~.^2, data = data.frame(test[,-1])), alpha = 0.2)
       result[[8]] = list(eff, mse(test[,1], pred))
-      
     
       return(result)
     })
@@ -124,34 +133,34 @@ get_result = function(sim ) {
   return(result_list)
 }
 
-sim = function() simulate(r = 0.9, effs = c(1, 0, 0, 0, 1),n = 2000)
+sim = function() simulate(r = 0.9, effs = c(0, 0, 0, 0, 1), inter = c(1),n = 2000)
 results = get_result(sim)
-saveRDS(results, "results/collinearity_0.90.RDS")
+saveRDS(results, "results/collinearity_0.90_interactions.RDS")
 
-sim = function() simulate(effs = c(1.0, 0.0, 1.0, 0.0, 1.0), r = 0.0,n = 2000)
+sim = function() simulate(effs = c(1.0, 0.0, 1.0, 0.0, 1.0), inter = c(1), r = 0.0,n = 2000)
 results = get_result(sim)
-saveRDS(results, "results/effects.RDS")
+saveRDS(results, "results/effects_interactions.RDS")
 
 
-sim = function() simulate(r = 0.9, effs = c(1, -0.5, 0, 0, 1),n = 2000)
+sim = function() simulate(r = 0.9, effs = c(1, -0.5, 0, 0, 1), inter = c(1),n = 2000)
 results = get_result(sim)
-saveRDS(results, "results/confounder_unequal.RDS")
+saveRDS(results, "results/confounder_unequal_interactions.RDS")
 
-sim = function() simulate(r = 0.9, effs = c(1, 0.5, 0, 0, 1),n = 2000)
+sim = function() simulate(r = 0.9, effs = c(1, 0.5, 0, 0, 1), inter = c(1),n = 2000)
 results = get_result(sim)
-saveRDS(results, "results/confounder.RDS")
+saveRDS(results, "results/confounder_interactions.RDS")
 
 
-sim = function() simulate(r = 0.5, effs = c(1, 0, 0, 0, 1),n = 2000)
+sim = function() simulate(r = 0.5, effs = c(1, 0, 0, 0, 1), inter = c(1),n = 2000)
 results = get_result(sim)
-saveRDS(results, "results/collinearity_0.5.RDS")
+saveRDS(results, "results/collinearity_0.5_interactions.RDS")
 
-sim = function() simulate(r = 0.99, effs = c(1, 0, 0, 0, 1),n = 2000)
+sim = function() simulate(r = 0.99, effs = c(1, 0, 0, 0, 1), inter = c(1),n = 2000)
 results = get_result(sim)
-saveRDS(results, "results/collinearity_0.99.RDS")
+saveRDS(results, "results/collinearity_0.99_interactions.RDS")
 
 
-sim = function() simulate( effs = c(0.0, 0.0, 0.0, 0.0, 0.0), r = 0.0,n = 2000)
+sim = function() simulate( effs = c(0.0, 0.0, 0.0, 0.0, 0.0), inter = c(1), r = 0.0,n = 2000)
 results = get_result(sim)
-saveRDS(results, "results/no_effects.RDS")
+saveRDS(results, "results/no_effects_interactions.RDS")
 

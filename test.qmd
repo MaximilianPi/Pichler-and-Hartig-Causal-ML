@@ -1,0 +1,18 @@
+---
+title: "Untitled"
+format: html
+editor: visual
+---
+
+```{r}
+test = function() {
+  "| eg |   eg  |\n| eg |   eg  |\n| eg |   eg  |\n"
+}
+```
+
+## Quarto
+
+| Col1  | Col2       |
+|-------|------------|
+| test1 | `r test()` |
+| test2 | `r test()` |

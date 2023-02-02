@@ -13,6 +13,7 @@ crossref:
   tbl-title: '**Table S**'
   tbl-labels: arabic
   title-delim: ":"
+bibliography: references.bib
 ---
 
 ```{r}
@@ -34,16 +35,280 @@ library(tidyr)
 library(broom)
 library(ggeffects)
 library(gridExtra)
+library(ranger)
+library(xgboost)
+library(torch)
+library(cito)
+library(glmnet)
+library(glmnetUtils)
+library(MASS)
+Sys.setenv(OMP_NUM_THREADS=5)
+
+source("code/AME.R")
+source("code/Scenarios.R")
+source("utils.R")
 
 set_flextable_defaults(
   font.size = 8, theme_fun = theme_vanilla)
 
-source("utils.R")
 knitr::opts_chunk$set(fig.path="plots/", echo = FALSE)
 
 ```
 
 **Summary:** This document provides supporting information on Pichler & Hartig -- Can machine learning be used for causal inference.
+
+## Boosting and regression trees
+
+### Unbiasedness
+
+Random forest (RF) and boosted regression trees (BRT) showed bias in both scenarios, with and without collinearity, raising the question of whether the bias is caused by the boosting/bagging or the regression trees themselves. For RF, we know that the observed spillover effect is caused by the random subsampling (mtry parameter) in the algorithm, which explains the bias.
+
+For BRT, however, it is unclear what is causing the bias (boosting or regression trees) because each member in the ensemble is always presented with all features (at least with the default hyperparameters, the BRT implementation in xgboost has options to use bootstrap samples for each tree and also subsamples of columns in each tree (or node), see @chen2016xgboost).
+
+To understand how boosting and regression trees affect effect estimates, we simulated three different scenarios (Fig. S1, first column) without collinearity (Fig. S1a) and with collinearity (Fig. S1a, b) (we sampled 2000 observations from each data generating model (Fig. S1, first column) and estimated effects using MCE (100 repititions)).
+
+```{r}
+#| echo: false
+#| message: false
+
+results = readRDS("results/boosting_regression_trees.RDS")
+methods = c("Linear booster", "Regression Tree LC", "Regression Tree HC", "Tree Booster LC", "Tree Booster HC", "LM")
+results = lapply(results, function(r) {
+  rownames(r) = methods
+  r = r[c(6, 2, 3, 1, 4, 5),]
+  return(r)
+  })
+
+no_coll = results[[4]]
+coll = results[[3]]
+conf = results[[2]]
+
+plot_results = list(no_coll, coll, conf)
+```
+
+```{r}
+#| label: fig-Fig_S1
+#| fig-cap: "Bias on effect estimates for different ML algorithms (LM = liner regression model (OLS), RT LC = regression tree with low complexity (depth), RT HC = regression tree with high complexity, Linear Booster, Tree Booster LC = tree booster with low complexity, Tree Booster HC = tree boster with high complexity) in three different simulated causal scenarios (a, b, and c). Sample sizes are so large that stochastic effects can be excluded (2000 observations). Effects of the ML models were inferred using marginal conditional effects. Row a) shows results for simulations with uncorrelated features with the true effect sizes . Row b) shows the results for simulations with X~1~ and X~2~ being strongly correlated (Pearson correlation factor = 0.9) but only X~1~ has an effect on y (mediator) and row c) shows the results for X~1~ and X~2~ being strongly correlated (Pearson correlation factor = 0.9) with X~1~ and X~2~ having effects on Y (confounder scenario)."
+#| fig-width: 14
+#| fig-height: 10
+#| warning: false
+#| message: false
+
+parser = function(true, bias, pos = 1) {
+  if(pos == 1) { 
+    yp = 1.25
+    xp = 0.15
+  }
+  if(pos == 3) {
+    yp = 1.63
+    xp = -0.05
+  }
+  if(pos == 2) {
+    yp = 0.37
+    xp = -0.05
+  }
+  bb = round(bias, 2)
+  if(bb > 0) { 
+    symb = "+" 
+    if(abs(bb) > 0.001) text(x = xp + 0.280, y = yp+0.01, pos = 4, symb, cex = 1.3, col = "#e60000", font = 2)
+  } else { 
+    symb = "-"
+      if(abs(bb) > 0.001) text(x = xp + 0.29, y = yp, pos = 4, symb, cex = 1.3, col = "#e60000", font = 2)
+    }
+  bb = abs(bb)
+   text(x = xp, y = yp, pos = 4,label = format(true, nsmall = 2), cex = 1.3)
+
+  if(bb> 0.001) text(x = xp+ 0.35, y = yp, pos = 4, label = format(bb, nsmall = 2), cex = 1.3, col = "#e60000", font = 1)
+}
+
+
+par(mfcol = c(3,7), mar = c(5,0.5, 2, 1.4), oma = c(1, 2, 2, 1))
+labs =  c("LM","RT LC", "RT HC",  "Linear Booster", "Tree Booster LC", "Tree Booster HC")
+cex_fac = 1.3
+minArrow = function(x) sapply(x, function(xx) max(c(0.1, xx)))
+
+true_effs = matrix(c(
+  1, 0.0, 1,
+  1, 0.0, 1,
+  1, 0.5, 1
+), 3, 3, byrow = TRUE)
+
+# A simulation
+g1 = graph(c("x\U2081", "y", "x\U2082", "y", "x\U2083", "y"),  
+            directed=TRUE ) 
+#layout_as_tree(g1, root = "y", circular = TRUE, flip.y = TRUE)
+eqarrowPlot(g1, matrix(c(1,1,
+                         0,1,
+                         0,0,
+                         0,2), nrow = 4L, 2L, byrow = TRUE) ,
+            cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 1), 1.0)),
+            edge.arrow.size=minArrow(c(1.00, 0.1, 1.0)),#abs(edges[c(1, 2, 5)]), 
+            edge.width=c(1.00, 0.1, 1.0)*cex_fac,#abs(edges[c(1, 2, 5)])*cex_fac,
+            edge.label = rep("",3),
+            edge.label.cex = 1.4,
+            edge.colors = rep("#B0A8B9", 3))
+  text(letters[1], cex = 1.9, x = -1.6, y = 1.5, xpd = NA, font = 2)
+  text("Simulation", x = 0.3, y = 2.3, xpd = NA, cex = 1.4, pos = 3)
+parser(1.00, 0.0000, pos = 1)
+parser(0.0, 0.0000, pos = 2)
+parser(1.00, 0.0000, pos = 3)  
+segments(x0 = 1.4, x1 = 1.4, y0 = -0.5, y1 = 2.5, xpd = NA)
+
+# B simulation
+g1 <- graph(c("x\U2081", "y", "x\U2082","y", "x\U2083", "y", "x\U2081", "x\U2082"),  
+            directed=TRUE ) 
+eqarrowPlot(g1, matrix(c(1,1,
+                       0,1,
+                       0,0,
+                       0,2), nrow = 4L, 2L, byrow = TRUE) , 
+            cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 2), 1.0)),
+            edge.arrow.size=minArrow(c(1.00, 0.1, 1.0, 0.9)),#abs(edges[c(1, 2, 5)]), 
+            edge.width=c(1.00, 0.1, 1.0, 0.5)*cex_fac,#abs(edges[c(1, 2, 5)])*cex_fac,
+            edge.label = rep("", 3), 
+            edge.label.cex = 1.4, 
+            edge.arrow.mode = c(rep(">", 3), "-"), 
+            edge.colors = c(rep("#B0A8B9", 1),"#B0A8B9","#B0A8B9", "#ffab02"))
+text(letters[2], cex = 1.9, x = -1.6, y = 1.5, xpd = NA, font = 2)
+text("Simulation", x = 0.3, y = 2.3, xpd = NA, cex = 1.4, pos = 3)
+parser(1.00, 0.0000, pos = 1)
+parser(0.0, 0.0000, pos = 2)
+parser(1.00, 0.0000, pos = 3)  
+text("0.90", cex = 1.3, x = 0.74, y = 0.5, xpd = NA, font = 1, col = "#ff9902")
+segments(x0 = 1.4, x1 = 1.4, y0 = -0.5, y1 = 2.5, xpd = NA)
+
+# C simulation
+g1 <- graph(c("x\U2081", "y", "x\U2082","y", "x\U2083", "y", "x\U2081", "x\U2082"),  
+            directed=TRUE ) 
+eqarrowPlot(g1, matrix(c(1,1,
+                       0,1,
+                       0,0,
+                       0,2), nrow = 4L, 2L, byrow = TRUE) , 
+            cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 2), 1.0)),
+            edge.arrow.size=minArrow(c(1.00, 0.1, 1.0, 0.9)),#abs(edges[c(1, 2, 5)]), 
+            edge.width=c(1.00, 0.5, 1.0, 0.5)*cex_fac,#abs(edges[c(1, 2, 5)])*cex_fac,
+            edge.label = rep("", 3), 
+            edge.label.cex = 1.4, 
+            edge.arrow.mode = c(rep(">", 3), "-"), 
+            edge.colors = c(rep("#B0A8B9", 1),"#B0A8B9","#B0A8B9", "#ffab02"))
+text(letters[2], cex = 1.9, x = -1.6, y = 1.5, xpd = NA, font = 2)
+text("Simulation", x = 0.3, y = 2.3, xpd = NA, cex = 1.4, pos = 3)
+parser(1.00, 0.0000, pos = 1)
+parser(0.5, 0.0000, pos = 2)
+parser(1.00, 0.0000, pos = 3)  
+text("0.90", cex = 1.3, x = 0.74, y = 0.5, xpd = NA, font = 1, col = "#ff9902")
+segments(x0 = 1.4, x1 = 1.4, y0 = -0.5, y1 = 2.5, xpd = NA)
+points(x = 0, y = -0.55, col = "grey", xpd = NA, pch = 15, cex = 1.8)
+text(x = 0.1, y = -0.55, label = "True effect", xpd = NA, pos = 4, cex = 1.4)
+points(x = 0, y = -0.75, col = "#ffab02", xpd = NA, pch = 15, cex = 1.8)
+text(x = 0.1, y = -0.75, label = "Correlation", xpd = NA, pos = 4, cex = 1.4)
+
+
+
+for(i in 1:6) {
+  counter = 1
+  for(j in 1:3) {
+
+    tmp = plot_results[[j]]
+    edges = round(tmp[i,], 5)
+    bias = edges[c(1, 2, 5)] - true_effs[j,]
+    g1 = graph(c("x\U2081", "y", "x\U2082", "y", "x\U2083", "y"),  
+                directed=TRUE ) 
+    layout_as_tree(g1, root = "y", circular = TRUE, flip.y = TRUE)
+    eqarrowPlot(g1, matrix(c(1,1,
+                             0,1,
+                             0,0,
+                             0,2), nrow = 4L, 2L, byrow = TRUE) ,
+                cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 1), 1.0)),
+                edge.arrow.size=minArrow(abs(-true_effs[j,] - bias)),#abs(edges[c(1, 2, 5)]), 
+                edge.width=abs(-true_effs[j,] - bias)*cex_fac,#abs(edges[c(1, 2, 5)])*cex_fac,
+                edge.label = rep("",3),
+                edge.label.cex = 1.4,
+                edge.colors = ifelse(abs(bias) < 0.01, "#B0A8B9", "#e60000"))
+    parser(true_effs[j, 1], bias[1], pos = 1)
+    parser(true_effs[j, 2], bias[2], pos = 2)
+    parser(true_effs[j, 3], bias[3], pos = 3)
+    text(labs[i], x = 0, y = 2.3, xpd = NA, cex = 1.4, pos = 3)
+    if(i == 1) {
+      text(letters[counter], cex = 1.9, x = -2.2, y = 2.5, xpd = NA, font = 2)
+      counter = counter + 1
+    }
+
+  }
+  if(i == 3) {
+    points(x = 0-1, y = -1.1*0.5, col = "#e60000", xpd = NA, pch = 15, cex = 1.8)
+    text(x = 0.1-1, y = -1.1*0.5, label = "Bias", xpd = NA, pos = 4, cex = 1.4)
+  }
+}
+
+```
+
+We found that the regression tree (RT) is unable to estimate unbiased effects (Fig. S1), regardless of the presence or absence of collinearity or the complexity of the RT (depth of the regression trees). Without collinearity, effects in regression trees were biased toward zero, less so with higher complexity (Fig. S1). With collinearity, there was a small spillover effect for the RT with high complexity (Fig. S1b) to the collinear zero effect (X~2~), similar to an l2 regularization. When the collinear feature (X~2~) had an effect (Fig. S1c), we found a stronger absolute bias for the smaller of the two collinear effects (X~2~), confirming our expectation that RTs show a greedy effect. This greedy behavior was particularly strong for the low complexity RT (Fig. S1c).
+
+To answer the question of how boosting affects the greediness and spillover effects of RT, we first investigated the behavior of a linear booster because of the well-known behavior of OLS under collinearity. And indeed, we found that the linear booster was unbiased in all three scenarios (compare LM and linear booster in Fig. S1), showing that boosting itself can produce unbiased effects.
+
+Now, comparing the vanilla BRTs with low and high complexity (depth of individual trees) with the linear booster and the RTs, we found similar biases as for the RTs, in terms of spillover with a collinear zero effect and the greediness effect in the presence of a weaker collinear effect (Fig. S1).
+
+### Understanding boosting
+
+Intuitive boosting shouldn't work because it's basically a regression of residuals. That is, and in the case of collinearity, the stronger of two collinear features in the first model would absorb the effect of the weaker second feature that, for example, causes the omitted variable bias (the effect of the missing confounder is absorbed by the collinear effect).
+
+```{r}
+#| warning: false
+#| message: false
+set.seed(42)
+sim = function() simulate(r = 0.9, effs = c(1, 0.5, 0, 0, 1, seq(-0.2, 0.2, length.out = 10)),n = 500)
+data = sim()
+data[,-1] = scale(data[,-1])
+
+m = get_boosting_model(x = data[,-1], y = data[,1], n_trees = 100, booster = "linear")
+
+eff_change =
+  sapply(1:100, function(i) {
+    m$N = i
+    eff = diag(marginalEffects(m, data = data.frame(data)[,-1], interactions = FALSE, max_indices = 5)$mean)
+    return(eff)
+  })
+
+eff_relative =
+  sapply(1:100, function(i) {
+    tmp = m
+    tmp$model = list(m$model[[i]])
+    tmp$N = 1
+    eff = diag(marginalEffects(tmp, data = data.frame(data)[,-1], interactions = FALSE, max_indices = 5)$mean)
+    return(eff)
+  })
+```
+
+```{r}
+#| label: fig-Fig_S2
+#| fig-cap: "Changes of effects within boosting. (A) shows the total effect of ensemble (linear booster) until the n-th ensemble member. (B) shows the effects of the n-th ensemble member. X1 and X2 were correlated (Pearson correlationf factor = 0.9)."
+#| fig-width: 9
+#| fig-height: 4.5
+#| warning: false
+#| message: false
+
+cols = c("#0000FF", "black", "#FF0000")
+par(mfrow = c(1, 2), mar = c(4, 4, 2, 2))
+matplot(t(eff_change)[, c(1, 2, 5)], type = "l", lty = 1, las = 1, 
+        xlab = "Number of boosters", 
+        ylab = "Total effect size",
+        lwd = 2,
+        col = cols
+        )
+legend("topright", lty = 1, col = cols, legend = c("X1 (true effect = 1.0)",
+                                                   "X2 (true effect = 0.5)",
+                                                   "X5 (true effect = 1.0)"), bty = "n")
+text(x = 0, y = 1.55, pos = 2, label = "A", xpd = NA, font = 2, cex = 1.2)
+matplot(t(eff_relative)[, c(1, 2, 5)], type = "p", 
+        lty = 1, las = 1, xlab = "n-th booster", ylab = "Effect of n-th booster", pch = 16,col = cols)
+text(x = 0, y = 1.55, pos = 2, label = "B", xpd = NA, font = 2, cex = 1.2)
+legend("topright", lty = 1, col = cols, legend = c("X1 (true effect = 1.0)",
+                                                   "X2 (true effect = 0.5)",
+                                                   "X5 (true effect = 1.0)"), bty = "n")
+
+```
+
+Looking at the evolution of the total effect within a linear booster model (Fig. S2a), we found indeed that the first members of the ensemble absorb the effect of the collinear effect (effect of X1 is absorbed by X1, Fig. S2a), but as members are added to the ensemble, the collinear effect (X2) slowly recovers the effect of the stronger collinear effect until both are at their correct effect estimate (Fig. S2a). This retrieval works by reversing the sign of each member's effect, so that X1, which initially has an effect of 1.5 (because it absorbed the effect of X2), has small negative effects in subsequent trees, while X2, which is initially estimated at 0, has small positive effects (Fig. S2b).
 
 ## Extending MCE to two-way interactions
 
@@ -59,1258 +324,968 @@ $$
 
 $h_m$ and $h_k$ are set to $0.1 \cdot sd(x_m)$ and $0.1 \cdot sd(x_k)$. All features are centered and standardized.
 
-## Hyper-parameter tuning
+## Hyperparameter tuning
 
-We performed a hyper-parameter search to check if hyper-parameters can influence the unbiasness of the models. For that, we created simulation scenarios 100 and 1,000 observations, and each with 10 and 100 features. In each simulation scenario, two features (X~1~ and X~5~) had an effect on Y and all other features had no effect on Y. Features were sampled from a multivariate normal distribution and all features were randomly correlated (Variance-covariance matrix $\Sigma$ was sampled from a Wishart distribution (degrees of freedom = number of features (10 or 100), scale matrix was the identity matrix).
+We performed a hyperparameter search to check if and how hyperparameters influence differently or equally effect estimates and the prediction error, so does a model tune after the prediction error has biased effects? For that, we created simulation scenarios with 50, 100, 600, and 2000 observations and 100 features with effects ($beta_i, i = 1,...,100$) $\beta_1 = 1.0$, and $\beta_2$ to $\beta_3$ were equally spaced between 0.0 to 1.0 so that $\beta_2 = 0.0$ and $\beta_{100} = 1.0$.
 
-3,000 combinations of hyper-parameters were randomly drawn (Table S1). For each draw, the data was sampled, and bias for X~1~, X~2~, and X~5~ were calculated (bias = true effect - estimated effect, effects were estimated by MCE). In each draw, holdout data of the same size as the training data were used used to calculate the root mean squared error (RMSE) of the models.
+Features were sampled from a multivariate normal distribution and all features were randomly correlated (Variance-covariance matrix $\Sigma$ was sampled from a LKJ-distribution with $\eta = 2.0$.
+
+1,000 combinations of hyper-parameters were randomly drawn (Table S1). For each draw of hyperparameters, the data simulation and model fitting was repeated 20 times. Effect sizes of X~1~ and X~2~ were recorded (for each hyperparameter combination and for each reptition). Moreover, bias, variance, and mean square error (MSE) were recorded for the predictions on a holdout of the same size as the training data.
 
 | Algorithm               | Hyper-parameter       | Range                                             |
 |-------------------|-------------------|----------------------------------|
 | Neural Network          | activation function   | \[relu, leaky_relu, tanh, selu, elu, celu, gelu\] |
-|                         | depth                 | \[1, 20\]                                         |
-|                         | width                 | \[2, 171\]                                        |
-|                         | batch size (sgd)      | \[1, 100\]                                        |
-|                         | dropout rate          | \[0, 0.3\]                                        |
+|                         | depth                 | \[1, 8\]                                          |
+|                         | width                 | \[2, 50\]                                         |
+|                         | batch size (sgd)      | \[1, 100\] in percent                             |
+|                         | lambda                | \[2.65e-05, 0.16\]                                |
+|                         | alpha                 | \[0, 1.0\]                                        |
 | Boosted Regression Tree | eta                   | \[0.01, 0.4\]                                     |
 |                         | max depth             | \[2, 25\]                                         |
 |                         | subsample             | \[0.5, 1\]                                        |
 |                         | max tree              | \[30, 125\]                                       |
 |                         | lambda                | \[1, 20\]                                         |
-| Random Forest           | mtry                  | \[2, 99\]                                         |
+| Random Forest           | mtry                  | \[0, 1\] in percent                               |
 |                         | min node size         | \[2, 70\]                                         |
 |                         | max depth             | \[2, 50\]                                         |
 |                         | regularization factor | \[0, 1\]                                          |
+| Elastic net             | alpha                 | \[0, 1.0\]                                        |
+|                         | lambda                | \[0, 1.0\]                                        |
 
 : Overview over hyper-parameters for Neural Network, Boosted Regression Tree, and Random Forest {#tbl-Hyper}
 
-### Neural Network
-
-```{r}
-#| label: fig-Fig_S1
-#| fig-cap: "Trade-off between bias (feature X~1~, true effect = 1) and RMSE of the fittend NNs. Each point is a simulated scenario with a different set of hyper-parameters. Scenarios with 1,00 and 1,000 observations and with 100 or 10 features (P) were simulated. In each scenario, only two features (X~1~ and X~5~) had an effect (effect size = 1) on the response variable Y. Hyper-parameters (activation functions, depth and width of the hidden layers, batch_size (sgd), and dropout) were randomly sampled."
-#| fig-width: 10
-#| fig-height: 2.8
-#| warning: false
-#| message: false
-small_10 = readRDS("results/NN_pars_100_10_SS.RDS")
-small_100 = readRDS("results/NN_pars_100_100_SS.RDS")
-large_10 = readRDS("results/NN_pars_1000_10_SS.RDS")
-large_100 = readRDS("results/NN_pars_1000_100_SS.RDS")
-results = list(small_10, small_100, large_10, large_100)
-results = lapply(results, function(r) do.call(rbind, r))
-results = lapply(results, function(r) r[abs(r$bias_1) < 0.98,])
-results = lapply(results, function(r) r[abs(r$bias_5) < 0.98,])
-
-par(mfrow = c(1, 4), mar = rep(4, 4))
-title = c("N = 100, P = 10", "N = 100, P = 100", "N = 1000, P = 10", "N = 1000, P = 100")
-for(i in 1:4) {
-  plot(results[[i]]$bias_1, results[[i]]$rmse, las = 1, xlab = "Bias", ylab = "RMSE",
-       main = title[i])
-  
-}
-
-models_NN_R2 = (sapply(1:4, function(i) summary(lm(results[[i]]$rmse ~ results[[i]]$bias_1) )$r.squared ))
-
-res = 
-  do.call(rbind,
-    lapply(1:4, function(i) {
-      results[[i]]$scenario = c("N = 100, P = 10", "N = 100, P = 100", "N = 1000, P = 10", "N = 1000, P = 100")[i]
-      return(results[[i]])
-      })
-  )
-
-res$scenario = forcats::lvls_reorder(res$scenario, c(2, 1, 3, 4))
-
-NN_rmse = (res %>% arrange(rmse))
-NN_bias = (res %>% arrange(abs(bias_1)))
-
-
-```
-
-For our data-poor simulation experiments with n $\gtrapprox$ p, we found only a weak correlation between the bias of X~1~ and the RMSE on the holdout data (Fig. S1). This correlation was slightly stronger in the data-poor situations (N = 100, P = 100, and N = 1000, P = 100; Fig. S1).
-
-```{r}
-#| label: fig-Fig_S2
-#| fig-cap: "Effects of hyper-parameters of neural networks on bias of feature X~1~. Scenarios with 1,00 and 1,000 observations and with 100 or 10 features (P) were simulated. In each scenario, only two features (X~1~ and X~5~) had an effect (effect size = 1) on the response variable Y. Hyper-parameters (activation functions, depth and width of the hidden layers, batch_size (sgd), and dropout) were randomly sampled. Effects of hyper-parameters were estimated by linear regression models."
-#| fig-width: 16.7
-#| fig-height: 14
-#| warning: false
-#| message: false
-
-
-m1 = lm(bias_1~0+scenario+scenario:(activations+depth+width+sgd+dropout), data = res[complete.cases(res),])
-m2 = lm(bias_0~0+scenario+scenario:(activations+depth+width+sgd+dropout), data = res[complete.cases(res),])
-m3 = lm(rmse~0+scenario+scenario:(activations+depth+width+sgd+dropout), data = res[complete.cases(res),])
-
-ggs = 
-  lapply(list(m1, m2, m3), function(m) {
-      g1 = plot((ggpredict(m, terms = c("scenario", "activations" )))) 
-      g2 = plot((ggpredict(m, terms = c("depth", "scenario" ))))
-      g3 = plot((ggpredict(m, terms = c("width", "scenario" ))))
-      g4 = plot((ggpredict(m, terms = c("sgd", "scenario" ))))
-      g5 = plot((ggpredict(m, terms = c("dropout", "scenario" ))))
-      return(list(g1, g2, g3, g4, g5))
-  })
-
-ggs = do.call(c, ggs)
-ggs = lapply(ggs, function(g) g+theme_bw()+ggtitle("")+ylab("") +theme(legend.position = "none"))
-ggs[-c(11:15)] = lapply(ggs[-c(11:15)], function(g) g+xlab(""))
-
-extract_legend <- function(my_ggp) {
-  step1 <- ggplot_gtable(ggplot_build(my_ggp))
-  step2 <- which(sapply(step1$grobs, function(x) x$name) == "guide-box")
-  step3 <- step1$grobs[[step2]]
-  return(step3)
-}
-leg1 =  extract_legend( plot((ggpredict(m1, terms = c("scenario", "activations" )))) + 
-                          scale_color_manual(values=RColorBrewer::brewer.pal(8, "Set2")) +
-                          theme(legend.position = "bottom"))
-leg2 = extract_legend( plot((ggpredict(m1, terms = c("dropout", "scenario" )))) + theme(legend.position = "bottom"))
-
-ggs[c(1, 6, 11)] = lapply(ggs[c(1, 6, 11)], function(g) g + 
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
-  scale_color_manual(values=RColorBrewer::brewer.pal(8, "Set2")))
-
-ggs[[1]] = ggs[[1]] + ylab("Bias of X1 (effect = 1)")
-ggs[[6]] = ggs[[6]] + ylab("Bias of X2 (effect = 0)")
-ggs[[11]] = ggs[[11]] + ylab("RMSE")
-
-do.call(grid.arrange, list(do.call(arrangeGrob, c(ggs, ncol = 5)), arrangeGrob(leg1, leg2, ncol = 2),  nrow = 2, heights = c(15, 1)))
-
-
-
-```
-
-We found significant differences between the activation functions for the bias of X (true effect = 1) and the RMSE (N = 100, P = 100). Here, the 'selu' activation function had the smallest biases and RMSE (Fig. S2). With more data, or less features, the differences between the activation functions got smaller and for data-rich situations (N = 1000, P = 10), the confidence intervals of the different activation functions were in the same range (Fig. S2).
-
-Depth had a strong effect on the bias and the RMSE, and this effect was stronger for the data-poor scenario (N = 100, P = 100; Fig. S2). Lower depth had smaller biases and lower RMSE. Width had a weak effect in the data-poor situation, but stronger effects in data-rich scenarios on the bias. But width had strong effects on the RMSE, increasing the width led to lower RMSE (this effect was weaker for the data-rich scenarios, Fig. S2). Dropout had only small effects on the biases and the RMSE.
-
-Hyper-parameters had only small effects on the bias of the zero-effect (X~2~), thus it seems that the NN can identify, reliable, zero-effects independent of the hyper-parameters (Fig. S2).
-
-### Boosted Regression Trees
-
-The correlation between RMSE and bias was stronger for data-rich scenarios than for the data-poor scenarios (Fig. S3). We found a stronger relation between RMSE and bias of X~1~ for BRT than for NN (Fig. S1, S3).
+### Results hyperparameter tuning
 
 ```{r}
 #| label: fig-Fig_S3
-#| fig-cap: "Trade-off between bias (feature X~1~, true effect = 1) and RMSE of the fittend BRTs. Each point is a simulated scenario with a different set of hyper-parameters (3,000 samples). Scenarios with 1,00 and 1,000 observations and with 100 or 10 features (P) were simulated. In each scenario, only two features (X1 and X5) had an effect (effect size = 1) on the response variable Y. Hyper-parameters (max_depth, subsample, lambda, and max_tree) were randomly sampled."
-#| fig-width: 8
-#| fig-height: 2.5
-small_10 =  readRDS("results/BRT_pars_100_10_SS.RDS")
-small_100 = readRDS("results/BRT_pars_100_100_SS.RDS")
-large_10 =  readRDS("results/BRT_pars_1000_10_SS.RDS")
-large_100 = readRDS("results/BRT_pars_1000_100_SS.RDS")
-results = list(small_10, small_100, large_10, large_100)
-results = lapply(results, function(r) do.call(rbind, r))
-results = lapply(results, function(r) r[abs(r$bias_1) < 0.98,])
-results = lapply(results, function(r) r[abs(r$bias_5) < 0.98,])
+#| fig-cap: "Results of hyperparameter tuning for Neural Networks (NN), Boosted Regression Trees (BRT), Random Forests (RF), and Elastic Net (EN) for 50 observations with 100 features. The influence of the hyperparameters on the effect X~1~ (bias, variance, and MSE), the true simulated effect X~1~ = 1.0, and the predictions of the model (bias, variance, and MSE) were estimated by a multivariate generalized additive model (GAM). Categorical hyperparameters (activation function in NN) were estimated as fixed effects. The responses (bias, variance, MSE) were centered so that the categorical hyperparameters correspond to the intercepts. The variable importance of the hyperparameters was estimated by a random forest with the MSE of the effect X~1~ (first plot) or the prediction (second plot) as the response. Orange dots correspond to the best predicted set of hyperparameters (based on a random forest), in the first plot for the minimum MSE of the effect for X~1~ and in the second plot for the minimum MSE of the predictions."
+#| fig-width: 9
+#| fig-height: 10
+#| warning: false
+#| message: false
 
+results_50 = readRDS("results/hyper_parameter_aggregation_50.RDS")
+data = do.call(rbind, lapply(results_50, function(r) r$data))
 
-par(mfrow = c(1, 4), mar = rep(4, 4))
-title = c("N = 100, P = 10", "N = 100, P = 100", "N = 1000, P = 10", "N = 1000, P = 100")
-for(i in 1:4) {
-  plot(results[[i]]$bias_1, results[[i]]$rmse, las = 1, xlab = "Bias", ylab = "RMSE",
-       main = title[i])
-}
+labels = c("CELU",
+           "ELU",
+           "GELU",
+           "Leaky ReLU",
+           "ReLU",
+           "SELU",
+           "tanh",
+           "batch size",
+           "depth",
+           "width",
+           "alpha",
+           "lambda",
+           "eta",
+           "max depth",
+           "subsample",
+           "max tree",
+           "mtry",
+           "min node size",
+           "max depth",
+           "regularization factor")
+names(labels) = c("activationscelu",
+                  "activationselu",
+                  "activationsgelu",
+                  "activationsleaky_relu",
+                  "activationsrelu",
+                  "activationsselu",
+                  "activationstanh",
+                  "sgd",
+                  "depth", 
+                  "width",
+                  "alpha", 
+                  "lambda",
+                  "eta",
+                  "max_depth",
+                  "subsample",
+                  "max_tree",
+                  "mtry",
+                  "min.node.size",
+                  "max.depth",
+                  "regularization.factor")
+tck = 0.015
+mgp = 0.07
+eff_range = list(eff_range2 = c(-0.5, 0.5),eff_range1 = c(-0.04, 0.04))
+vi_range = list(c(0, 0.04), c(0, 2.5))
+plot_tuning(data = data, results = results_50, eff_range = eff_range, vi_range = vi_range)
+axis(3, at = scales::rescale(c(-0.25, 0.0, 0.25), to = c(0.02, 0.28), from = eff_range[[1]]), labels = c(-0.25, 0.0, 0.25), tck = tck, mgp = c(3, mgp, 0))
+axis(3, at = scales::rescale(c(-0.02, 0.0, 0.02), to = c(0.02, 0.28), from = eff_range[[2]])+0.5, labels = c(-0.02, 0.0, 0.02), tck = tck, mgp = c(3, mgp, 0))
 
-models_BRT_R2 = (sapply(1:4, function(i) summary(lm(results[[i]]$rmse ~ results[[i]]$bias_1) )$r.squared ))
+axis(3, at = scales::rescale(c(0, log10(0.03+1), log10(0.08+1)), to = c(0.3, 0.5), from = vi_range[[1]]),  
+     labels = c(0, 0.03, 0.08), tck = tck, mgp = c(3, mgp, 0))
+axis(3, at = scales::rescale(c(0, log10(10+1), log10(130+1)), to = c(0.3, 0.5), from = vi_range[[2]])+0.5, labels = c(0, 10, 130), tck = tck, mgp = c(3, mgp, 0))
 
-
-res = 
-  do.call(rbind,
-    lapply(1:4, function(i) {
-      results[[i]]$scenario = c("N = 100, P = 10", "N = 100, P = 100", "N = 1000, P = 10", "N = 1000, P = 100")[i]
-      return(results[[i]])
-      })
-  )
-
-res$scenario = forcats::lvls_reorder(res$scenario, c(2, 1, 3, 4))
-
-BRT_rmse = (res  %>% arrange(rmse))
-BRT_bias = (res  %>% arrange(abs(bias_1)))
 ```
-
-Overall, the effects on bias (X~1~ ) and RMSE were similar, although small (Fig. S4). Lambda and max tree had the largest effects on the biases and the RMSE (Fig. S3). Effects on the bias of the zero-effect, X~2~, were small and had large confidence intervals (Fig. S3).
 
 ```{r}
 #| label: fig-Fig_S4
-#| fig-cap: "Effects of hyper-parameters of BRT on bias of feature X1. Scenarios with 1,00 and 1,000 observations and with 100 or 10 features (P) were simulated. In each scenario, only two features (X1 and X5) had an effect (effect size = 1) on the response variable Y. Hyper-parameters (max_depth, subsample, lambda, and max_tree) were randomly sampled. Effects of hyper-parameters were estimated by linear regression models."
-#| fig-width: 14
-#| fig-height: 13
+#| fig-cap: "Results of hyperparameter tuning for Neural Networks (NN), Boosted Regression Trees (BRT), Random Forests (RF), and Elastic Net (EN) for 600 observations with 100 features. The influence of the hyperparameters on the effect X~1~ (bias, variance, and MSE), the true simulated effect X~1~ = 1.0, and the predictions of the model (bias, variance, and MSE) were estimated by a multivariate generalized additive model (GAM). Categorical hyperparameters (activation function in NN) were estimated as fixed effects. The responses (bias, variance, MSE) were centered so that the categorical hyperparameters correspond to the intercepts. The variable importance of the hyperparameters was estimated by a random forest with the MSE of the effect X~1~ (first plot) or the prediction (second plot) as the response. Orange dots correspond to the best predicted set of hyperparameters (based on a random forest), in the first plot for the minimum MSE of the effect for X~1~ and in the second plot for the minimum MSE of the predictions."
+#| fig-width: 9
+#| fig-height: 10
+#| warning: false
+#| message: false
 
+results_600 = readRDS("results/hyper_parameter_aggregation_600.RDS")
+data = do.call(rbind, lapply(results_600, function(r) r$data))
 
-m1 = lm(bias_1~0+scenario+scenario:(max_depth+subsample+lambda+max_tree), data = res[complete.cases(res),])
-m2 = lm(bias_0~0+scenario+scenario:(max_depth+subsample+lambda+max_tree), data = res[complete.cases(res),])
-m3 = lm(rmse~0+scenario+scenario:(max_depth+subsample+lambda+max_tree), data = res[complete.cases(res),])
+labels = c("CELU",
+           "ELU",
+           "GELU",
+           "Leaky ReLU",
+           "ReLU",
+           "SELU",
+           "tanh",
+           "batch size",
+           "depth",
+           "width",
+           "alpha",
+           "lambda",
+           "eta",
+           "max depth",
+           "subsample",
+           "max tree",
+           "mtry",
+           "min node size",
+           "max depth",
+           "regularization factor")
+names(labels) = c("activationscelu",
+                  "activationselu",
+                  "activationsgelu",
+                  "activationsleaky_relu",
+                  "activationsrelu",
+                  "activationsselu",
+                  "activationstanh",
+                  "sgd",
+                  "depth", 
+                  "width",
+                  "alpha", 
+                  "lambda",
+                  "eta",
+                  "max_depth",
+                  "subsample",
+                  "max_tree",
+                  "mtry",
+                  "min.node.size",
+                  "max.depth",
+                  "regularization.factor")
 
-ggs = 
-  lapply(list(m1, m2, m3), function(m) {
-      g2 = plot((ggpredict(m, terms = c("max_depth", "scenario" ))))
-      g3 = plot((ggpredict(m, terms = c("subsample", "scenario" ))))
-      g4 = plot((ggpredict(m, terms = c("lambda", "scenario" ))))
-      g5 = plot((ggpredict(m, terms = c("max_tree", "scenario" ))))
-      return(list( g2, g3, g4, g5))
-  })
+eff_range = list(eff_range2 = c(-0.5, 0.5),eff_range1 = c(-0.04, 0.04))
+vi_range = list(c(0, 0.10), c(0, 2.5))
+plot_tuning(data = data, results = results_600, eff_range = eff_range, vi_range = vi_range)
+axis(3, at = scales::rescale(c(-0.25, 0.0, 0.25), to = c(0.02, 0.28), from = eff_range[[1]]), labels = c(-0.25, 0.0, 0.25), tck = tck, mgp = c(3, mgp, 0))
+axis(3, at = scales::rescale(c(-0.02, 0.0, 0.02), to = c(0.02, 0.28), from = eff_range[[2]])+0.5, labels = c(-0.02, 0.0, 0.02), tck = tck, mgp = c(3, mgp, 0))
 
-ggs = do.call(c, ggs)
-ggs = lapply(ggs, function(g) g+theme_bw()+ggtitle("")+ylab("") +theme(legend.position = "none"))
-ggs[-c(9:12)] = lapply(ggs[-c(9:12)], function(g) g+xlab(""))
-
-extract_legend <- function(my_ggp) {
-  step1 <- ggplot_gtable(ggplot_build(my_ggp))
-  step2 <- which(sapply(step1$grobs, function(x) x$name) == "guide-box")
-  step3 <- step1$grobs[[step2]]
-  return(step3)
-}
-leg2 = extract_legend( plot((ggpredict(m1, terms = c("subsample", "scenario" )))) + theme(legend.position = "bottom"))
-
-ggs[[1]] = ggs[[1]] + ylab("Bias of X1 (effect = 1)")
-ggs[[5]] = ggs[[5]] + ylab("Bias of X2 (effect = 0)")
-ggs[[9]] = ggs[[9]] + ylab("RMSE")
-
-do.call(grid.arrange, list(do.call(arrangeGrob, c(ggs, ncol = 4)), leg2,  nrow = 2, heights = c(15, 1)))
+axis(3, at = scales::rescale(c(0, log10(0.05+1), log10(0.14+1)), to = c(0.3, 0.5), from = vi_range[[1]]),  
+     labels = c(0, 0.05, 0.14), tck = tck, mgp = c(3, mgp, 0))
+axis(3, at = scales::rescale(c(0, log10(10+1), log10(130+1)), to = c(0.3, 0.5), from = vi_range[[2]])+0.5, labels = c(0, 10, 130), tck = tck, mgp = c(3, mgp, 0))
 
 ```
 
-<!-- #### Confounder unequal scenario -->
+### Optimal hyperparameters
 
-<!-- As we found large biases in the proof-of-concept simulations for BRT, we repeated the hyper-paramter tuning for the worst scenario (unequal confounder, Fig. 2C in the main text). -->
+The hyperparameters were chosen based on the lowest MSE for the predictive performance of the models (Table S2) and the lowest MSE for the effect ($\beta_1$) on X~1~ (Table S3). The selection of the best hyperparameters was done by first fitting a random forest (default parameters) with the MSE as response and the hyperparameters as features, and then using the set of hyperparameters that predicted the lowest MSE. 
 
-<!-- We used the second best set (eta = 0.31, max depth = 5, subsample = 0.55, lambda = 4.29, max tree = 116) for the rest of analyses. because it had the best trade-off for the biases of three features and the RMSE (Table S2). -->
+```{r}
+#| warning: false
+#| message: false
+results_100 = readRDS("results/hyper_parameter_aggregation_100.RDS")
+#| echo: false
+round_if_num = function(x) {
+  if(any(is.numeric(x))) x = round(x, 3)
+  return(x)
+}
+create_table = function(tmp1, tmp2, tmp3, method = "NN") {
+  resHyper = rbind(tmp1, tmp2, tmp3)
+  hyn = colnames(resHyper)
+  paste0(
+  sapply(1:ncol(resHyper), function(i) {
+    if(i == 1) prefix = method
+    else prefix = " "
+  return(paste0("| ",prefix," | ", hyn[i], " | ", paste0(round_if_num(resHyper[,i]), collapse = " | "), " | \n"))
+  } ), collapse = "")
+}
 
-<!-- ```{r} -->
-<!-- #| label: tbl-Table_S1 -->
-<!-- #| tbl-cap: "Trade-off between bias (feature X~1~, true effect = 1) and RMSE of the fittend BRT Each point is a simulated scenario with a different set of hyper-parameters. Scenarios with 1,00 and 1,000 observations and with 100 or 10 features (P) were simulated. In each scenario, only two features (X~1~ and X~5~) had an effect (effect size = 1) on the response variable Y. Hyper-parameters (max_depth, subsample, lambda, and max_tree) were randomly sampled (3,000 draws)." -->
+input_eff = paste0(
+"| Algorithm | Hyperparameter | n = 50 | n = 100 | n = 600 | \n",
+"|-----------|-----------|-----------|-----------|-----------|\n",
+create_table(results_50[[1]]$hyper$eff[,1:6], results_100[[1]]$hyper$eff[,1:6], results_600[[1]]$hyper$eff[,1:6], "NN"),
+create_table(results_50[[2]]$hyper$eff[,1:5], results_100[[2]]$hyper$eff[,1:5], results_600[[2]]$hyper$eff[,1:5], "BRT"),
+create_table(results_50[[3]]$hyper$eff[,1:4], results_100[[3]]$hyper$eff[,1:4], results_600[[3]]$hyper$eff[,1:4], "RF"),
+create_table(results_50[[4]]$hyper$eff[,1:2], results_100[[4]]$hyper$eff[,1:2], results_600[[4]]$hyper$eff[,1:2], "EN"))
 
-<!-- results = readRDS("results/BRT_pars_confounder_unequal.RDS") -->
-<!-- results = do.call(rbind, results) -->
-<!-- results = results[abs(results$bias_1) < 0.98,] -->
-<!-- results = results[abs(results$bias_0) < 0.98,] -->
-<!-- results$weighted_bias = abs(results$bias_1) + 2*(abs(results$bias_0)) -->
-<!-- colnames(results)[c(6, 7, 8)] = c("Bias X1", "Bias X2", "Bias X3") -->
+input_pred = paste0(
+"| Algorithm | Hyperparameter | n = 50 | n = 100 | n = 600 | \n",
+"|-----------|-----------|-----------|-----------|-----------|\n",
+create_table(results_50[[1]]$hyper$pred[,1:6], results_100[[1]]$hyper$pred[,1:6], results_600[[1]]$hyper$pred[,1:6], "NN"),
+create_table(results_50[[2]]$hyper$pred[,1:5], results_100[[2]]$hyper$pred[,1:5], results_600[[2]]$hyper$pred[,1:5], "BRT"),
+create_table(results_50[[3]]$hyper$pred[,1:4], results_100[[3]]$hyper$pred[,1:4], results_600[[3]]$hyper$pred[,1:4], "RF"),
+create_table(results_50[[4]]$hyper$pred[,1:2], results_100[[4]]$hyper$pred[,1:2], results_600[[4]]$hyper$pred[,1:2], "EN"))
 
-<!-- flextable(round(head(results[order(results$weighted_bias, decreasing = FALSE),]), 3)) -->
+```
 
-<!-- ``` -->
 
-### Random Forest
+`r input_pred`
 
-For our data-poor simulation experiments with n $\gtrapprox$ p, RF showed a stronger correlation between bias of X~1~ and the RMSE (Fig. S5) than NN and BRT.
+: Best predicted set of hyperparameterfor ML algorithms (tuned after MSE of predictions) {#tbl-Hyper_selected_pred}
+
+`r input_eff`
+
+: Best predicted set of hyperparameterfor ML algorithms (tuned after MSE of effect X~1~) {#tbl-Hyper_selected_eff}
+
+## Additional results for data-poor scenarios
+
+### Prediction error of scenarios
+
+```{r}
+#| warning: false
+#| message: false
+
+
+
+extract_results = function(path, N = "small", tuned = "pred") {
+
+  effs_true = c(1.0, 0.0)
+  algorithms = c("LM", "RF", "BRT", "NN", "EN")
+  inter_low = readRDS(path)
+  mse = do.call(rbind, lapply(1:5, function(i) {data.frame(tuned = tuned,N = N,algorithm = algorithms[i], mse = sapply(inter_low, function(r) r[[i]][3]))}))
+  #mse_sd = sapply(1:5, function(i) {sd(sapply(inter_low, function(r) r[[i]][3]))})
+
+  return((mse))
+}
+
+res_pred =  do.call(rbind, lapply(c("small", "mid", "big"), function(n) extract_results(paste0("results/data_poor_",n ,"_MSE.RDS"), n, "pred")))
+res_eff = do.call(rbind, lapply(c("small", "mid", "big"), function(n) extract_results(paste0("results/data_poor_",n ,"_BIAS.RDS"), n, "eff")))
+
+res = rbind(res_pred, res_eff)
+res[(res$algorithm == "LM") & (res$N %in% c("small", "mid")),]$mse = NA
+
+res = res %>% mutate(N = as.factor(N), algorithm = as.factor(algorithm))
+
+res$algorithm = forcats::lvls_reorder(res$algorithm, c(3, 5, 1, 4, 2))
+levels(res$N) = c("N = 600", "N = 100", "N = 50")
+res$N = forcats::lvls_reorder(res$N, c(3, 2, 1))
+```
+
 
 ```{r}
 #| label: fig-Fig_S5
-#| fig-cap: "Trade-off between bias (feature X~1~, true effect = 1) and RMSE of the fittend RF. Each point is a simulated scenario with a different set of hyper-parameters. Scenarios with 1,00 and 1,000 observations and with 100 or 10 features (P) were simulated. In each scenario, only two features (X~1~ and X~5~) had an effect (effect size = 1) on the response variable Y. Hyper-parameters (max_depth, subsample, lambda, and max_tree) were randomly sampled."
-#| fig-width: 8
-#| fig-height: 2.5
-small_10 =  readRDS("results/RF_pars_100_10_SS.RDS")
-small_100 = readRDS("results/RF_pars_100_100_SS.RDS")
-large_10 =  readRDS("results/RF_pars_1000_10_SS.RDS")
-large_100 = readRDS("results/RF_pars_1000_100_SS.RDS")
-results = list(small_10, small_100, large_10, large_100)
-results = lapply(results, function(r) do.call(rbind, r))
-results = lapply(results, function(r) r[abs(r$bias_1) < 0.98,])
-results = lapply(results, function(r) r[abs(r$bias_5) < 0.98,])
+#| fig-cap: "Prediction error (mean square error, MSE) of data poor simulations with optimal hyperparameters either tuned after the best MSE of the effect size (red) or the best MSE of the prediction error (blue)."
+#| fig-width: 7
+#| fig-height: 6
+#| warning: false
+#| message: false
 
 
-par(mfrow = c(1, 4), mar = rep(4, 4))
-title = c("N = 100, P = 10", "N = 100, P = 100", "N = 1000, P = 10", "N = 1000, P = 100")
-for(i in 1:4) {
-  plot(results[[i]]$bias_1, results[[i]]$rmse, las = 1, xlab = "Bias", ylab = "RMSE",
-       main = title[i])
-}
-
-models_RF_R2 = (sapply(1:4, function(i) summary(lm(results[[i]]$rmse ~ results[[i]]$bias_1) )$r.squared ))
-
-res = 
-  do.call(rbind,
-    lapply(1:4, function(i) {
-      results[[i]]$scenario = c("N = 100, P = 10", "N = 100, P = 100", "N = 1000, P = 10", "N = 1000, P = 100")[i]
-      return(results[[i]])
-      })
-  )
-
-res$scenario = forcats::lvls_reorder(res$scenario, c(2, 1, 3, 4))
-
-RF_rmse = (res %>% arrange(rmse))
-RF_bias = (res %>%  arrange(abs(bias_1)))
+g1 =ggplot(data = res, aes(x = algorithm, y = mse, fill = tuned)) +
+  geom_boxplot() +
+  facet_grid(N~.) + 
+  theme_bw() +
+  xlab("Algorithm") +
+  ylab("MSE")+
+  theme(legend.position = c(0.05, 0.26)) +
+  theme(strip.background =element_rect(fill="white"))
+g1
 ```
 
-Bias of X~1~ was mostly only affect by the mtry parameter (Fig. S6), which was within our expectations because it controls the spill-over effect for collinear features.
+
+## Data-poor scenarios without collinearity
+
+### Bias and variance of effects
+
+
+```{r}
+#| echo: false
+
+effs_true = c(1.0, 0.0)
+extract_B = function(RI, exponent = 1) {
+  Bias = apply(abind::abind(lapply(1:length(RI), function(j) t(sapply(1:5, function(i) RI[[j]][[i]][1:2]  - effs_true))), along = 0L), 2:3, mean)**exponent
+  Bias_1 = apply(Bias[,1, drop=FALSE], 1, mean)
+  Bias_0 = apply(Bias[,2, drop=FALSE], 1, mean)
+  return(cbind(Bias_1, Bias_0)) #, Bias_Inter_1, Bias_Inter_0))
+}
+
+extract_V= function(RI) {
+  Var = apply(abind::abind(lapply(1:length(RI), function(j) t(sapply(1:5, function(i) RI[[j]][[i]][1:2] ))), along = 0L), 2:3, var)
+  Var_1 = apply(Var[,1, drop=FALSE], 1, mean)
+  Var_0 = apply(Var[,2, drop=FALSE], 1, mean)
+  return(cbind(Var_1, Var_0))  #, Var_Inter_1, Var_Inter_0))
+}
+
+extract_results = function(path, N = "small", tuned = "pred") {
+
+  effs_true = c(1.0, 0.0)
+  
+  inter_low = readRDS(path)
+  bias_low = extract_B(inter_low, exponent = 1)
+  var_low = extract_V(inter_low)
+  mse = sapply(1:5, function(i) {mean(sapply(inter_low, function(r) r[[i]][3]))})
+  
+
+  return(list(bias = bias_low, var = var_low, mse = mse))
+}
+
+res_pred =  lapply(c("small", "mid", "big"), function(n) extract_results(paste0("results/data_poor_",n ,"_MSE_no_coll.RDS"), n, "pred"))
+res_eff = lapply(c("small", "mid", "big"), function(n) extract_results(paste0("results/data_poor_",n ,"_BIAS_no_coll.RDS"), n, "eff"))
+
+```
 
 ```{r}
 #| label: fig-Fig_S6
-#| fig-cap: "Effects of hyper-parameters of neural networks on bias of feature X~1~. Scenarios with 1,00 and 1,000 observations and with 100 or 10 features (P) were simulated. In each scenario, only two features (X~1~ and X~5~) had an effect (effect size = 1) on the response variable Y. Hyper-parameters (max_depth, subsample, lambda, and max_tree) were randomly sampled. Effects of hyper-parameters were estimated by linear regression models."
-#| fig-width: 14
-#| fig-height: 13
+#| fig-width: 10
+#| fig-height: 7
+#| fig-cap: "Bias and variance of estimated effects in data-poor situations. N = 50, 100, and 600 observations of 100 weakly correlated features were simulated. The effects of X~1~ and X~2~ were 1.0 and 0.0. The other 98 effects were equally spaced between 0 and 1. Models were fitted to the simulated data (1000 repititions) with the optimal hyperparameters (except for LM, which doesn't have hyperparameters). Hyperparameters were chosen based on the minimum MSE of an effect (green) or the prediction error (red). Bias and variance were calculated for X~1~ and X~2~. Effects were approximated using ACE."
+#| warning: false
 
 
-m1 = lm(bias_1~0+scenario+scenario:(mtry+min.node.size+max.depth+regularization.factor), data = res[complete.cases(res),])
-m2 = lm(bias_0~0+scenario+scenario:(mtry+min.node.size+max.depth+regularization.factor), data = res[complete.cases(res),])
-m3 = lm(rmse~0+scenario+scenario:(mtry+min.node.size+max.depth+regularization.factor), data = res[complete.cases(res),])
-
-ggs = 
-  lapply(list(m1, m2, m3), function(m) {
-      g2 = plot((ggpredict(m, terms = c("mtry", "scenario" ))))
-      g3 = plot((ggpredict(m, terms = c("min.node.size", "scenario" ))))
-      g4 = plot((ggpredict(m, terms = c("max.depth", "scenario" ))))
-      g5 = plot((ggpredict(m, terms = c("regularization.factor", "scenario" ))))
-      return(list( g2, g3, g4, g5))
-  })
-
-ggs = do.call(c, ggs)
-ggs = lapply(ggs, function(g) g+theme_bw()+ggtitle("")+ylab("") +theme(legend.position = "none"))
-ggs[-c(9:12)] = lapply(ggs[-c(9:12)], function(g) g+xlab(""))
-
-extract_legend <- function(my_ggp) {
-  step1 <- ggplot_gtable(ggplot_build(my_ggp))
-  step2 <- which(sapply(step1$grobs, function(x) x$name) == "guide-box")
-  step3 <- step1$grobs[[step2]]
-  return(step3)
-}
-leg2 = extract_legend( plot((ggpredict(m1, terms = c("mtry", "scenario" )))) + theme(legend.position = "bottom"))
-
-ggs[[1]] = ggs[[1]] + ylab("Bias of X1 (effect = 1)")
-ggs[[5]] = ggs[[5]] + ylab("Bias of X2 (effect = 0)")
-ggs[[9]] = ggs[[9]] + ylab("RMSE")
-
-do.call(grid.arrange, list(do.call(arrangeGrob, c(ggs, ncol = 4)), leg2,  nrow = 2, heights = c(15, 1)))
-
-```
-
-<!-- #### Confounder unequal scenario -->
-
-<!-- As we found large biases in the proof-of-concept simulations for RF, we repeated the hyper-paramter tuning for the worst, the last, scenario (unequal confounder, Fig. 2C in the main text). -->
-
-<!-- We tried the second best set of hyper-parameters in the proof-of-concept simulations but it actually led to larger biases in Fig. 2A and 2B and we decided to fall back to the default values. -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-Table_S2 -->
-<!-- #| tbl-cap: "Trade-off between bias (feature X~1~, true effect = 1) and RMSE of the fittend RF Each point is a simulated scenario with a different set of hyper-parameters. Scenarios with 1,00 and 1,000 observations and with 100 or 10 features (P) were simulated. In each scenario, only two features (X~1~ and X~5~) had an effect (effect size = 1) on the response variable Y. Hyper-parameters (max_depth, subsample, lambda, and max_tree) were randomly sampled." -->
-
-<!-- results = readRDS("results/RF_pars_confounder_unequal.RDS") -->
-<!-- results = do.call(rbind, results) -->
-<!-- results = results[abs(results$bias_1) < 0.98,] -->
-<!-- results = results[abs(results$bias_0) < 0.98,] -->
-<!-- results$weighted_bias = abs(results$bias_1) + 2*(abs(results$bias_0)) -->
-<!-- colnames(results)[c(6, 7, 8)] = c("Bias X1", "Bias X2", "Bias X3") -->
-
-<!-- flextable(round(head(results[order(results$weighted_bias, decreasing = FALSE),]), 3)) -->
-
-<!-- ``` -->
-
-### Elastic net
-
-For our data-poor simulation experiments with n $\gtrapprox$ p, RF showed a stronger correlation between bias of X~1~ and the RMSE (Fig. S5) than NN and BRT.
-
-```{r}
-#| label: fig-Fig_S55
-#| fig-cap: "Trade-off between bias (feature X~1~, true effect = 1) and RMSE of the fittend Elastic-net. Each point is a simulated scenario with a different set of hyper-parameters. Scenarios with 1,00 and 1,000 observations and with 100 or 10 features (P) were simulated. In each scenario, only two features (X~1~ and X~5~) had an effect (effect size = 1) on the response variable Y. Hyper-parameters (alpha and lambda) were randomly sampled."
-#| fig-width: 8
-#| fig-height: 2.5
-small_10 =  readRDS("results/Elastic_net_pars_100_10_SS.RDS")
-small_100 = readRDS("results/Elastic_net_pars_100_100_SS.RDS")
-large_10 =  readRDS("results/Elastic_net_pars_1000_10_SS.RDS")
-large_100 = readRDS("results/Elastic_net_pars_1000_100_SS.RDS")
-results = list(small_10, small_100, large_10, large_100)
-results = lapply(results, function(r) do.call(rbind, r))
-results = lapply(results, function(r) r[abs(r$bias_1) < 0.98,])
-results = lapply(results, function(r) r[abs(r$bias_5) < 0.98,])
-
-
-par(mfrow = c(1, 4), mar = rep(4, 4))
-title = c("N = 100, P = 10", "N = 100, P = 100", "N = 1000, P = 10", "N = 1000, P = 100")
-for(i in 1:4) {
-  plot(results[[i]]$bias_1, results[[i]]$rmse, las = 1, xlab = "Bias", ylab = "RMSE",
-       main = title[i])
+bias = res_pred[[1]]$bias[1, 1]
+var = res_pred[[1]]$var[1, 1]
+draw_stacked_bar = function(bias, var, xleft = 0.0, w = 0.15) {
+  rect(xleft, 0, xleft+w, abs(bias), col = "#96c6ed" )
+  rect(xleft, abs(bias), xleft+w, abs(bias)+var, col = "#e0acd5" )
 }
 
-models_EN_R2 = (sapply(1:4, function(i) summary(lm(results[[i]]$rmse ~ results[[i]]$bias_1) )$r.squared ))
+methods2 = c("LM", "RF", "BRT", "NN", "EN")
+methods2[-1] = paste0(methods2[-1], " tuned")
+par(mfrow = c(3, 5), mar = c(1, 1, 1, 1)*0.5, oma = c(12, 4, 4, 4))
+y_labels = c("N = 50", "N = 100", "N = 600")
+for(j in 1:3) {
+  for(i in 1:5) {
+    plot(NULL, NULL, xlim = c(0, 1), ylim = c(0, 1), yaxt = "n", xaxt = "n", xaxs = "i", yaxs = "i", xlab = "", ylab = "")
+    if( i > 1) {
+      rect(0.5, 0, 1.0, 1.0, col = "#EDBD9660", border = NA)
+      rect(0.0, 0, 0.5, 1.0, col = "#9BED9660", border = NA)
 
+      draw_stacked_bar(xleft = 0.1, res_pred[[j]]$bias[i, 1], res_pred[[j]]$var[i, 1])
+      draw_stacked_bar(xleft = 0.1+0.18, res_pred[[j]]$bias[i, 2], res_pred[[j]]$var[i, 2])
+      draw_stacked_bar(xleft = 0.1+0.47, res_eff[[j]]$bias[i, 1], res_eff[[j]]$var[i, 1])
+      draw_stacked_bar(xleft = 0.1+0.18+0.47, res_eff[[j]]$bias[i, 2], res_eff[[j]]$var[i, 2])
+    } else {
+      
+      if( ((j %in% c(1, 2)) && (i == 1) )) {
+        text(x = 0.5, y = 0.5, pos = 3, label = "NA", font = 2)
+      } else {
+        draw_stacked_bar(xleft = 0.325, res_pred[[j]]$bias[i, 1], res_pred[[j]]$var[i, 1])
+        draw_stacked_bar(xleft = 0.325+0.18, res_pred[[j]]$bias[i, 2], res_pred[[j]]$var[i, 2])
 
-res = 
-  do.call(rbind,
-    lapply(1:4, function(i) {
-      results[[i]]$scenario = c("N = 100, P = 10", "N = 100, P = 100", "N = 1000, P = 10", "N = 1000, P = 100")[i]
-      return(results[[i]])
-      })
-  )
-
-res$scenario = forcats::lvls_reorder(res$scenario, c(2, 1, 3, 4))
-EN_rmse = (res  %>% arrange(rmse))
-EN_bias = (res  %>% arrange(abs(bias_1)))
-
-```
-
-Bias of X~1~ was mostly only affect by the mtry parameter (Fig. S6), which was within our expectations because it controls the spill-over effect for collinear features.
-
-```{r}
-#| label: fig-Fig_S66
-#| fig-cap: "Effects of hyper-parameters of Elastic-net on bias of feature X~1~. Scenarios with 1,00 and 1,000 observations and with 100 or 10 features (P) were simulated. In each scenario, only two features (X~1~ and X~5~) had an effect (effect size = 1) on the response variable Y. Hyper-parameters (alpha and lambda) were randomly sampled. Effects of hyper-parameters were estimated by linear regression models."
-#| fig-width: 14
-#| fig-height: 13
-
-
-m1 = lm(bias_1~0+scenario+scenario:(alpha + lambda), data = res[complete.cases(res),])
-m2 = lm(bias_0~0+scenario+scenario:(alpha + lambda), data = res[complete.cases(res),])
-m3 = lm(rmse~0+scenario+scenario:(alpha + lambda), data = res[complete.cases(res),])
-
-ggs = 
-  lapply(list(m1, m2, m3), function(m) {
-      g2 = plot((ggpredict(m, terms = c("alpha", "scenario" ))))
-      g3 = plot((ggpredict(m, terms = c("lambda", "scenario" ))))
-      return(list( g2, g3))
-  })
-
-ggs = do.call(c, ggs)
-ggs = lapply(ggs, function(g) g+theme_bw()+ggtitle("")+ylab("") +theme(legend.position = "none"))
-ggs[-c(5, 6)] = lapply(ggs[-c(5, 6)], function(g) g+xlab(""))
-
-extract_legend <- function(my_ggp) {
-  step1 <- ggplot_gtable(ggplot_build(my_ggp))
-  step2 <- which(sapply(step1$grobs, function(x) x$name) == "guide-box")
-  step3 <- step1$grobs[[step2]]
-  return(step3)
+        text(x = c(0.185, 0.185+0.18),y = -0.24, 
+        labels = c("Bias+Variance X1", "Bias+Variance X2"), 
+        srt = 45,
+        xpd = NA, pos = 1)        
+      }
+      
+    }
+    if(j == 1) {
+      rect(0, 1.0, 1.0, 1.15, xpd = NA, border = "black")
+      text(0.5, y = 0.98, pos = 3, xpd = NA, label = methods2[i], cex = 1.3, font = 2)
+    }
+    if(i == 5) {
+      rect(1, 0, 1.15, 1.0, xpd = NA, border = "black")
+      text(y = 0.72, x = 1.01, pos = 4, xpd = NA, label = y_labels[j], cex = 1.3, font = 2, srt = -90)
+    }
+    if( (j == 3) && (i > 1) ){
+      text(x = c(0.185, 0.185+0.18, c(0.185, 0.185+0.18)+0.47)-0.22,y = -0.24, 
+           labels = c("Bias+Variance X1", "Bias+Variance X2", "Bias+Variance X1", "Bias+Variance X2"), 
+           srt = 45,
+           xpd = NA, pos = 1)
+    }    
+  }
 }
-leg2 = extract_legend( plot((ggpredict(m1, terms = c("alpha", "scenario" )))) + theme(legend.position = "bottom"))
 
-ggs[[1]] = ggs[[1]] + ylab("Bias of X1 (effect = 1)")
-ggs[[3]] = ggs[[3]] + ylab("Bias of X2 (effect = 0)")
-ggs[[5]] = ggs[[5]] + ylab("RMSE")
+points(pch = 15, x = rep(-1.0, 2), y = c(-0.7, -0.8), xpd = NA, col = c("#96c6ed","#e0acd5"), cex = 1.5)
+text(x = rep(-1.0, 2)+0.01, y = c(-0.7, -0.8)-0.02, pos = 4, labels = c("Bias", "Variance"), xpd = NA)
 
-do.call(grid.arrange, list(do.call(arrangeGrob, c(ggs, ncol = 2)), leg2,  nrow = 2, heights = c(15, 1)))
+points(pch = 15, x = rep(-0.2, 2), y = c(-0.7, -0.8), xpd = NA, col = c("#9BED96","#EDBD96"), cex = 1.5)
+text(x = rep(-0.2, 2)+0.01, y = c(-0.7, -0.8)-0.02, pos = 4, labels = c("Tuned after MSE of predictions", "Tuned after MSE of X1"), xpd = NA)
+
 
 ```
 
-<!-- #### Confounder unequal scenario -->
 
-<!-- As we found large biases in the proof-of-concept simulations for elastic-net, we repeated the hyper-paramter tuning for the worst, the last, scenario (unequal confounder, Fig. 2C in the main text). -->
+### Predictions error of scenarios (without collinearity)
 
-<!-- We tried the second best set of hyper-parameters in the proof-of-concept simulations but it actually led to larger biases in Fig. 2A and 2B and we decided to fall back to the default values. -->
-
-<!-- ```{r} -->
-<!-- #| label: tbl-Table_S22 -->
-<!-- #| tbl-cap: "Trade-off between bias (feature X~1~, true effect = 1) and RMSE of the fittend ELastic-net Each point is a simulated scenario with a different set of hyper-parameters. Scenarios with 1,00 and 1,000 observations and with 100 or 10 features (P) were simulated. In each scenario, only two features (X~1~ and X~5~) had an effect (effect size = 1) on the response variable Y. Hyper-parameters (max_depth, subsample, lambda, and max_tree) were randomly sampled." -->
-
-<!-- results = readRDS("results/Elastic_net_pars_confounder_unequal.RDS") -->
-<!-- results = do.call(rbind, results) -->
-<!-- results = results[abs(results$bias_1) < 0.98,] -->
-<!-- results = results[abs(results$bias_0) < 0.98,] -->
-<!-- results$weighted_bias = abs(results$bias_1) + 2*(abs(results$bias_0)) -->
-<!-- colnames(results)[c(3, 5, 4)] = c("Bias X1", "Bias X2", "Bias X3") -->
-
-<!-- flextable(round(head(results[order(results$weighted_bias, decreasing = FALSE),]), 3)) -->
-
-<!-- ``` -->
-
-### Comparison of algorithms
-
-<!-- |                                    | RF                                                                              | BRT                                                                             | NN                                                                            | elastic-net                                                                   | -->
-<!-- |---------------|---------------|---------------|---------------|---------------| -->
-<!-- | R^2^ between RMSE and bias of X~1~ | `r round(models_RF_R2[3], 3)`                                                   | `r round((models_BRT_R2)[3], 3)`                                                | `r round((models_NN_R2)[3], 3)`                                               | `r round((models_EN_R2)[3], 3)`                                               | -->
-<!-- | RMSE tuned bias of X~1~            | `r round( (RF_rmse %>% filter(scenario == "N = 1000, P = 10")) [1,]$bias_1, 3)` | `r round( (BRT_rmse %>% filter(scenario == "N = 1000, P = 10"))[1,]$bias_1, 3)` | `r round((NN_rmse %>% filter(scenario == "N = 1000, P = 10"))[1,]$bias_1, 3)` | `r round((EN_rmse %>% filter(scenario == "N = 1000, P = 10"))[1,]$bias_1, 3)` | -->
-<!-- | RMSE tuned RMSE                    | `r round( (RF_rmse %>% filter(scenario == "N = 1000, P = 10")) [1,]$rmse, 3)`   | `r round( (BRT_rmse %>% filter(scenario == "N = 1000, P = 10"))[1,]$rmse, 3)`   | `r round((NN_rmse %>% filter(scenario == "N = 1000, P = 10"))[1,]$rmse, 3)`   | `r round((EN_rmse %>% filter(scenario == "N = 1000, P = 10"))[1,]$rmse, 3)`   | -->
-<!-- | Bias-tuned bias of X~1~            | `r round( (RF_bias %>% filter(scenario == "N = 1000, P = 10")) [1,]$bias_1, 3)` | `r round( (BRT_bias %>% filter(scenario == "N = 1000, P = 10"))[1,]$bias_1, 3)` | `r round((NN_bias %>% filter(scenario == "N = 1000, P = 10"))[1,]$bias_1, 3)` | `r round((EN_bias %>% filter(scenario == "N = 1000, P = 10"))[1,]$bias_1, 3)` | -->
-<!-- | Bias-tuned (X~1~ ) RMSE            | `r round( (RF_bias %>% filter(scenario == "N = 1000, P = 10")) [1,]$rmse, 3)`   | `r round( (BRT_bias %>% filter(scenario == "N = 1000, P = 10"))[1,]$rmse, 3)`   | `r round((NN_bias %>% filter(scenario == "N = 1000, P = 10"))[1,]$rmse, 3)`   | `r round((EN_bias %>% filter(scenario == "N = 1000, P = 10"))[1,]$rmse, 3)`   | -->
-
-<!-- : Comparison of hyper-parameter tuning of ML algorithms for N = 1000 and P = 10 {#tbl-Hyper_large} -->
-
-|                                    | RF                                                                              | BRT                                                                             | NN                                                                            | elastic-net                                                                   |
-|---------------|---------------|---------------|---------------|---------------|
-| R^2^ between RMSE and bias of X~1~ | `r round(models_RF_R2[2], 3)`                                                   | `r round((models_BRT_R2)[2], 3)`                                                | `r round((models_NN_R2)[2], 3)`                                               | `r round((models_EN_R2)[2], 3)`                                               |
-| RMSE tuned bias of X~1~            | `r round( (RF_rmse %>% filter(scenario == "N = 100, P = 100")) [1,]$bias_1, 3)` | `r round( (BRT_rmse %>% filter(scenario == "N = 100, P = 100"))[1,]$bias_1, 3)` | `r round((NN_rmse %>% filter(scenario == "N = 100, P = 100"))[1,]$bias_1, 3)` | `r round((EN_rmse %>% filter(scenario == "N = 100, P = 100"))[1,]$bias_1, 3)` |
-| RMSE tuned RMSE                    | `r round( (RF_rmse %>% filter(scenario == "N = 100, P = 100")) [1,]$rmse, 3)`   | `r round( (BRT_rmse %>% filter(scenario == "N = 100, P = 100"))[1,]$rmse, 3)`   | `r round((NN_rmse %>% filter(scenario == "N = 100, P = 100"))[1,]$rmse, 3)`   | `r round((EN_rmse %>% filter(scenario == "N = 100, P = 100"))[1,]$rmse, 3)`   |
-| Bias-tuned bias of X~1~            | `r round( (RF_bias %>% filter(scenario == "N = 100, P = 100")) [1,]$bias_1, 3)` | `r round( (BRT_bias %>% filter(scenario == "N = 100, P = 100"))[1,]$bias_1, 3)` | `r round((NN_bias %>% filter(scenario == "N = 100, P = 100"))[1,]$bias_1, 3)` | `r round((EN_bias %>% filter(scenario == "N = 100, P = 100"))[1,]$bias_1, 3)` |
-| Bias-tuned (X~1~ ) RMSE            | `r round( (RF_bias %>% filter(scenario == "N = 100, P = 100")) [1,]$rmse, 3)`   | `r round( (BRT_bias %>% filter(scenario == "N = 100, P = 100"))[1,]$rmse, 3)`   | `r round((NN_bias %>% filter(scenario == "N = 100, P = 100"))[1,]$rmse, 3)`   | `r round((EN_bias %>% filter(scenario == "N = 100, P = 100"))[1,]$rmse, 3)`   |
+### Prediction error of scenarios
 
 ```{r}
-#| echo: false
-hyper_to_text = function(tmp) {
-  return(paste0(names(unlist(tmp)), "=",unlist(tmp), collapse = ",  "))
+#| warning: false
+#| message: false
+
+extract_results = function(path, N = "small", tuned = "pred") {
+
+  effs_true = c(1.0, 0.0)
+  algorithms = c("LM", "RF", "BRT", "NN", "EN")
+  inter_low = readRDS(path)
+  mse = do.call(rbind, lapply(1:5, function(i) {data.frame(tuned = tuned,N = N,algorithm = algorithms[i], mse = sapply(inter_low, function(r) r[[i]][3]))}))
+  #mse_sd = sapply(1:5, function(i) {sd(sapply(inter_low, function(r) r[[i]][3]))})
+
+  return((mse))
 }
+
+res_pred =  do.call(rbind, lapply(c("small", "mid", "big"), function(n) extract_results(paste0("results/data_poor_",n ,"_MSE_no_coll.RDS"), n, "pred")))
+res_eff = do.call(rbind, lapply(c("small", "mid", "big"), function(n) extract_results(paste0("results/data_poor_",n ,"_BIAS_no_coll.RDS"), n, "eff")))
+
+res = rbind(res_pred, res_eff)
+res[(res$algorithm == "LM") & (res$N %in% c("small", "mid")),]$mse = NA
+
+res = res %>% mutate(N = as.factor(N), algorithm = as.factor(algorithm))
+
+res$algorithm = forcats::lvls_reorder(res$algorithm, c(3, 5, 1, 4, 2))
+levels(res$N) = c("N = 600", "N = 100", "N = 50")
+res$N = forcats::lvls_reorder(res$N, c(3, 2, 1))
 ```
 
-<!-- | Algorithm   | Selected hyper-parameters (data-rich)                                                                                | Selected hyper-parameters (data-poor)                                                                                | -->
-<!-- |----------------|----------------------------|----------------------------| -->
-<!-- | RF          | `r hyper_to_text((RF_rmse %>% filter(scenario == "N = 1000, P = 10"))[2,-(ncol(RF_rmse): (ncol(RF_rmse) -4 ) )])`    | `r hyper_to_text((RF_rmse %>% filter(scenario == "N = 100, P = 100"))[2,-(ncol(RF_rmse): (ncol(RF_rmse) -4 ) )])`    | -->
-<!-- | BRT         | `r hyper_to_text((BRT_rmse %>% filter(scenario == "N = 1000, P = 10"))[2,-(ncol(BRT_rmse): (ncol(BRT_rmse) -4 ) )])` | `r hyper_to_text((BRT_rmse %>% filter(scenario == "N = 100, P = 100"))[2,-(ncol(BRT_rmse): (ncol(BRT_rmse) -4 ) )])` | -->
-<!-- | NN          | `r hyper_to_text((NN_rmse %>% filter(scenario == "N = 1000, P = 10"))[2,-(ncol(NN_rmse): (ncol(NN_rmse) -4 ) )])`    | `r hyper_to_text((NN_rmse %>% filter(scenario == "N = 100, P = 100"))[2,-(ncol(NN_rmse): (ncol(NN_rmse) -4 ) )])`    | -->
-<!-- | elastic-net | `r hyper_to_text((EN_rmse %>% filter(scenario == "N = 1000, P = 10"))[2,-(ncol(EN_rmse): (ncol(EN_rmse) -4 ) )])`    | `r hyper_to_text((EN_rmse %>% filter(scenario == "N = 100, P = 100"))[2,-(ncol(EN_rmse): (ncol(EN_rmse) -4 ) )])`    | -->
-
-<!-- : Selected hyper-parameterfor ML algorithms {#tbl-Hyper_selected} -->
-
-
-| Algorithm   |  | Selected hyper-parameters (data-poor)                                                                                |
-|----------------|----------------------------|
-| RF          | `r hyper_to_text((RF_rmse %>% filter(scenario == "N = 100, P = 100"))[2,-(ncol(RF_rmse): (ncol(RF_rmse) -4 ) )])`    |
-| BRT         | `r hyper_to_text((BRT_rmse %>% filter(scenario == "N = 100, P = 100"))[2,-(ncol(BRT_rmse): (ncol(BRT_rmse) -4 ) )])` |
-| NN          | `r hyper_to_text((NN_rmse %>% filter(scenario == "N = 100, P = 100"))[2,-(ncol(NN_rmse): (ncol(NN_rmse) -4 ) )])`    |
-| elastic-net | `r hyper_to_text((EN_rmse %>% filter(scenario == "N = 100, P = 100"))[2,-(ncol(EN_rmse): (ncol(EN_rmse) -4 ) )])`    |
-
-: Selected hyper-parameterfor ML algorithms {#tbl-Hyper_selected}
-
-
-
-
-
-## Proof of concept - Additional results
-
-```{r}
-#| echo: false
-
-files =        c("collinearity_0.5.RDS", 
-                 "collinearity_0.90.RDS", 
-                 "collinearity_0.99.RDS", 
-                 "effects.RDS", 
-                 "no_effects.RDS", 
-                 "confounder_unequal.RDS", 
-                 "confounder.RDS")
-
-Results = 
-  lapply(files, function(f) {
-    confounder = readRDS(paste0("results/",f))
-    Result = do.call(rbind, lapply(1:8, function(j) (apply(abind::abind(lapply(1:100, function(i) confounder[[i]][[j]][[1]] ), along = 0L), 2, mean))))
-    colnames(Result) = LETTERS[1:5]
-    rownames(Result) = c("LM", "RF", "BRT", "NN", "Dropout", "l1", "l2", "l1l2")
-    return(Result)
-  })
-names(Results) = unlist(strsplit(files, ".RDS", TRUE))
-
-Results_rmse = 
-  lapply(files, function(f) {
-    confounder = readRDS(paste0("results/",f))
-    Result = do.call(rbind, lapply(1:8, function(j) (apply(abind::abind(lapply(1:100, function(i) confounder[[i]][[j]][[2]] ), along = 0L), 2, mean))))
-    #colnames(Result) = LETTERS[1:5]
-    rownames(Result) = c("LM", "RF", "BRT", "NN", "Dropout", "l1", "l2", "l1l2")
-    return(Result)
-  })
-names(Results_rmse) = unlist(strsplit(files, ".RDS", TRUE))
-
-Results_rmse_sd = 
-  lapply(files, function(f) {
-    confounder = readRDS(paste0("results/",f))
-    Result = do.call(rbind, lapply(1:8, function(j) (apply(abind::abind(lapply(1:100, function(i) confounder[[i]][[j]][[2]] ), along = 0L), 2, sd))))
-    #colnames(Result) = LETTERS[1:5]
-    rownames(Result) = c("LM", "RF", "BRT", "NN", "Dropout", "l1", "l2", "l1l2")
-    return(Result)
-  })
-names(Results_rmse_sd) = unlist(strsplit(files, ".RDS", TRUE))
-
-
-Results_sd = 
-  lapply(files, function(f) {
-    confounder = readRDS(paste0("results/",f))
-    Result = do.call(rbind, lapply(1:8, function(j) (apply(abind::abind(lapply(1:100, function(i) confounder[[i]][[j]][[1]] ), along = 0L), 2, sd))))
-    colnames(Result) = LETTERS[1:5]
-    rownames(Result) = c("LM", "RF", "BRT", "NN", "Dropout", "l1", "l2", "l1l2")
-    return(Result)
-  })
-names(Results_sd) = unlist(strsplit(files, ".RDS", TRUE))
-
-layout = matrix(c(0,10,
-                  0,5,
-                  0,0,
-                  5,5), nrow = 4L, 2L, byrow = TRUE) 
-
-```
-
-All models (Fig. 2) showed small variances $<0.01$ (Fig. S7)
 
 ```{r}
 #| label: fig-Fig_S7
-#| fig-cap: 'Variances of effect estimates for different ML algorithms in three different simulated causal simulations (a, b, and c). Sample sizes are so large that stochastic effects can be excluded. Effects of the ML models were inferred using marginal conditional effects. Row a) shows results for simulations with uncorrelated features with effect sizes (x~1~: 1.0, x~2~: 0.5, x~3~: 1.0). Row b) shows the results for simulations with x~1~ and x~2~ being strongly correlated (Pearson correlation factor = 0.9) but only x~1~ has an effect on y (mediator) and row c) shows the results for x~1~ and x~2~ being strongly correlated (Pearson correlation factor = 0.9 with x~1~ and x~2~ having effects on y (confounder scenario)'
-#| fig-width: 10
-#| fig-height: 9
-
-sc = c("no_effects", "effects", "confounder_unequal", "collinearity_0.90")
-
-
-algorithms = c("LM","RF",  "BRT", "NN","Dropout", "l1", "l2", "l1l2")
-
-par(mfcol = c(3,6), mar = c(5,0.5, 2, 1.4), oma = c(1, 2, 2, 1))
-labs =  c("LM","RF",  "BRT", "NN", "Dropout", "l1", "l2", "Elastic-net")
-#plot_scenarios(1.0)
-#dev.off()
-cex_fac = 1.3
-
-plot_scenarios(1.0, layout = matrix(c(1,1,
-                             0,1,
-                             0,0,
-                             0,2), nrow = 4L, 2L, byrow = TRUE))
-
-true_effs = matrix(c(
-  NA, NA, NA,
-  0, 0.0, 0,
-  1, 1, 1,
-  1, 0, 1
-), 4, 3, byrow = TRUE)
-
-for(i in c(1, 2, 3, 4, 8)) {
-  counter = 1
-  for(j in c(2, 4, 3)) {
-
-    tmp = Results_sd[[sc[j]]]**2
-    sd = Results_sd[[sc[j]]][i,]
-    edges = round(tmp[i,], 5)
-    bias = edges[c(1, 2, 5)] #- true_effs[j,]
-    g1 = graph(c("X1", "Y", "X2", "Y", "X3", "Y"),  
-                directed=TRUE ) 
-    layout_as_tree(g1, root = "Y", circular = TRUE, flip.y = TRUE)
-    eqarrowPlot(g1, matrix(c(1,1,
-                             0,1,
-                             0,0,
-                             0,2), nrow = 4L, 2L, byrow = TRUE) ,
-                #cols = c( "skyblue","#B0A8B9", "#B0A8B9", "#B0A8B9"),
-                cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 1), 1.0)),
-                edge.arrow.size=abs(edges[c(1, 2, 5)]), 
-                edge.width=abs(edges[c(1, 2, 5)])*cex_fac,
-                edge.label = c(paste0(format(round(bias, 2)[1], nsmall = 1), "\n\n"),paste0(format(round(bias, 2)[2], nsmall = 1), "\n"), paste0("", format(round(bias, 2)[3], nsmall=1))),
-                edge.label.cex = 1.4,
-                edge.colors = ifelse(abs(edges[c(1, 2, 5)]) < 0.001, "white", "grey"))
-    text(labs[i], x = 0, y = 2.3, xpd = NA, cex = 1.4, pos = 3)
-    if(i == 1) {
-      text(letters[counter], cex = 1.9, x = -2.2, y = 2.5, xpd = NA, font = 2)
-      counter = counter + 1
-    }
-    
-
-  }
-  if(i == 3) {
-    points(x = 0-1, y = -1.1*0.5, col = "#e60000", xpd = NA, pch = 15, cex = 1.8)
-    text(x = 0.1-1, y = -1.1*0.5, label = "Variance", xpd = NA, pos = 4, cex = 1.4)
-  }
-}
-
-
-```
-
-### NN with Dropout, LASSO, and Ridge
-
-We additionally tested NN with dropout (rate = 0.2), LASSO regression, and Ridge regression for the proof-of-concept simulations.
-
-```{r}
-#| label: fig-Fig_S8
-#| fig-cap: "Bias on effect estimates for additional ML algorithms (NN with Dropout, LASSO, and Ridge regression) in three different simulated causal simulations (a, b, and c).Sample sizes are so large that stochastic effects can be excluded. Effects of the ML models were inferred using marginal conditional effects. Row a) shows results for simulations with uncorrelated features with effect sizes (x~1~: 1.0, x~2~: 0.5, x~3~: 1.0). Row b) shows the results for simulations with x~1~ and x~2~ being strongly correlated (Pearson correlation factor = 0.9) but only x~1~ has an effect on y (mediator) and row c) shows the results for x~1~ and x~2~ being strongly correlated (Pearson correlation factor = 0.9 with x~1~ and x~2~ having effects on y (confounder scenario)"
-#| fig-width: 10
-#| fig-height: 9
-
-sc = c("no_effects", "effects", "confounder_unequal", "collinearity_0.90")
-
-algorithms = c("LM","RF",  "BRT", "NN","Dropout", "l1", "l2", "l1l2")
-
-par(mfcol = c(3,4), mar = c(5,0.5, 2, 1.4), oma = c(1, 2, 2, 1))
-labs =  c("LM","RF",  "BRT", "NN","NN+Dropout", "LASSO", "Ridge", "Elastic-net")
-#plot_scenarios(1.0)
-#dev.off()
-cex_fac = 1.3
-
-plot_scenarios(1.0, layout = matrix(c(1,1,
-                             0,1,
-                             0,0,
-                             0,2), nrow = 4L, 2L, byrow = TRUE))
-
-    points(x = 0, y = -0.55, col = "grey", xpd = NA, pch = 15, cex = 1.8)
-    text(x = 0.1, y = -0.55, label = "True effect", xpd = NA, pos = 4, cex = 1.4)
-    
-    points(x = 0, y = -0.75, col = "#ffab02", xpd = NA, pch = 15, cex = 1.8)
-    text(x = 0.1, y = -0.75, label = "Correlation", xpd = NA, pos = 4, cex = 1.4)
-
-
-true_effs = matrix(c(
-  NA, NA, NA,
-  1, 0.5, 1,
-  -1, 0.5, 1,
-  1, 0, 1
-), 4, 3, byrow = TRUE)
-
-for(i in c(5, 6, 7)) {
-  counter = 1
-  for(j in c(2, 4, 3)) {
-
-    tmp = Results[[sc[j]]]
-    edges = round(tmp[i,], 5)
-    bias = edges[c(1, 2, 5)] - true_effs[j,]
-    g1 = graph(c("x\U2081", "y", "x\U2082", "y", "x\U2083", "y"),  
-                directed=TRUE ) 
-    layout_as_tree(g1, root = "y", circular = TRUE, flip.y = TRUE)
-    eqarrowPlot(g1, matrix(c(1,1,
-                             0,1,
-                             0,0,
-                             0,2), nrow = 4L, 2L, byrow = TRUE) ,
-                #cols = c( "skyblue","#B0A8B9", "#B0A8B9", "#B0A8B9"),
-                cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 1), 1.0)),
-                edge.arrow.size=abs(bias)*2.3,#abs(edges[c(1, 2, 5)]), 
-                edge.width=abs(bias)*cex_fac*2,#abs(edges[c(1, 2, 5)])*cex_fac,
-                edge.label = c(paste0(format(round(bias, 2)[1], nsmall = 1), "\n\n"),
-                               paste0("          ",format(round(bias, 2)[2], nsmall = 1), "\n"), 
-                               paste0("          ", format(round(bias, 2)[3], nsmall=1))),
-                edge.label.cex = 1.4,
-                edge.colors = ifelse(abs(edges[c(1, 2, 5)]) < 0.001, "white", "#e60000"))
-    text(labs[i], x = 0, y = 2.3, xpd = NA, cex = 1.4, pos = 3)
-    if(i == 1) {
-      text(letters[counter], cex = 1.9, x = -2.2, y = 2.5, xpd = NA, font = 2)
-      counter = counter + 1
-    }
-
-  }
-  if(i == 3) {
-    points(x = 0-1, y = -1.1*0.5, col = "#e60000", xpd = NA, pch = 15, cex = 1.8)
-    text(x = 0.1-1, y = -1.1*0.5, label = "Bias = estiamted effect - true effect", xpd = NA, pos = 4, cex = 1.4)
-  }
-}
-
-```
-
-All three methods showed biased estimates in the first scenario for effects without collinearity (Fig. S8). With collinearity, all three showed larger biases but Ridge regression showed the largest biases (Fig. S8).
-
-```{r}
-#| label: fig-Fig_S9
-#| fig-cap: "Variances of effect estimates for additional ML algorithms (NN with Dropout, LASSO, and Ridge regression) in three different simulated causal simulations (a, b, and c). Sample sizes are so large that stochastic effects can be excluded. Effects of the ML models were inferred using marginal conditional effects. Row a) shows results for simulations with uncorrelated features with effect sizes (x~1~: 1.0, x~2~: 0.5, x~3~: 1.0). Row b) shows the results for simulations with x~1~ and x~2~ being strongly correlated (Pearson correlation factor = 0.9) but only x~1~ has an effect on y (mediator) and row c) shows the results for x~1~ and x~2~ being strongly correlated (Pearson correlation factor = 0.9 with x~1~ and x~2~ having effects on y (confounder scenario)"
-#| fig-width: 10
-#| fig-height: 9
-
-
-sc = c("no_effects", "effects", "confounder_unequal", "collinearity_0.90")
-
-algorithms = c("LM","RF",  "BRT", "NN","Dropout", "l1", "l2", "l1l2")
-
-par(mfcol = c(3,4), mar = c(5,0.5, 2, 1.4), oma = c(1, 2, 2, 1))
-labs =  c("LM","RF",  "BRT", "NN","NN+Dropout", "LASSO", "Ridge", "Elastic-net")
-cex_fac = 1.3
-
-plot_scenarios(1.0, layout = matrix(c(1,1,
-                             0,1,
-                             0,0,
-                             0,2), nrow = 4L, 2L, byrow = TRUE))
-
-    points(x = 0, y = -0.55, col = "grey", xpd = NA, pch = 15, cex = 1.8)
-    text(x = 0.1, y = -0.55, label = "True effect", xpd = NA, pos = 4, cex = 1.4)
-    
-    points(x = 0, y = -0.75, col = "#ffab02", xpd = NA, pch = 15, cex = 1.8)
-    text(x = 0.1, y = -0.75, label = "Correlation", xpd = NA, pos = 4, cex = 1.4)
-
-
-true_effs = matrix(c(
-  NA, NA, NA,
-  1, 0.5, 1,
-  -1, 0.5, 1,
-  1, 0, 1
-), 4, 3, byrow = TRUE)
-
-for(i in c(5, 6, 7)) {
-  counter = 1
-  for(j in c(2, 4, 3)) {
-
-    tmp = Results_sd[[sc[j]]]**2
-    edges = round(tmp[i,], 5)
-    bias = edges[c(1, 2, 5)] #- true_effs[j,]
-    g1 = graph(c("x\U2081", "y", "x\U2082", "y", "x\U2083", "y"),  
-                directed=TRUE ) 
-    layout_as_tree(g1, root = "y", circular = TRUE, flip.y = TRUE)
-    eqarrowPlot(g1, matrix(c(1,1,
-                             0,1,
-                             0,0,
-                             0,2), nrow = 4L, 2L, byrow = TRUE) ,
-                #cols = c( "skyblue","#B0A8B9", "#B0A8B9", "#B0A8B9"),
-                cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 1), 1.0)),
-                edge.arrow.size=abs(bias)*2.3,#abs(edges[c(1, 2, 5)]), 
-                edge.width=abs(bias)*cex_fac*2,#abs(edges[c(1, 2, 5)])*cex_fac,
-                edge.label = c(paste0(format(round(bias, 2)[1], nsmall = 1), "\n\n"),
-                               paste0("          ",format(round(bias, 2)[2], nsmall = 1), "\n"), 
-                               paste0("          ", format(round(bias, 2)[3], nsmall=1))),
-                edge.label.cex = 1.4,
-                edge.colors = ifelse(abs(edges[c(1, 2, 5)]) < 0.001, "white", "#e60000"))
-    text(labs[i], x = 0, y = 2.3, xpd = NA, cex = 1.4, pos = 3)
-    if(i == 1) {
-      text(letters[counter], cex = 1.9, x = -2.2, y = 2.5, xpd = NA, font = 2)
-      counter = counter + 1
-    }
-
-  }
-  if(i == 6) {
-    points(x = 0-1, y = -1.1*0.5, col = "#e60000", xpd = NA, pch = 15, cex = 1.8)
-    text(x = 0.1-1, y = -1.1*0.5, label = "Variance", xpd = NA, pos = 4, cex = 1.4)
-  }
-}
-```
-
-While estimates from NN with dropout had the smallest biases, they had the largest variances (Fig. S9), though these variances were still small (Fig. S9).
-
-### RMSE on holdout
-
-In addition to bias and variance, we calculated the predictive error using the RMSE on holdout data which had the same size as the training data (N = 1000).
-
-RF, BRT, and Dropout showed the highest RMSE in all three scenarios (Fig. S10). LASSO and elastic-net showed the smallest RMSE in all three scenarios (Fig. S10).
-
-```{r}
-#| label: fig-Fig_S10
+#| fig-cap: "Prediction error (mean square error, MSE) of data poor simulations with optimal hyperparameters either tuned after the best MSE of the effect size (red) or the best MSE of the prediction error (blue)."
 #| fig-width: 7
-#| fig-height: 3
-#| fig-cap: "Root mean squared error (RMSE) for different ML algorithms in three different simulated causal simulations (a, b, and c). Sample sizes are so large that stochastic effects can be excluded. 1,000 observations were used to train the models and 1,000 observations were used to evaluate the predictive performance of the models. Column 'effects' shows results for simulations with uncorrelated features with effect sizes (x1: 1.0, x2: 0.5, x3: 1.0). Column 'collinearity_0.90' shows the results for simulations with x1 and x2 being strongly correlated (Pearson correlation factor = 0.9) but only x1 has an effect on y (mediator) and column 'confounder_unequal' shows the results for x1 and x2 being strongly correlated (Pearson correlation factor = 0.9 with x1 and x2 having effects on y (confounder scenario)."
+#| fig-height: 6
+#| warning: false
+#| message: false
 
-res_rmse = do.call(rbind, lapply(Results_rmse, function(d) data.frame(values = d, method = rownames(d))))
-res_rmse$scenario = rep(names(Results_rmse), each = 8)
-res_rmse$type = "rmse"
 
-res_rmse_sd = do.call(rbind, lapply(Results_rmse_sd, function(d) data.frame(values = d, method = rownames(d))))
-res_rmse$var = res_rmse_sd$values
-
-res_rmse = 
-  res_rmse %>% 
-           filter(scenario %in% sc[-1])
-
-res_rmse$method = forcats::lvls_reorder(res_rmse$method, c(6, 8, 1, 7, 4, 3, 5, 2))
-res_rmse$scenario = forcats::lvls_reorder(res_rmse$scenario, c(3, 1, 2))
-
-ggplot(res_rmse, aes(y=values, x=method)) + 
-  geom_bar(stat = 'identity', fill = "lightgrey") +
-  geom_errorbar(aes(ymin=values-var, ymax=values+var), width=.2) +
-  facet_grid(~ scenario) +
-  theme_bw()  + 
-  labs(x = "", y = "") +
-  theme(panel.grid.major.x = element_blank()) +
-  theme(strip.background = element_rect(fill = "white")) +
-  theme(strip.text = element_text(colour = 'black')) + 
-  theme(strip.placement = "outside") +
-  theme(strip.text = element_text(hjust = 0.5)) +
-  theme(legend.position="bottom")+
-  theme(axis.text.x = element_text(angle = 45, hjust=1))
-
+g1 =ggplot(data = res, aes(x = algorithm, y = mse, fill = tuned)) +
+  geom_boxplot() +
+  facet_grid(N~.) + 
+  theme_bw() +
+  xlab("Algorithm") +
+  ylab("MSE")+
+  theme(legend.position = c(0.05, 0.26)) +
+  theme(strip.background =element_rect(fill="white"))
+g1
 ```
 
-## Data-poor simulation
 
-### Without feature interactions
 
-We additionally calculated the RMSE on holdout-data of the same size as the training data for the data-poor simulations (Fig. 3). For N = 100, LM showed the highest RMSE, which is explained by the large biases and variances (Fig. 3). Overall, RF and Ridge regression showed the highest RMSE (Fig. S11).
+## Detecting interactions
 
-```{r}
-#| label: fig-Fig_S11
-#| fig-cap: "Root mean squared error (RMSE) of models for data-poor simulations. N = 100 (low), 600 (med), 2,000 (large) was simulated with 100 features. All features were weakly correlated. Two features had main effects (effect sizes = 1, X~1~ and X~5~) on the response and the other 95 features had no effects. Models (LM, RF, BRT, NN, Elastic-net) were fitted on the simulated data and holdout data of the same size as the training data was used to estimate predictive error (RMSE). Simulation and model fitting were repeated 100 times. "
-#| fig-width: 10
-#| fig-height: 5
 
-effs_true = c(1.0, 0.0, 0.0, 0.0, 1, rep(0, 95))
 
 
-inter_low = readRDS("results/data_poor_small.RDS")
-inter_med = readRDS("results/data_poor_mid.RDS")
-inter_large = readRDS("results/data_poor_big.RDS")
-extract_rmse = function(RI, exponent = 1) {
-  return(t(apply(abind::abind(lapply(1:60, function(j) t(sapply(1:8, function(i) RI[[j]][[i]][[2]]))), along = 0L), 2:3, mean)**exponent))
-}
+<!-- ## Proof of concept - Additional results -->
 
-extract_rmse_sd = function(RI, exponent = 1) {
-  return(t(apply(abind::abind(lapply(1:60, function(j) t(sapply(1:8, function(i) RI[[j]][[i]][[2]]))), along = 0L), 2:3, sd)**exponent))
-}
+<!-- ```{r} -->
 
-rmse_low = extract_rmse(inter_low, exponent = 1)
-rmse_med = extract_rmse(inter_med, exponent = 1)
-rmse_large = extract_rmse(inter_large, exponent = 1)
+<!-- #| echo: false -->
 
-sd_low = extract_rmse_sd(inter_low)
-sd_med = extract_rmse_sd(inter_med)
-sd_large =extract_rmse_sd(inter_large)
+<!-- files =        c("collinearity_0.5.RDS", -->
 
-rownames(rmse_low) = rownames(rmse_med) = rownames(rmse_large) = rownames(sd_low) = rownames(sd_med) = rownames(sd_large)= c( "LM","RF", "BRT", "NN","NN_Drop", "L1", "L2", "glmnet")
+<!--                  "collinearity_0.90.RDS", -->
 
-res_rmse = do.call(rbind, lapply(list(rmse_low, rmse_med, rmse_large), function(d) data.frame(values = d, method = rownames(d))))
-res_rmse$scenario = rep(c("low", "med", "large"), each = 8)
-res_rmse$type = "rmse"
+<!--                  "collinearity_0.99.RDS", -->
 
-res_rmse_sd = do.call(rbind, lapply(list(sd_low, sd_med, sd_large), function(d) data.frame(values = d, method = rownames(d))))
-res_rmse$var = res_rmse_sd$values
+<!--                  "effects.RDS", -->
 
+<!--                  "no_effects.RDS", -->
 
-res_rmse$method = forcats::lvls_reorder(res_rmse$method, c(6, 8, 1, 7, 4, 3, 5, 2))
-res_rmse$scenario = forcats::lvls_reorder(res_rmse$scenario, c(2, 3, 1))
+<!--                  "confounder_unequal.RDS", -->
 
-ggplot(res_rmse, aes(y=values, x=method)) + 
-  geom_bar(stat = 'identity', fill = "lightgrey") +
-  geom_errorbar(aes(ymin=values-var, ymax=values+var), width=.2) +
-  facet_grid(~ scenario) +
-  theme_bw()  + 
-  labs(x = "", y = "") +
-  theme(panel.grid.major.x = element_blank()) +
-  theme(strip.background = element_rect(fill = "white")) +
-  theme(strip.text = element_text(colour = 'black')) + 
-  theme(strip.placement = "outside") +
-  theme(strip.text = element_text(hjust = 0.5)) +
-  theme(legend.position="bottom")+
-  theme(axis.text.x = element_text(angle = 45, hjust=1))
+<!--                  "confounder.RDS") -->
 
-```
+<!-- Results = -->
 
-### With feature interactions and collinearity
+<!--   lapply(files, function(f) { -->
 
-Moreover, we simulated scenarios with only 29 features but with interactions between features. We sampled the 29 features from a multivariate normal distribution (mean vector $\mu=[0, 0, ...0]$ ) and the covariance matrix was sampled from a Wishart distribution (degress of freedom = 29) to create a weak collinear structure between all 29 features.
-
-The data-generating model was $y \approx N(1⋅X_1+1⋅X_5+1⋅X_2⋅X_3+1⋅X_4⋅X_5, \sigma )$ with $\sigma=0.2$ . All other features had no effects on the outcome.
-
-We sampled 100, 600, and 2,000 observations from the data-generating model. Holdout-data of the same size was used to calculate the RMSE of the model. Simulation and model fitting was repeated 100 times.
-
-For the main effects, we found similar results as for the main effects from Fig. 3, for the interactions, we found that the biases were higher than as for the main effects (Fig. S14) but it also decreased with the number of observations. Here, elastic-net showed the best performance, however, only elastic-net and LM received all combinatorical possible feature interactions as features where as RF, BRT, and NN had to infer the interactions automatically from the features. Again, BRT and NN showed significant lower biases than RF.
-
-```{r}
-effs_true = c(1.0, 0.0, 0.0, 0.0, 1, rep(0, 24))
-inter_true = diag(effs_true)
-inter_true[1,2] = inter_true[2,1] = inter_true[3, 4] = inter_true[4,3] = 1
-
-
-inter_low = readRDS("results/data_poor_small_inter.RDS")
-inter_med = readRDS("results/data_poor_mid_inter.RDS")
-inter_large = readRDS("results/data_poor_big_inter.RDS")
-
-
-extract_B = function(RI, exponent = 1) {
-  Bias = apply(abind::abind(lapply(1:100, function(j) t(sapply(1:8, function(i) diag(RI[[j]][[i]][[1]]) - diag(inter_true)))), along = 0L), 2:3, mean)**exponent
-  
-  Bias_1 = apply(Bias[,c(diag(inter_true) > 0.5)], 1, mean)
-  Bias_0 = apply(Bias[,c(diag(inter_true) < 0.5)], 1, mean)
-  
-  Bias_Inter = apply(abind::abind(lapply(1:100, function(j) t(sapply(1:8, function(i) RI[[j]][[i]][[1]][lower.tri(diag(29))] - inter_true[lower.tri(diag(29))]  ))), along = 0L), 2:3, mean)**exponent
-  Bias_Inter_1 = apply(Bias_Inter[,c(inter_true[lower.tri(diag(29))]  > 0.5)], 1, mean)
-  Bias_Inter_0 = apply(Bias_Inter[,c(inter_true[lower.tri(diag(29))]  < 0.5)], 1, mean)
-  return(cbind(Bias_1, Bias_0, Bias_Inter_1, Bias_Inter_0))
-}
-
-extract_V= function(RI) {
-  Var = apply(abind::abind(lapply(1:100, function(j) t(sapply(1:8, function(i) diag(RI[[j]][[i]][[1]])))), along = 0L), 2:3, var)
-  Var_1 = apply(Var[,c(diag(inter_true) > 0.5)], 1, mean)
-  Var_0 = apply(Var[,c(diag(inter_true) < 0.5)], 1, mean)
-  Var_Inter = apply(abind::abind(lapply(1:100, function(j) t(sapply(1:8, function(i) RI[[j]][[i]][[1]][lower.tri(diag(29))] ))), along = 0L), 2:3, var)
-  Var_Inter_1 = apply(Var_Inter[,c(inter_true[lower.tri(diag(29))] > 0.5)], 1, mean)
-  Var_Inter_0 = apply(Var_Inter[,c(inter_true[lower.tri(diag(29))] < 0.5)], 1, mean)
-  return(cbind(Var_1, Var_0, Var_Inter_1, Var_Inter_0))
-}
-
-```
-
-```{r}
-#| echo: false
-
-
-bias_low = extract_B(inter_low, exponent = 1)
-bias_med = extract_B(inter_med, exponent = 1)
-bias_large = extract_B(inter_large, exponent = 1)
-
-var_low = extract_V(inter_low)
-var_med = extract_V(inter_med)
-var_large =extract_V(inter_large)
-
-colnames(bias_low) = colnames(bias_med) = colnames(bias_large) = c("bias_1_Main", "bias_0_Main", "bias_1_Inter", "bias_0_Inter")
-colnames(var_low) = colnames(var_med) = colnames(var_large) = c("var_1_Main", "var_0_Main", "var_1_Inter", "var_0_Inter")
-rownames(bias_low) = rownames(bias_med) = rownames(bias_large) = rownames(var_low) = rownames(var_med) = rownames(var_large)= c( "LM","RF", "BRT", "NN","NN_Drop", "L1", "L2", "glmnet")
-
-bias_low_L = bias_low %>% data.frame %>% mutate(method = rownames(.)) %>%  pivot_longer(cols = c("bias_1_Main", "bias_0_Main", "bias_1_Inter", "bias_0_Inter"), values_to = "bias") %>% mutate(N = "low")
-bias_med_L = bias_med %>% data.frame %>% mutate(method = rownames(.)) %>%  pivot_longer(cols = c("bias_1_Main", "bias_0_Main", "bias_1_Inter", "bias_0_Inter"), values_to = "bias") %>% mutate(N = "med")
-bias_large_L = bias_large %>% data.frame %>% mutate(method = rownames(.)) %>%   pivot_longer(cols = c("bias_1_Main", "bias_0_Main", "bias_1_Inter", "bias_0_Inter"), values_to = "bias") %>% mutate(N = "large")
-var_low_L = var_low %>% data.frame%>% mutate(method = rownames(.)) %>%   pivot_longer(cols = c("var_1_Main", "var_0_Main", "var_1_Inter", "var_0_Inter"), values_to = "var") %>% mutate(N = "low")
-var_med_L = var_med %>% data.frame %>% mutate(method = rownames(.)) %>%  pivot_longer(cols = c("var_1_Main", "var_0_Main", "var_1_Inter", "var_0_Inter"), values_to = "var") %>% mutate(N = "med")
-var_large_L = var_large %>% data.frame %>% mutate(method = rownames(.)) %>%   pivot_longer(cols = c("var_1_Main", "var_0_Main", "var_1_Inter", "var_0_Inter"), values_to = "var") %>% mutate(N = "large")
-
-data_bias = rbind(bias_low_L, bias_med_L, bias_large_L)
-data_var = rbind(var_low_L, var_med_L, var_large_L)
-data_bias$var = data_var$var
-colnames(data_bias)[2] = "which_bias"
-data = data_bias  %>% pivot_longer(cols = c("bias", "var"))
-
-data$N = forcats::lvls_reorder(data$N, c(2, 3, 1))
-data$name = forcats::lvls_reorder(data$name, c(2, 1))
-data$which_bias = forcats::lvls_reorder(data$which_bias, c(4, 3, 2, 1))
-
-data$method = forcats::lvls_reorder(data$method, c(5,8, 1, 6,7, 3, 4, 2))
-data$label = c(rep("NA", 8), rep("", nrow(data)-8))
-
-```
-
-```{r}
-#| label: fig-Fig_S12
-#| fig-cap: "Bias and variance of estimated effects in a data-poor situation. N = 100, 600, 2,000 was simulated with 29 features. All features were weakly correlated. Two features had main effects (effect sizes = 1) on the response and 4 features had two interaction effects (effect sizes = 1) on the response. Models (LM, RF, BRT, NN, Elastic-net) were fitted on the simulated data and effect estimates were approximated using MCEs. LM and elastic-net received all possible two-way interactions (406) as features. Simulation and model fitting were repeated 100 times. For all effects (Main = 1, Inter = 1) and non-effects (Main = 0, Inter = 0), bias and variance of the effect estimates were calculated."
-#| fig-width: 10
-#| fig-height: 6.7
-
-levels(data$method)[8] = "Elastic-net"
-
-par(mfrow = c(3, 5), mar = c(1, 1, 1, 1)*0.5, oma = c(8, 4, 4, 4))
-methods = c("LM", "RF", "BRT", "NN", "Elastic-net")
-sizes = c("low", "med", "large")
-y_labels = c("N = 100", "N = 600", "N = 2000")
-for(j in 1:3) {
-  for(i in 1:5) {
-    if(i == 1) axes = TRUE
-    else axes = FALSE
-    if(j ==1) create_gapped_stacked(tmp = data[data$method == methods[i] & data$N== sizes[j], ], 
-                                    to2 = c(100, 5000),
-                                    labels2 = c("100", "2550", "5000"),
-                                    axes = axes, to = c(0, 3), labels1 = c("0.0", "0.6", "1.2", "1.8", "2.4", "3.0"), d_between = 0.08)
-    else create_gapped_stacked(tmp = data[data$method == methods[i] & data$N== sizes[j], ], 
-                               axes = axes, to2 = c(1.0, 3), 
-                               labels2 = c("1.0","2.0", "3.0"), to = c(0, 1.0),
-                                labels1 = c("0.0", "0.2", "0.4", "0.6", "0.8", "1.0"), d_between = 0.08)
-    if(j == 3){
-      text(x = seq(0, 1, length.out = 6)[-c(1, 6)]-0.30,y = -0.24, 
-           labels = c("Bias+Variance for beta = 1", "Bias+Variance for beta = 0", "Bias+Variance for Inter = 1", "Bias+Variance for Inter = 0"), 
-           srt = 45,
-           xpd = NA, pos = 1)
-    }
-    
-    if(j == 1) {
-      rect(0, 1.0, 1.0, 1.1, xpd = NA, border = "black")
-      text(0.5, y = 0.98, pos = 3, xpd = NA, label = methods[i], cex = 1.3, font = 2)
-    }
-    if(i == 5) {
-      rect(1, 0, 1.15, 1.0, xpd = NA, border = "black")
-      text(y = 0.72, x = 1.01, pos = 4, xpd = NA, label = y_labels[j], cex = 1.3, font = 2, srt = -90)
-    }
-    if(i == 5 & j == 1) {
-      legend("topright", bty = "n", col = c("#96c6ed","#e0acd5" ), pch = 15, legend = c("Bias", "Variance"))
-    }
-  }
-}
-
-
-```
-
-```{r}
-#| label: fig-Fig_S13
-#| fig-cap: "Root mean squared error (RMSE) of models for data-poor simulations. N = 100 (low), 600 (med), 2,000 (large) was simulated with 29 features. All features were weakly correlated. Two features had main effects (effect sizes = 1, X1 and X5) and there were two interaction effects (X1:X2 and X3:X4) on the response and the other 95 features had no effects. Models (LM, RF, BRT, NN, Elastic-net) were fitted on the simulated data and holdout data of the same size as the training data was used to estimate predictive error (RMSE). LM and elastic-net received all possible two-way interactions (406) as features. Simulation and model fitting were repeated 100 times. "
-#| fig-width: 10
-#| fig-height: 5
-
-
-inter_low = readRDS("results/data_poor_small_inter.RDS")
-inter_med = readRDS("results/data_poor_mid_inter.RDS")
-inter_large = readRDS("results/data_poor_big_inter.RDS")
-extract_rmse = function(RI, exponent = 1) {
-  return(t(apply(abind::abind(lapply(1:60, function(j) t(sapply(1:8, function(i) RI[[j]][[i]][[2]]))), along = 0L), 2:3, mean)**exponent))
-}
-
-extract_rmse_sd = function(RI, exponent = 1) {
-  return(t(apply(abind::abind(lapply(1:60, function(j) t(sapply(1:8, function(i) RI[[j]][[i]][[2]]))), along = 0L), 2:3, sd)**exponent))
-}
-
-rmse_low = extract_rmse(inter_low, exponent = 1)
-rmse_med = extract_rmse(inter_med, exponent = 1)
-rmse_large = extract_rmse(inter_large, exponent = 1)
-
-sd_low = extract_rmse_sd(inter_low)
-sd_med = extract_rmse_sd(inter_med)
-sd_large =extract_rmse_sd(inter_large)
-
-rownames(rmse_low) = rownames(rmse_med) = rownames(rmse_large) = rownames(sd_low) = rownames(sd_med) = rownames(sd_large)= c( "LM","RF", "BRT", "NN","NN_Drop", "L1", "L2", "glmnet")
-
-res_rmse = do.call(rbind, lapply(list(rmse_low, rmse_med, rmse_large), function(d) data.frame(values = d, method = rownames(d))))
-res_rmse$scenario = rep(c("low", "med", "large"), each = 8)
-res_rmse$type = "rmse"
-
-res_rmse_sd = do.call(rbind, lapply(list(sd_low, sd_med, sd_large), function(d) data.frame(values = d, method = rownames(d))))
-res_rmse$var = res_rmse_sd$values
-
-
-res_rmse$method = forcats::lvls_reorder(res_rmse$method, c(6, 8, 1, 7, 4, 3, 5, 2))
-res_rmse$scenario = forcats::lvls_reorder(res_rmse$scenario, c(2, 3, 1))
-
-ggplot(res_rmse, aes(y=values, x=method)) + 
-  geom_bar(stat = 'identity', fill = "lightgrey") +
-  geom_errorbar(aes(ymin=values-var, ymax=values+var), width=.2) +
-  facet_grid(~ scenario) +
-  theme_bw()  + 
-  labs(x = "", y = "") +
-  theme(panel.grid.major.x = element_blank()) +
-  theme(strip.background = element_rect(fill = "white")) +
-  theme(strip.text = element_text(colour = 'black')) + 
-  theme(strip.placement = "outside") +
-  theme(strip.text = element_text(hjust = 0.5)) +
-  theme(legend.position="bottom")+
-  theme(axis.text.x = element_text(angle = 45, hjust=1))
-
-```
-
-### With feature interactions and without collinearity
-
-We repeated the simulation with feature interactions but without collinearity, i.e. $\Sigma$ of the multivariate normal distribution, from we sampled the 29 features, was the identity matrix.
-
-We found similar results as before, i) bias was larger for the feature interactions for RF, BRT, and NN as on the main effects, ii) biases decreased with number of observations, and iii) RF showed the largest biases for 2,000 observations (Fig. S14).
-
-```{r}
-#| echo: false
-effs_true = c(1.0, 0.0, 0.0, 0.0, 1, rep(0, 24))
-inter_true = diag(effs_true)
-inter_true[1,2] = inter_true[2,1] = inter_true[3, 4] = inter_true[4,3] = 1
-
-
-inter_low = readRDS("results/data_poor_small_inter_without_coll.RDS")
-inter_med = readRDS("results/data_poor_mid_inter_without_coll.RDS")
-inter_large = readRDS("results/data_poor_big_inter_without_coll.RDS")
-
-
-extract_B = function(RI, exponent = 1) {
-  Bias = apply(abind::abind(lapply(1:100, function(j) t(sapply(1:8, function(i) diag(RI[[j]][[i]][[1]]) - diag(inter_true)))), along = 0L), 2:3, mean)**exponent
-  
-  Bias_1 = apply(Bias[,c(diag(inter_true) > 0.5)], 1, mean)
-  Bias_0 = apply(Bias[,c(diag(inter_true) < 0.5)], 1, mean)
-  
-  Bias_Inter = apply(abind::abind(lapply(1:100, function(j) t(sapply(1:8, function(i) RI[[j]][[i]][[1]][lower.tri(diag(29))] - inter_true[lower.tri(diag(29))]  ))), along = 0L), 2:3, mean)**exponent
-  Bias_Inter_1 = apply(Bias_Inter[,c(inter_true[lower.tri(diag(29))]  > 0.5)], 1, mean)
-  Bias_Inter_0 = apply(Bias_Inter[,c(inter_true[lower.tri(diag(29))]  < 0.5)], 1, mean)
-  return(cbind(Bias_1, Bias_0, Bias_Inter_1, Bias_Inter_0))
-}
-
-extract_V= function(RI) {
-  Var = apply(abind::abind(lapply(1:100, function(j) t(sapply(1:8, function(i) diag(RI[[j]][[i]][[1]])))), along = 0L), 2:3, var)
-  Var_1 = apply(Var[,c(diag(inter_true) > 0.5)], 1, mean)
-  Var_0 = apply(Var[,c(diag(inter_true) < 0.5)], 1, mean)
-  Var_Inter = apply(abind::abind(lapply(1:100, function(j) t(sapply(1:8, function(i) RI[[j]][[i]][[1]][lower.tri(diag(29))] ))), along = 0L), 2:3, var)
-  Var_Inter_1 = apply(Var_Inter[,c(inter_true[lower.tri(diag(29))] > 0.5)], 1, mean)
-  Var_Inter_0 = apply(Var_Inter[,c(inter_true[lower.tri(diag(29))] < 0.5)], 1, mean)
-  return(cbind(Var_1, Var_0, Var_Inter_1, Var_Inter_0))
-}
-
-```
-
-```{r}
-#| echo: false
-
-
-bias_low = extract_B(inter_low, exponent = 1)
-bias_med = extract_B(inter_med, exponent = 1)
-bias_large = extract_B(inter_large, exponent = 1)
-
-var_low = extract_V(inter_low)
-var_med = extract_V(inter_med)
-var_large =extract_V(inter_large)
-
-colnames(bias_low) = colnames(bias_med) = colnames(bias_large) = c("bias_1_Main", "bias_0_Main", "bias_1_Inter", "bias_0_Inter")
-colnames(var_low) = colnames(var_med) = colnames(var_large) = c("var_1_Main", "var_0_Main", "var_1_Inter", "var_0_Inter")
-rownames(bias_low) = rownames(bias_med) = rownames(bias_large) = rownames(var_low) = rownames(var_med) = rownames(var_large)= c( "LM","RF", "BRT", "NN","NN_Drop", "L1", "L2", "glmnet")
-
-bias_low_L = bias_low %>% data.frame %>% mutate(method = rownames(.)) %>%  pivot_longer(cols = c("bias_1_Main", "bias_0_Main", "bias_1_Inter", "bias_0_Inter"), values_to = "bias") %>% mutate(N = "low")
-bias_med_L = bias_med %>% data.frame %>% mutate(method = rownames(.)) %>%  pivot_longer(cols = c("bias_1_Main", "bias_0_Main", "bias_1_Inter", "bias_0_Inter"), values_to = "bias") %>% mutate(N = "med")
-bias_large_L = bias_large %>% data.frame %>% mutate(method = rownames(.)) %>%   pivot_longer(cols = c("bias_1_Main", "bias_0_Main", "bias_1_Inter", "bias_0_Inter"), values_to = "bias") %>% mutate(N = "large")
-var_low_L = var_low %>% data.frame%>% mutate(method = rownames(.)) %>%   pivot_longer(cols = c("var_1_Main", "var_0_Main", "var_1_Inter", "var_0_Inter"), values_to = "var") %>% mutate(N = "low")
-var_med_L = var_med %>% data.frame %>% mutate(method = rownames(.)) %>%  pivot_longer(cols = c("var_1_Main", "var_0_Main", "var_1_Inter", "var_0_Inter"), values_to = "var") %>% mutate(N = "med")
-var_large_L = var_large %>% data.frame %>% mutate(method = rownames(.)) %>%   pivot_longer(cols = c("var_1_Main", "var_0_Main", "var_1_Inter", "var_0_Inter"), values_to = "var") %>% mutate(N = "large")
-
-data_bias = rbind(bias_low_L, bias_med_L, bias_large_L)
-data_var = rbind(var_low_L, var_med_L, var_large_L)
-data_bias$var = data_var$var
-colnames(data_bias)[2] = "which_bias"
-data = data_bias  %>% pivot_longer(cols = c("bias", "var"))
-
-data$N = forcats::lvls_reorder(data$N, c(2, 3, 1))
-data$name = forcats::lvls_reorder(data$name, c(2, 1))
-data$which_bias = forcats::lvls_reorder(data$which_bias, c(4, 3, 2, 1))
-
-data$method = forcats::lvls_reorder(data$method, c(5,8, 1, 6,7, 3, 4, 2))
-data$label = c(rep("NA", 8), rep("", nrow(data)-8))
-```
-
-```{r}
-#| label: fig-Fig_S14
-#| fig-cap: "Bias and variance of estimated effects in a data-poor situation. N = 100, 600, 2,000 was simulated with 29 features. All features were uncorrelated. Two features had main effects (effect sizes = 1) on the response and 4 features had two interaction effects (effect sizes = 1) on the response. Models (LM, RF, BRT, NN, Elastic-net) were fitted on the simulated data and effect estimates were approximated using MCEs. LM and elastic-net received all possible two-way interactions (406) as features. Simulation and model fitting were repeated 100 times. For all effects (Main = 1, Inter = 1) and non-effects (Main = 0, Inter = 0), bias and variance of the effect estimates were calculated."
-#| fig-width: 10
-#| fig-height: 6.7
-
-levels(data$method)[8] = "Elastic-net"
-
-par(mfrow = c(3, 5), mar = c(1, 1, 1, 1)*0.5, oma = c(8, 4, 4, 4))
-methods = c("LM", "RF", "BRT", "NN", "Elastic-net")
-sizes = c("low", "med", "large")
-y_labels = c("N = 100", "N = 600", "N = 2000")
-for(j in 1:3) {
-  for(i in 1:5) {
-    if(i == 1) axes = TRUE
-    else axes = FALSE
-    if(j ==1) create_gapped_stacked(tmp = data[data$method == methods[i] & data$N== sizes[j], ], 
-                                    to2 = c(10, 40),
-                                    labels2 = c("10", "25", "40"),
-                                    axes = axes, to = c(0, 1), labels1 = c("0.0", "0.2", "0.4", "0.6", "0.8", "1.0"), d_between = 0.08)
-    else create_gapped_stacked(tmp = data[data$method == methods[i] & data$N== sizes[j], ], 
-                               axes = axes, to2 = c(2.0, 5), 
-                               labels2 = c("2.0","3.0", "4.0", "5.0"), to = c(0, 1.0),
-                                labels1 = c("0.0", "0.2", "0.4", "0.6", "0.8", "1.0"), d_between = 0.08)
-    if(j == 3){
-      text(x = seq(0, 1, length.out = 6)[-c(1, 6)]-0.30,y = -0.24, 
-           labels = c("Bias+Variance for beta = 1", "Bias+Variance for beta = 0", "Bias+Variance for Inter = 1", "Bias+Variance for Inter = 0"), 
-           srt = 45,
-           xpd = NA, pos = 1)
-    }
-    
-    if(j == 1) {
-      rect(0, 1.0, 1.0, 1.1, xpd = NA, border = "black")
-      text(0.5, y = 0.98, pos = 3, xpd = NA, label = methods[i], cex = 1.3, font = 2)
-    }
-    if(i == 5) {
-      rect(1, 0, 1.15, 1.0, xpd = NA, border = "black")
-      text(y = 0.72, x = 1.01, pos = 4, xpd = NA, label = y_labels[j], cex = 1.3, font = 2, srt = -90)
-    }
-    if(i == 5 & j == 1) {
-      legend("topright", bty = "n", col = c("#96c6ed","#e0acd5" ), pch = 15, legend = c("Bias", "Variance"))
-    }
-  }
-}
-
-
-```
-
-For 100 observations (low), again, LM should the highest RMSE which is not surprising given the large biases and variances (Fig. S14). RF, BRT, and NN with dropout showed the largest RMSE, whereas elastic-net, LASSO, Ridge showed the lowest RMSE (Fig. S15).
-
-```{r}
-#| label: fig-Fig_S15
-#| fig-cap: "Root mean squared error (RMSE) of models for data-poor simulations. N = 100 (low), 600 (med), 2,000 (large) was simulated with 29 features. All features were uncorrelated. Two features had main effects (effect sizes = 1, X1 and X5) and there were two interaction effects (X1:X2 and X3:X4) on the response and the other 95 features had no effects. Models (LM, RF, BRT, NN, Elastic-net) were fitted on the simulated data and holdout data of the same size as the training data was used to estimate predictive error (RMSE). LM and elastic-net received all possible two-way interactions (406) as features. Simulation and model fitting were repeated 100 times. "
-#| fig-width: 10
-#| fig-height: 5
-
-
-
-inter_low = readRDS("results/data_poor_small_inter_without_coll.RDS")
-inter_med = readRDS("results/data_poor_mid_inter_without_coll.RDS")
-inter_large = readRDS("results/data_poor_big_inter_without_coll.RDS")
-extract_rmse = function(RI, exponent = 1) {
-  return(t(apply(abind::abind(lapply(1:60, function(j) t(sapply(1:8, function(i) RI[[j]][[i]][[2]]))), along = 0L), 2:3, mean)**exponent))
-}
-
-extract_rmse_sd = function(RI, exponent = 1) {
-  return(t(apply(abind::abind(lapply(1:60, function(j) t(sapply(1:8, function(i) RI[[j]][[i]][[2]]))), along = 0L), 2:3, sd)**exponent))
-}
-
-rmse_low = extract_rmse(inter_low, exponent = 1)
-rmse_med = extract_rmse(inter_med, exponent = 1)
-rmse_large = extract_rmse(inter_large, exponent = 1)
-
-sd_low = extract_rmse_sd(inter_low)
-sd_med = extract_rmse_sd(inter_med)
-sd_large =extract_rmse_sd(inter_large)
-
-rownames(rmse_low) = rownames(rmse_med) = rownames(rmse_large) = rownames(sd_low) = rownames(sd_med) = rownames(sd_large)= c( "LM","RF", "BRT", "NN","NN_Drop", "L1", "L2", "glmnet")
-
-res_rmse = do.call(rbind, lapply(list(rmse_low, rmse_med, rmse_large), function(d) data.frame(values = d, method = rownames(d))))
-res_rmse$scenario = rep(c("low", "med", "large"), each = 8)
-res_rmse$type = "rmse"
-
-res_rmse_sd = do.call(rbind, lapply(list(sd_low, sd_med, sd_large), function(d) data.frame(values = d, method = rownames(d))))
-res_rmse$var = res_rmse_sd$values
-
-
-res_rmse$method = forcats::lvls_reorder(res_rmse$method, c(6, 8, 1, 7, 4, 3, 5, 2))
-res_rmse$scenario = forcats::lvls_reorder(res_rmse$scenario, c(2, 3, 1))
-
-ggplot(res_rmse, aes(y=values, x=method)) + 
-  geom_bar(stat = 'identity', fill = "lightgrey") +
-  geom_errorbar(aes(ymin=values-var, ymax=values+var), width=.2) +
-  facet_grid(~ scenario) +
-  theme_bw()  + 
-  labs(x = "", y = "") +
-  theme(panel.grid.major.x = element_blank()) +
-  theme(strip.background = element_rect(fill = "white")) +
-  theme(strip.text = element_text(colour = 'black')) + 
-  theme(strip.placement = "outside") +
-  theme(strip.text = element_text(hjust = 0.5)) +
-  theme(legend.position="bottom")+
-  theme(axis.text.x = element_text(angle = 45, hjust=1))
-
-```
+<!--     confounder = readRDS(paste0("results/",f)) -->
+
+<!--     Result = do.call(rbind, lapply(1:8, function(j) (apply(abind::abind(lapply(1:100, function(i) confounder[[i]][[j]][[1]] ), along = 0L), 2, mean)))) -->
+
+<!--     colnames(Result) = LETTERS[1:5] -->
+
+<!--     rownames(Result) = c("LM", "RF", "BRT", "NN", "Dropout", "l1", "l2", "l1l2") -->
+
+<!--     return(Result) -->
+
+<!--   }) -->
+
+<!-- names(Results) = unlist(strsplit(files, ".RDS", TRUE)) -->
+
+<!-- Results_rmse = -->
+
+<!--   lapply(files, function(f) { -->
+
+<!--     confounder = readRDS(paste0("results/",f)) -->
+
+<!--     Result = do.call(rbind, lapply(1:8, function(j) (apply(abind::abind(lapply(1:100, function(i) confounder[[i]][[j]][[2]] ), along = 0L), 2, mean)))) -->
+
+<!--     #colnames(Result) = LETTERS[1:5] -->
+
+<!--     rownames(Result) = c("LM", "RF", "BRT", "NN", "Dropout", "l1", "l2", "l1l2") -->
+
+<!--     return(Result) -->
+
+<!--   }) -->
+
+<!-- names(Results_rmse) = unlist(strsplit(files, ".RDS", TRUE)) -->
+
+<!-- Results_rmse_sd = -->
+
+<!--   lapply(files, function(f) { -->
+
+<!--     confounder = readRDS(paste0("results/",f)) -->
+
+<!--     Result = do.call(rbind, lapply(1:8, function(j) (apply(abind::abind(lapply(1:100, function(i) confounder[[i]][[j]][[2]] ), along = 0L), 2, sd)))) -->
+
+<!--     #colnames(Result) = LETTERS[1:5] -->
+
+<!--     rownames(Result) = c("LM", "RF", "BRT", "NN", "Dropout", "l1", "l2", "l1l2") -->
+
+<!--     return(Result) -->
+
+<!--   }) -->
+
+<!-- names(Results_rmse_sd) = unlist(strsplit(files, ".RDS", TRUE)) -->
+
+<!-- Results_sd = -->
+
+<!--   lapply(files, function(f) { -->
+
+<!--     confounder = readRDS(paste0("results/",f)) -->
+
+<!--     Result = do.call(rbind, lapply(1:8, function(j) (apply(abind::abind(lapply(1:100, function(i) confounder[[i]][[j]][[1]] ), along = 0L), 2, sd)))) -->
+
+<!--     colnames(Result) = LETTERS[1:5] -->
+
+<!--     rownames(Result) = c("LM", "RF", "BRT", "NN", "Dropout", "l1", "l2", "l1l2") -->
+
+<!--     return(Result) -->
+
+<!--   }) -->
+
+<!-- names(Results_sd) = unlist(strsplit(files, ".RDS", TRUE)) -->
+
+<!-- layout = matrix(c(0,10, -->
+
+<!--                   0,5, -->
+
+<!--                   0,0, -->
+
+<!--                   5,5), nrow = 4L, 2L, byrow = TRUE) -->
+
+<!-- ``` -->
+
+<!-- All models (Fig. 2) showed small variances $<0.01$ (Fig. S7) -->
+
+<!-- ```{r} -->
+
+<!-- #| label: fig-Fig_S7 -->
+
+<!-- #| fig-cap: 'Variances of effect estimates for different ML algorithms in three different simulated causal simulations (a, b, and c). Sample sizes are so large that stochastic effects can be excluded. Effects of the ML models were inferred using marginal conditional effects. Row a) shows results for simulations with uncorrelated features with effect sizes (x~1~: 1.0, x~2~: 0.5, x~3~: 1.0). Row b) shows the results for simulations with x~1~ and x~2~ being strongly correlated (Pearson correlation factor = 0.9) but only x~1~ has an effect on y (mediator) and row c) shows the results for x~1~ and x~2~ being strongly correlated (Pearson correlation factor = 0.9 with x~1~ and x~2~ having effects on y (confounder scenario)' -->
+
+<!-- #| fig-width: 10 -->
+
+<!-- #| fig-height: 9 -->
+
+<!-- sc = c("no_effects", "effects", "confounder_unequal", "collinearity_0.90") -->
+
+<!-- algorithms = c("LM","RF",  "BRT", "NN","Dropout", "l1", "l2", "l1l2") -->
+
+<!-- par(mfcol = c(3,6), mar = c(5,0.5, 2, 1.4), oma = c(1, 2, 2, 1)) -->
+
+<!-- labs =  c("LM","RF",  "BRT", "NN", "Dropout", "l1", "l2", "Elastic-net") -->
+
+<!-- #plot_scenarios(1.0) -->
+
+<!-- #dev.off() -->
+
+<!-- cex_fac = 1.3 -->
+
+<!-- plot_scenarios(1.0, layout = matrix(c(1,1, -->
+
+<!--                              0,1, -->
+
+<!--                              0,0, -->
+
+<!--                              0,2), nrow = 4L, 2L, byrow = TRUE)) -->
+
+<!-- true_effs = matrix(c( -->
+
+<!--   NA, NA, NA, -->
+
+<!--   0, 0.0, 0, -->
+
+<!--   1, 1, 1, -->
+
+<!--   1, 0, 1 -->
+
+<!-- ), 4, 3, byrow = TRUE) -->
+
+<!-- for(i in c(1, 2, 3, 4, 8)) { -->
+
+<!--   counter = 1 -->
+
+<!--   for(j in c(2, 4, 3)) { -->
+
+<!--     tmp = Results_sd[[sc[j]]]**2 -->
+
+<!--     sd = Results_sd[[sc[j]]][i,] -->
+
+<!--     edges = round(tmp[i,], 5) -->
+
+<!--     bias = edges[c(1, 2, 5)] #- true_effs[j,] -->
+
+<!--     g1 = graph(c("X1", "Y", "X2", "Y", "X3", "Y"), -->
+
+<!--                 directed=TRUE ) -->
+
+<!--     layout_as_tree(g1, root = "Y", circular = TRUE, flip.y = TRUE) -->
+
+<!--     eqarrowPlot(g1, matrix(c(1,1, -->
+
+<!--                              0,1, -->
+
+<!--                              0,0, -->
+
+<!--                              0,2), nrow = 4L, 2L, byrow = TRUE) , -->
+
+<!--                 #cols = c( "skyblue","#B0A8B9", "#B0A8B9", "#B0A8B9"), -->
+
+<!--                 cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 1), 1.0)), -->
+
+<!--                 edge.arrow.size=abs(edges[c(1, 2, 5)]), -->
+
+<!--                 edge.width=abs(edges[c(1, 2, 5)])*cex_fac, -->
+
+<!--                 edge.label = c(paste0(format(round(bias, 2)[1], nsmall = 1), "\n\n"),paste0(format(round(bias, 2)[2], nsmall = 1), "\n"), paste0("", format(round(bias, 2)[3], nsmall=1))), -->
+
+<!--                 edge.label.cex = 1.4, -->
+
+<!--                 edge.colors = ifelse(abs(edges[c(1, 2, 5)]) < 0.001, "white", "grey")) -->
+
+<!--     text(labs[i], x = 0, y = 2.3, xpd = NA, cex = 1.4, pos = 3) -->
+
+<!--     if(i == 1) { -->
+
+<!--       text(letters[counter], cex = 1.9, x = -2.2, y = 2.5, xpd = NA, font = 2) -->
+
+<!--       counter = counter + 1 -->
+
+<!--     } -->
+
+<!--   } -->
+
+<!--   if(i == 3) { -->
+
+<!--     points(x = 0-1, y = -1.1*0.5, col = "#e60000", xpd = NA, pch = 15, cex = 1.8) -->
+
+<!--     text(x = 0.1-1, y = -1.1*0.5, label = "Variance", xpd = NA, pos = 4, cex = 1.4) -->
+
+<!--   } -->
+
+<!-- } -->
+
+<!-- ``` -->
+
+<!-- ### NN with Dropout, LASSO, and Ridge -->
+
+<!-- We additionally tested NN with dropout (rate = 0.2), LASSO regression, and Ridge regression for the proof-of-concept simulations. -->
+
+<!-- ```{r} -->
+
+<!-- #| label: fig-Fig_S8 -->
+
+<!-- #| fig-cap: "Bias on effect estimates for additional ML algorithms (NN with Dropout, LASSO, and Ridge regression) in three different simulated causal simulations (a, b, and c).Sample sizes are so large that stochastic effects can be excluded. Effects of the ML models were inferred using marginal conditional effects. Row a) shows results for simulations with uncorrelated features with effect sizes (x~1~: 1.0, x~2~: 0.5, x~3~: 1.0). Row b) shows the results for simulations with x~1~ and x~2~ being strongly correlated (Pearson correlation factor = 0.9) but only x~1~ has an effect on y (mediator) and row c) shows the results for x~1~ and x~2~ being strongly correlated (Pearson correlation factor = 0.9 with x~1~ and x~2~ having effects on y (confounder scenario)" -->
+
+<!-- #| fig-width: 10 -->
+
+<!-- #| fig-height: 9 -->
+
+<!-- sc = c("no_effects", "effects", "confounder_unequal", "collinearity_0.90") -->
+
+<!-- algorithms = c("LM","RF",  "BRT", "NN","Dropout", "l1", "l2", "l1l2") -->
+
+<!-- par(mfcol = c(3,4), mar = c(5,0.5, 2, 1.4), oma = c(1, 2, 2, 1)) -->
+
+<!-- labs =  c("LM","RF",  "BRT", "NN","NN+Dropout", "LASSO", "Ridge", "Elastic-net") -->
+
+<!-- #plot_scenarios(1.0) -->
+
+<!-- #dev.off() -->
+
+<!-- cex_fac = 1.3 -->
+
+<!-- plot_scenarios(1.0, layout = matrix(c(1,1, -->
+
+<!--                              0,1, -->
+
+<!--                              0,0, -->
+
+<!--                              0,2), nrow = 4L, 2L, byrow = TRUE)) -->
+
+<!--     points(x = 0, y = -0.55, col = "grey", xpd = NA, pch = 15, cex = 1.8) -->
+
+<!--     text(x = 0.1, y = -0.55, label = "True effect", xpd = NA, pos = 4, cex = 1.4) -->
+
+<!--     points(x = 0, y = -0.75, col = "#ffab02", xpd = NA, pch = 15, cex = 1.8) -->
+
+<!--     text(x = 0.1, y = -0.75, label = "Correlation", xpd = NA, pos = 4, cex = 1.4) -->
+
+<!-- true_effs = matrix(c( -->
+
+<!--   NA, NA, NA, -->
+
+<!--   1, 0.5, 1, -->
+
+<!--   -1, 0.5, 1, -->
+
+<!--   1, 0, 1 -->
+
+<!-- ), 4, 3, byrow = TRUE) -->
+
+<!-- for(i in c(5, 6, 7)) { -->
+
+<!--   counter = 1 -->
+
+<!--   for(j in c(2, 4, 3)) { -->
+
+<!--     tmp = Results[[sc[j]]] -->
+
+<!--     edges = round(tmp[i,], 5) -->
+
+<!--     bias = edges[c(1, 2, 5)] - true_effs[j,] -->
+
+<!--     g1 = graph(c("x\U2081", "y", "x\U2082", "y", "x\U2083", "y"), -->
+
+<!--                 directed=TRUE ) -->
+
+<!--     layout_as_tree(g1, root = "y", circular = TRUE, flip.y = TRUE) -->
+
+<!--     eqarrowPlot(g1, matrix(c(1,1, -->
+
+<!--                              0,1, -->
+
+<!--                              0,0, -->
+
+<!--                              0,2), nrow = 4L, 2L, byrow = TRUE) , -->
+
+<!--                 #cols = c( "skyblue","#B0A8B9", "#B0A8B9", "#B0A8B9"), -->
+
+<!--                 cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 1), 1.0)), -->
+
+<!--                 edge.arrow.size=abs(bias)*2.3,#abs(edges[c(1, 2, 5)]), -->
+
+<!--                 edge.width=abs(bias)*cex_fac*2,#abs(edges[c(1, 2, 5)])*cex_fac, -->
+
+<!--                 edge.label = c(paste0(format(round(bias, 2)[1], nsmall = 1), "\n\n"), -->
+
+<!--                                paste0("          ",format(round(bias, 2)[2], nsmall = 1), "\n"), -->
+
+<!--                                paste0("          ", format(round(bias, 2)[3], nsmall=1))), -->
+
+<!--                 edge.label.cex = 1.4, -->
+
+<!--                 edge.colors = ifelse(abs(edges[c(1, 2, 5)]) < 0.001, "white", "#e60000")) -->
+
+<!--     text(labs[i], x = 0, y = 2.3, xpd = NA, cex = 1.4, pos = 3) -->
+
+<!--     if(i == 1) { -->
+
+<!--       text(letters[counter], cex = 1.9, x = -2.2, y = 2.5, xpd = NA, font = 2) -->
+
+<!--       counter = counter + 1 -->
+
+<!--     } -->
+
+<!--   } -->
+
+<!--   if(i == 3) { -->
+
+<!--     points(x = 0-1, y = -1.1*0.5, col = "#e60000", xpd = NA, pch = 15, cex = 1.8) -->
+
+<!--     text(x = 0.1-1, y = -1.1*0.5, label = "Bias = estiamted effect - true effect", xpd = NA, pos = 4, cex = 1.4) -->
+
+<!--   } -->
+
+<!-- } -->
+
+<!-- ``` -->
+
+<!-- All three methods showed biased estimates in the first scenario for effects without collinearity (Fig. S8). With collinearity, all three showed larger biases but Ridge regression showed the largest biases (Fig. S8). -->
+
+<!-- ```{r} -->
+
+<!-- #| label: fig-Fig_S9 -->
+
+<!-- #| fig-cap: "Variances of effect estimates for additional ML algorithms (NN with Dropout, LASSO, and Ridge regression) in three different simulated causal simulations (a, b, and c). Sample sizes are so large that stochastic effects can be excluded. Effects of the ML models were inferred using marginal conditional effects. Row a) shows results for simulations with uncorrelated features with effect sizes (x~1~: 1.0, x~2~: 0.5, x~3~: 1.0). Row b) shows the results for simulations with x~1~ and x~2~ being strongly correlated (Pearson correlation factor = 0.9) but only x~1~ has an effect on y (mediator) and row c) shows the results for x~1~ and x~2~ being strongly correlated (Pearson correlation factor = 0.9 with x~1~ and x~2~ having effects on y (confounder scenario)" -->
+
+<!-- #| fig-width: 10 -->
+
+<!-- #| fig-height: 9 -->
+
+<!-- sc = c("no_effects", "effects", "confounder_unequal", "collinearity_0.90") -->
+
+<!-- algorithms = c("LM","RF",  "BRT", "NN","Dropout", "l1", "l2", "l1l2") -->
+
+<!-- par(mfcol = c(3,4), mar = c(5,0.5, 2, 1.4), oma = c(1, 2, 2, 1)) -->
+
+<!-- labs =  c("LM","RF",  "BRT", "NN","NN+Dropout", "LASSO", "Ridge", "Elastic-net") -->
+
+<!-- cex_fac = 1.3 -->
+
+<!-- plot_scenarios(1.0, layout = matrix(c(1,1, -->
+
+<!--                              0,1, -->
+
+<!--                              0,0, -->
+
+<!--                              0,2), nrow = 4L, 2L, byrow = TRUE)) -->
+
+<!--     points(x = 0, y = -0.55, col = "grey", xpd = NA, pch = 15, cex = 1.8) -->
+
+<!--     text(x = 0.1, y = -0.55, label = "True effect", xpd = NA, pos = 4, cex = 1.4) -->
+
+<!--     points(x = 0, y = -0.75, col = "#ffab02", xpd = NA, pch = 15, cex = 1.8) -->
+
+<!--     text(x = 0.1, y = -0.75, label = "Correlation", xpd = NA, pos = 4, cex = 1.4) -->
+
+<!-- true_effs = matrix(c( -->
+
+<!--   NA, NA, NA, -->
+
+<!--   1, 0.5, 1, -->
+
+<!--   -1, 0.5, 1, -->
+
+<!--   1, 0, 1 -->
+
+<!-- ), 4, 3, byrow = TRUE) -->
+
+<!-- for(i in c(5, 6, 7)) { -->
+
+<!--   counter = 1 -->
+
+<!--   for(j in c(2, 4, 3)) { -->
+
+<!--     tmp = Results_sd[[sc[j]]]**2 -->
+
+<!--     edges = round(tmp[i,], 5) -->
+
+<!--     bias = edges[c(1, 2, 5)] #- true_effs[j,] -->
+
+<!--     g1 = graph(c("x\U2081", "y", "x\U2082", "y", "x\U2083", "y"), -->
+
+<!--                 directed=TRUE ) -->
+
+<!--     layout_as_tree(g1, root = "y", circular = TRUE, flip.y = TRUE) -->
+
+<!--     eqarrowPlot(g1, matrix(c(1,1, -->
+
+<!--                              0,1, -->
+
+<!--                              0,0, -->
+
+<!--                              0,2), nrow = 4L, 2L, byrow = TRUE) , -->
+
+<!--                 #cols = c( "skyblue","#B0A8B9", "#B0A8B9", "#B0A8B9"), -->
+
+<!--                 cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 1), 1.0)), -->
+
+<!--                 edge.arrow.size=abs(bias)*2.3,#abs(edges[c(1, 2, 5)]), -->
+
+<!--                 edge.width=abs(bias)*cex_fac*2,#abs(edges[c(1, 2, 5)])*cex_fac, -->
+
+<!--                 edge.label = c(paste0(format(round(bias, 2)[1], nsmall = 1), "\n\n"), -->
+
+<!--                                paste0("          ",format(round(bias, 2)[2], nsmall = 1), "\n"), -->
+
+<!--                                paste0("          ", format(round(bias, 2)[3], nsmall=1))), -->
+
+<!--                 edge.label.cex = 1.4, -->
+
+<!--                 edge.colors = ifelse(abs(edges[c(1, 2, 5)]) < 0.001, "white", "#e60000")) -->
+
+<!--     text(labs[i], x = 0, y = 2.3, xpd = NA, cex = 1.4, pos = 3) -->
+
+<!--     if(i == 1) { -->
+
+<!--       text(letters[counter], cex = 1.9, x = -2.2, y = 2.5, xpd = NA, font = 2) -->
+
+<!--       counter = counter + 1 -->
+
+<!--     } -->
+
+<!--   } -->
+
+<!--   if(i == 6) { -->
+
+<!--     points(x = 0-1, y = -1.1*0.5, col = "#e60000", xpd = NA, pch = 15, cex = 1.8) -->
+
+<!--     text(x = 0.1-1, y = -1.1*0.5, label = "Variance", xpd = NA, pos = 4, cex = 1.4) -->
+
+<!--   } -->
+
+<!-- } -->
+
+<!-- ``` -->
+
+<!-- While estimates from NN with dropout had the smallest biases, they had the largest variances (Fig. S9), though these variances were still small (Fig. S9). -->
+
+<!-- ### RMSE on holdout -->
+
+<!-- In addition to bias and variance, we calculated the predictive error using the RMSE on holdout data which had the same size as the training data (N = 1000). -->
+
+<!-- RF, BRT, and Dropout showed the highest RMSE in all three scenarios (Fig. S10). LASSO and elastic-net showed the smallest RMSE in all three scenarios (Fig. S10). -->
+
+<!-- ```{r} -->
+
+<!-- #| label: fig-Fig_S10 -->
+
+<!-- #| fig-width: 7 -->
+
+<!-- #| fig-height: 3 -->
+
+<!-- #| fig-cap: "Root mean squared error (RMSE) for different ML algorithms in three different simulated causal simulations (a, b, and c). Sample sizes are so large that stochastic effects can be excluded. 1,000 observations were used to train the models and 1,000 observations were used to evaluate the predictive performance of the models. Column 'effects' shows results for simulations with uncorrelated features with effect sizes (x1: 1.0, x2: 0.5, x3: 1.0). Column 'collinearity_0.90' shows the results for simulations with x1 and x2 being strongly correlated (Pearson correlation factor = 0.9) but only x1 has an effect on y (mediator) and column 'confounder_unequal' shows the results for x1 and x2 being strongly correlated (Pearson correlation factor = 0.9 with x1 and x2 having effects on y (confounder scenario)." -->
+
+<!-- res_rmse = do.call(rbind, lapply(Results_rmse, function(d) data.frame(values = d, method = rownames(d)))) -->
+
+<!-- res_rmse$scenario = rep(names(Results_rmse), each = 8) -->
+
+<!-- res_rmse$type = "rmse" -->
+
+<!-- res_rmse_sd = do.call(rbind, lapply(Results_rmse_sd, function(d) data.frame(values = d, method = rownames(d)))) -->
+
+<!-- res_rmse$var = res_rmse_sd$values -->
+
+<!-- res_rmse = -->
+
+<!--   res_rmse %>% -->
+
+<!--            filter(scenario %in% sc[-1]) -->
+
+<!-- res_rmse$method = forcats::lvls_reorder(res_rmse$method, c(6, 8, 1, 7, 4, 3, 5, 2)) -->
+
+<!-- res_rmse$scenario = forcats::lvls_reorder(res_rmse$scenario, c(3, 1, 2)) -->
+
+<!-- ggplot(res_rmse, aes(y=values, x=method)) + -->
+
+<!--   geom_bar(stat = 'identity', fill = "lightgrey") + -->
+
+<!--   geom_errorbar(aes(ymin=values-var, ymax=values+var), width=.2) + -->
+
+<!--   facet_grid(~ scenario) + -->
+
+<!--   theme_bw()  + -->
+
+<!--   labs(x = "", y = "") + -->
+
+<!--   theme(panel.grid.major.x = element_blank()) + -->
+
+<!--   theme(strip.background = element_rect(fill = "white")) + -->
+
+<!--   theme(strip.text = element_text(colour = 'black')) + -->
+
+<!--   theme(strip.placement = "outside") + -->
+
+<!--   theme(strip.text = element_text(hjust = 0.5)) + -->
+
+<!--   theme(legend.position="bottom")+ -->
+
+<!--   theme(axis.text.x = element_text(angle = 45, hjust=1)) -->
+
+<!-- ``` -->
 
 ## Weighted MCE
 

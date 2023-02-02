@@ -78,43 +78,102 @@ names(Results_sd) = unlist(strsplit(files, ".RDS", TRUE))
 #| label: Fig_2
 #| fig-format: pdf
 #| fig-width: 10
-#| fig-height: 9
+#| fig-height: 6
+
+parser = function(true, bias, pos = 1) {
+  if(pos == 1) { 
+    yp = 1.25
+    xp = 0.15
+  }
+  if(pos == 3) {
+    yp = 1.63
+    xp = -0.05
+  }
+  if(pos == 2) {
+    yp = 0.37
+    xp = -0.05
+  }
+  
+  bb = round(bias, 2)
+  if(bb > 0) { 
+    symb = "+" 
+    if(abs(bb) > 0.001) text(x = xp + 0.280, y = yp+0.01, pos = 4, symb, cex = 1.3, col = "#e60000", font = 2)
+  } else { 
+    symb = "-"
+      if(abs(bb) > 0.001) text(x = xp + 0.29, y = yp, pos = 4, symb, cex = 1.3, col = "#e60000", font = 2)
+    }
+  bb = abs(bb)
+   text(x = xp, y = yp, pos = 4,label = format(true, nsmall = 2), cex = 1.3)
+
+  if(bb> 0.001) text(x = xp+ 0.35, y = yp, pos = 4, label = format(bb, nsmall = 2), cex = 1.3, col = "#e60000", font = 1)
+}
 
 
 
-sc = c("no_effects", "effects", "no_effects", "collinearity_0.90")
+sc = c("effects", "collinearity_0.90")
 
-#cairo_pdf("plots/Fig_2.pdf", width = 10, height = 9)
+cairo_pdf("plots/Fig_2.pdf", width = 12, height = 7)
 
 par(mfcol = c(2,6), mar = c(5,0.5, 2, 1.4), oma = c(1, 2, 2, 1))
 labs =  c("LM","RF",  "BRT", "NN","Dropout", "l1", "l2", "Elastic-net")
-
-#plot_scenarios(1.0)
-#dev.off()
 cex_fac = 1.3
-
-plot_scenarios(1.0, layout = matrix(c(1,1,
-                             0,1,
-                             0,0,
-                             0,2), nrow = 4L, 2L, byrow = TRUE))
-
-    points(x = 0, y = -0.55, col = "grey", xpd = NA, pch = 15, cex = 1.8)
-    text(x = 0.1, y = -0.55, label = "True effect", xpd = NA, pos = 4, cex = 1.4)
-    
-    points(x = 0, y = -0.75, col = "#ffab02", xpd = NA, pch = 15, cex = 1.8)
-    text(x = 0.1, y = -0.75, label = "Correlation", xpd = NA, pos = 4, cex = 1.4)
-
+minArrow = function(x) sapply(x, function(xx) max(c(0.1, xx)))
 
 true_effs = matrix(c(
-  NA, NA, NA,
-  1, 0.5, 1,
-  -1, 0.5, 1,
-  1, 0, 1
-), 4, 3, byrow = TRUE)
+  1, 0.0, 1,
+  1, 0.0, 1
+), 2, 3, byrow = TRUE)
 
+# A simulation
+g1 = graph(c("x\U2081", "y", "x\U2082", "y", "x\U2083", "y"),  
+            directed=TRUE ) 
+layout_as_tree(g1, root = "y", circular = TRUE, flip.y = TRUE)
+eqarrowPlot(g1, matrix(c(1,1,
+                         0,1,
+                         0,0,
+                         0,2), nrow = 4L, 2L, byrow = TRUE) ,
+            cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 1), 1.0)),
+            edge.arrow.size=minArrow(c(1.00, 0.1, 1.0)),#abs(edges[c(1, 2, 5)]), 
+            edge.width=c(1.00, 0.1, 1.0)*cex_fac,#abs(edges[c(1, 2, 5)])*cex_fac,
+            edge.label = rep("",3),
+            edge.label.cex = 1.4,
+            edge.colors = rep("#B0A8B9", 3))
+  text(letters[1], cex = 1.9, x = -1.6, y = 1.5, xpd = NA, font = 2)
+  text("Simulation", x = 0.3, y = 2.3, xpd = NA, cex = 1.4, pos = 3)
+parser(1.00, 0.0000, pos = 1)
+parser(0.0, 0.0000, pos = 2)
+parser(1.00, 0.0000, pos = 3)  
+segments(x0 = 1.4, x1 = 1.4, y0 = -0.5, y1 = 2.5, xpd = NA)
+
+
+# B simulation
+g1 <- graph(c("x\U2081", "y", "x\U2082","y", "x\U2083", "y", "x\U2081", "x\U2082"),  
+            directed=TRUE ) 
+eqarrowPlot(g1, matrix(c(1,1,
+                       0,1,
+                       0,0,
+                       0,2), nrow = 4L, 2L, byrow = TRUE) , 
+            cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 2), 1.0)),
+            edge.arrow.size=minArrow(c(1.00, 0.1, 1.0, 0.9)),#abs(edges[c(1, 2, 5)]), 
+            edge.width=c(1.00, 0.1, 1.0, 0.5)*cex_fac,#abs(edges[c(1, 2, 5)])*cex_fac,
+            edge.label = rep("", 3), 
+            edge.label.cex = 1.4, 
+            edge.arrow.mode = c(rep(">", 3), "-"), 
+            edge.colors = c(rep("#B0A8B9", 1),"#B0A8B9","#B0A8B9", "#ffab02"))
+text(letters[2], cex = 1.9, x = -1.6, y = 1.5, xpd = NA, font = 2)
+text("Simulation", x = 0.3, y = 2.3, xpd = NA, cex = 1.4, pos = 3)
+parser(1.00, 0.0000, pos = 1)
+parser(0.0, 0.0000, pos = 2)
+parser(1.00, 0.0000, pos = 3)  
+text("0.90", cex = 1.3, x = 0.74, y = 0.5, xpd = NA, font = 1, col = "#ff9902")
+segments(x0 = 1.4, x1 = 1.4, y0 = -0.5, y1 = 2.5, xpd = NA)
+points(x = 0, y = -0.55, col = "grey", xpd = NA, pch = 15, cex = 1.8)
+text(x = 0.1, y = -0.55, label = "True effect", xpd = NA, pos = 4, cex = 1.4)
+points(x = 0, y = -0.75, col = "#ffab02", xpd = NA, pch = 15, cex = 1.8)
+text(x = 0.1, y = -0.75, label = "Correlation", xpd = NA, pos = 4, cex = 1.4)
 for(i in c(1, 2, 3, 4, 8)) {
   counter = 1
-  for(j in c(2, 4)) {
+  for(j in c(1, 2)) {
 
     tmp = Results[[sc[j]]]
     sd = Results_sd[[sc[j]]][i,]
@@ -127,15 +186,15 @@ for(i in c(1, 2, 3, 4, 8)) {
                              0,1,
                              0,0,
                              0,2), nrow = 4L, 2L, byrow = TRUE) ,
-                #cols = c( "skyblue","#B0A8B9", "#B0A8B9", "#B0A8B9"),
                 cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 1), 1.0)),
-                edge.arrow.size=abs(bias)*2.3,#abs(edges[c(1, 2, 5)]), 
-                edge.width=abs(bias)*cex_fac*2,#abs(edges[c(1, 2, 5)])*cex_fac,
-                edge.label = c(paste0(format(round(bias, 2)[1], nsmall = 1), "\n\n"),
-                               paste0("          ",format(round(bias, 2)[2], nsmall = 1), "\n"), 
-                               paste0("          ", format(round(bias, 2)[3], nsmall=1))),
+                edge.arrow.size=minArrow(abs(-true_effs[j,] - bias)),#abs(edges[c(1, 2, 5)]), 
+                edge.width=abs(-true_effs[j,] - bias)*cex_fac,#abs(edges[c(1, 2, 5)])*cex_fac,
+                edge.label = rep("",3),
                 edge.label.cex = 1.4,
-                edge.colors = ifelse(abs(edges[c(1, 2, 5)]) < 0.001, "white", "#e60000"))
+                edge.colors = ifelse(abs(bias) < 0.01, "#B0A8B9", "#e60000"))
+    parser(true_effs[j, 1], bias[1], pos = 1)
+    parser(true_effs[j, 2], bias[2], pos = 2)
+    parser(true_effs[j, 3], bias[3], pos = 3)
     text(labs[i], x = 0, y = 2.3, xpd = NA, cex = 1.4, pos = 3)
     if(i == 1) {
       text(letters[counter], cex = 1.9, x = -2.2, y = 2.5, xpd = NA, font = 2)
@@ -145,12 +204,11 @@ for(i in c(1, 2, 3, 4, 8)) {
   }
   if(i == 3) {
     points(x = 0-1, y = -1.1*0.5, col = "#e60000", xpd = NA, pch = 15, cex = 1.8)
-    text(x = 0.1-1, y = -1.1*0.5, label = "Bias = estiamted effect - true effect", xpd = NA, pos = 4, cex = 1.4)
+    text(x = 0.1-1, y = -1.1*0.5, label = "Bias", xpd = NA, pos = 4, cex = 1.4)
   }
 }
 
-
-#dev.off()
+dev.off()
 
 ```
 
@@ -158,6 +216,8 @@ for(i in c(1, 2, 3, 4, 8)) {
 
 ```{r}
 #| echo: false
+
+effs_true = c(1.0, 0.0)
 extract_B = function(RI, exponent = 1) {
   Bias = apply(abind::abind(lapply(1:length(RI), function(j) t(sapply(1:5, function(i) RI[[j]][[i]][1:2]  - effs_true))), along = 0L), 2:3, mean)**exponent
   Bias_1 = apply(Bias[,1, drop=FALSE], 1, mean)
@@ -172,36 +232,19 @@ extract_V= function(RI) {
   return(cbind(Var_1, Var_0))  #, Var_Inter_1, Var_Inter_0))
 }
 
-extract_results = function(path, N = "low", tuned = "pred") {
+extract_results = function(path, N = "small", tuned = "pred") {
 
-  effs_true = c(1.0, 0.0)
-  
   inter_low = readRDS(path)
   bias_low = extract_B(inter_low, exponent = 1)
   var_low = extract_V(inter_low)
+  mse = sapply(1:5, function(i) {mean(sapply(inter_low, function(r) r[[i]][3]))})
   
-  colnames(bias_low) = c("bias_1_Main", "bias_0_Main") #, "bias_1_Inter", "bias_0_Inter")
-  colnames(var_low) = c("var_1_Main", "var_0_Main") #, "var_1_Inter", "var_0_Inter")
-  rownames(bias_low) = rownames(var_low) = c( "LM","RF", "BRT", "NN","glmnet")
-  
-  bias_low_L = bias_low %>% data.frame %>% mutate(method = rownames(.)) %>%  pivot_longer(cols = c("bias_1_Main", "bias_0_Main"), values_to = "bias") %>% mutate(N = N, tuned = tuned)
-  var_low_L = var_low %>% data.frame %>% mutate(method = rownames(.)) %>%  pivot_longer(cols = c("var_1_Main", "var_0_Main"), values_to = "var") %>% mutate(N = N, tuned = tuned)
-  
-  data_bias = bias_low_L
-  data_var = var_low_L
-  data_bias$var = data_var$var
-  colnames(data_bias)[2] = "which_bias"
-  data = data_bias  %>% pivot_longer(cols = c("bias", "var"))
-  return(data)
+
+  return(list(bias = bias_low, var = var_low, mse = mse))
 }
 
-res_pred = do.call(rbind, lapply(c("small", "mid", "big"), function(n) extract_results(paste0("results/data_poor_",n ,"_MSE.RDS"), n, "pred")))
-
-res_eff = do.call(rbind, lapply(c("small", "mid", "big"), function(n) extract_results(paste0("results/data_poor_",n ,"_BIAS.RDS"), n, "eff")))
-
-res_pred = do.call(rbind, lapply(c("small"), function(n) extract_results(paste0("results/data_poor_",n ,"_MSE_50.RDS"), n, "pred")))
-res_eff= do.call(rbind, lapply(c("small"), function(n) extract_results(paste0("results/data_poor_",n ,"_MSE_50.RDS"), n, "pred")))
-
+res_pred =  lapply(c("small", "mid", "big"), function(n) extract_results(paste0("results/data_poor_",n ,"_MSE.RDS"), n, "pred"))
+res_eff = lapply(c("small", "mid", "big"), function(n) extract_results(paste0("results/data_poor_",n ,"_BIAS.RDS"), n, "eff"))
 
 ```
 
@@ -212,80 +255,69 @@ res_eff= do.call(rbind, lapply(c("small"), function(n) extract_results(paste0("r
 #| fig-height: 6.7
 #| warning: false
 
-#cairo_pdf("plots/Fig_3.pdf", width = 10, height = 7)
+cairo_pdf("plots/Fig_3.pdf", width = 10, height = 7)
 
-#levels(data$method)[8] = "Elastic-net"
+bias = res_pred[[1]]$bias[1, 1]
+var = res_pred[[1]]$var[1, 1]
+draw_stacked_bar = function(bias, var, xleft = 0.0, w = 0.15) {
+  rect(xleft, 0, xleft+w, abs(bias), col = "#96c6ed" )
+  rect(xleft, abs(bias), xleft+w, abs(bias)+var, col = "#e0acd5" )
+}
 
-data = res_pred
-levels(data$method)
-
-par(mfrow = c(3, 5), mar = c(1, 1, 1, 1)*0.5, oma = c(8, 4, 4, 4))
-methods = c("LM", "RF", "BRT", "NN", "glmnet")
-sizes = c("small", "mid", "big")
-y_labels = c("N = 100", "N = 600", "N = 2000")
-for(j in 1:1) {
+methods2 = methods
+methods2[-1] = paste0(methods2[-1], " tuned")
+par(mfrow = c(3, 5), mar = c(1, 1, 1, 1)*0.5, oma = c(12, 4, 4, 4))
+y_labels = c("N = 50", "N = 100", "N = 600")
+for(j in 1:3) {
   for(i in 1:5) {
-    if(i == 1) axes = TRUE
-    else axes = FALSE
-    if(j ==1) create_gapped_stacked(tmp = rbind(res_pred[res_pred$method == methods[i] & res_pred$N== sizes[j], ],
-                                                res_eff[res_pred$method == methods[i] & res_eff$N== sizes[j], ]), 
-                                    upper = 1.0,
-                                    axes = axes, to = c(0, 1.0), labels1 = c("0.0", "1.0", "2.0", "3.0", "4.0"), gapped = FALSE)
-    else create_gapped_stacked(tmp = rbind(res_pred[res_pred$method == methods[i] & res_pred$N== sizes[j], ],
-                                                res_eff[res_pred$method == methods[i] & res_eff$N== sizes[j], ]), 
-                               upper = 1.0,
-                               to = c(0, 1.0),
-                               axes = axes,
-                                labels1 = c("0.0", "0.2", "0.4", "0.6", "0.8"), gapped = FALSE)
-    if(j == 3){
-      text(x = c(0.33, 0.66)-0.25,y = -0.24, 
-           labels = c("Bias+Variance for beta = 1", "Bias+Variance for beta = 0"), 
-           srt = 45,
-           xpd = NA, pos = 1)
+    plot(NULL, NULL, xlim = c(0, 1), ylim = c(0, 1), yaxt = "n", xaxt = "n", xaxs = "i", yaxs = "i", xlab = "", ylab = "")
+    if( i > 1) {
+      rect(0.5, 0, 1.0, 1.0, col = "#EDBD9660", border = NA)
+      rect(0.0, 0, 0.5, 1.0, col = "#9BED9660", border = NA)
+
+      draw_stacked_bar(xleft = 0.1, res_pred[[j]]$bias[i, 1], res_pred[[j]]$var[i, 1])
+      draw_stacked_bar(xleft = 0.1+0.18, res_pred[[j]]$bias[i, 2], res_pred[[j]]$var[i, 2])
+      draw_stacked_bar(xleft = 0.1+0.47, res_eff[[j]]$bias[i, 1], res_eff[[j]]$var[i, 1])
+      draw_stacked_bar(xleft = 0.1+0.18+0.47, res_eff[[j]]$bias[i, 2], res_eff[[j]]$var[i, 2])
+    } else {
+      
+      if( ((j %in% c(1, 2)) && (i == 1) )) {
+        text(x = 0.5, y = 0.5, pos = 3, label = "NA", font = 2)
+      } else {
+        draw_stacked_bar(xleft = 0.325, res_pred[[j]]$bias[i, 1], res_pred[[j]]$var[i, 1])
+        draw_stacked_bar(xleft = 0.325+0.18, res_pred[[j]]$bias[i, 2], res_pred[[j]]$var[i, 2])
+
+        text(x = c(0.185, 0.185+0.18),y = -0.24, 
+        labels = c("Bias+Variance X1", "Bias+Variance X2"), 
+        srt = 45,
+        xpd = NA, pos = 1)        
+      }
+      
     }
-    
     if(j == 1) {
-      rect(0, 1.0, 1.0, 1.1, xpd = NA, border = "black")
-      text(0.5, y = 0.98, pos = 3, xpd = NA, label = methods[i], cex = 1.3, font = 2)
+      rect(0, 1.0, 1.0, 1.15, xpd = NA, border = "black")
+      text(0.5, y = 0.98, pos = 3, xpd = NA, label = methods2[i], cex = 1.3, font = 2)
     }
     if(i == 5) {
       rect(1, 0, 1.15, 1.0, xpd = NA, border = "black")
       text(y = 0.72, x = 1.01, pos = 4, xpd = NA, label = y_labels[j], cex = 1.3, font = 2, srt = -90)
     }
-    if(i == 5 & j == 1) {
-      legend("topright", bty = "n", col = c("#96c6ed","#e0acd5" ), pch = 15, legend = c("Bias", "Variance"))
-    }
+    if( (j == 3) && (i > 1) ){
+      text(x = c(0.185, 0.185+0.18, c(0.185, 0.185+0.18)+0.47)-0.22,y = -0.24, 
+           labels = c("Bias+Variance X1", "Bias+Variance X2", "Bias+Variance X1", "Bias+Variance X2"), 
+           srt = 45,
+           xpd = NA, pos = 1)
+    }    
   }
 }
 
-#dev.off()
+points(pch = 15, x = rep(-1.0, 2), y = c(-0.7, -0.8), xpd = NA, col = c("#96c6ed","#e0acd5"), cex = 1.5)
+text(x = rep(-1.0, 2)+0.01, y = c(-0.7, -0.8)-0.02, pos = 4, labels = c("Bias", "Variance"), xpd = NA)
 
+points(pch = 15, x = rep(-0.2, 2), y = c(-0.7, -0.8), xpd = NA, col = c("#9BED96","#EDBD96"), cex = 1.5)
+text(x = rep(-0.2, 2)+0.01, y = c(-0.7, -0.8)-0.02, pos = 4, labels = c("Tuned after MSE of predictions", "Tuned after MSE of X1"), xpd = NA)
 
-
-
-
-
-
-par(mfrow = c(3, 5), mar = c(1, 1, 1, 1)*0.5, oma = c(8, 4, 4, 4))
-methods = c("LM", "RF", "BRT", "NN", "glmnet")
-sizes = c("small", "mid", "big")
-y_labels = c("N = 100", "N = 600", "N = 2000")
-for(j in 1:3) {
-  for(i in 1:5) {
-    if(i == 1) axes = TRUE
-    else axes = FALSE
-    
-    tmp_data = rbind(res_pred[res_pred$method == methods[i] & res_pred$N== sizes[j], ],
-                                                res_eff[res_pred$method == methods[i] & res_eff$N== sizes[j], ])
-    
-    
-    
-    create_gapped_stacked(tmp = rbind(res_pred[res_pred$method == methods[i] & res_pred$N== sizes[j], ],
-                                                res_eff[res_pred$method == methods[i] & res_eff$N== sizes[j], ]), 
-                                    upper = 1.0,
-                                    axes = axes, to = c(0, 1.0), labels1 = c("0.0", "1.0", "2.0", "3.0", "4.0"), gapped = FALSE)
-  }
-}
+dev.off()      
 
 ```
 
@@ -297,272 +329,16 @@ for(j in 1:3) {
 #| fig-width: 10
 #| fig-height: 6.7
 #| warning: false
-
 library(xgboost)
 library(ranger)
 library(qgam)
 library(mgcv)
 library(mgcViz)
 library(ggplot2)
-
-get_coefficients = function(i, gam = TRUE) {
-  
-  out = list()
-  
-  ind = c(6, 5, 4, 2)[i]
-  method = methods[i]
-  tmp = paths[i]
-  raw = readRDS(tmp)
-  
-  if(method == "NN") {
-    raw = lapply(raw, function(r) {
-      r = r %>% select(-dropout)
-      return(r)
-      })
-  }
-  
-  parameter = raw[[1]][,1:ind]
-  
-  raw = lapply(raw, function(r) {
-    r$mse_pred = r$pred_mse
-    r$pred_mse = NULL
-    return(r)
-    } )
-    
-  raw = lapply(raw, function(r) {
-    if(nrow(r[complete.cases(r),][abs(r[complete.cases(r),]$mse_pred) > 2000, ]) > 0) {
-      r[complete.cases(r),][abs(r[complete.cases(r),]$mse_pred) > 2000, ]$mse_pred = NA
-    }
-    return(r)
-    })
-  
-  parameter$bias_effect = apply(sapply(raw, function(r) 1-r$eff_1), 1, mean)**2
-  parameter$var_effect = apply(sapply(raw, function(r) r$eff_1), 1, var)
-  parameter$bias_zero = apply(sapply(raw, function(r) r$eff_2 ), 1, mean)**2
-  parameter$var_zero = apply(sapply(raw, function(r) r$eff_2 ), 1, var)
-  parameter$bias_pred = apply(sapply(raw, function(r) r$pred_bias ), 1, mean)**2
-  parameter$var_pred = apply(sapply(raw, function(r) r$pred_var ), 1, var)
-  parameter$mse_pred = apply(sapply(raw, function(r) r$mse_pred ), 1, mean)
-  parameter$mse_eff = parameter$bias_effect + parameter$var_effect
-  parameter$mse_zero = parameter$bias_zero + parameter$var_zero
-  parameter = parameter[complete.cases(parameter),]
-  tmp = parameter
-  
-  if(method != "NN" ) {tmp[,(1:ind)] = scale( tmp[,(1:ind)] )
-  } else { tmp[, (2:ind)] = scale( tmp[, (2:ind)] ) }
-  
-  tmp[,-(1:ind)] = sapply(  tmp[,-(1:ind)], function(df) df - mean(df))
-  
-  out$lm_eff = lm(  mse_eff ~ 0 + .,data = cbind( tmp[,1:ind] ,tmp %>% select(mse_eff )))
-  out$lm_pred = lm( mse_pred ~0+ ., data = cbind( tmp[,1:ind] ,tmp %>% select(mse_pred )))
-  out$lm_zero = lm( mse_zero ~0+ ., data = cbind( tmp[,1:ind] ,tmp %>% select(mse_zero )))
-  out$lm_bias_eff = lm(  bias_effect ~ 0 + .,data = cbind( tmp[,1:ind] ,tmp %>% select(bias_effect )))
-  out$lm_var_eff = lm( var_effect ~0+ ., data = cbind( tmp[,1:ind] ,tmp %>% select(var_effect )))
-  out$lm_bias_zero = lm(  bias_zero ~ 0 + .,data = cbind( tmp[,1:ind] ,tmp %>% select(bias_zero )))
-  out$lm_var_zero = lm( var_zero ~0+ ., data = cbind( tmp[,1:ind] ,tmp %>% select(var_zero )))
-  out$lm_bias_pred = lm(  bias_pred ~ 0 + .,data = cbind( tmp[,1:ind] ,tmp %>% select(bias_pred )))
-  out$lm_var_pred = lm( var_pred ~0+ ., data = cbind( tmp[,1:ind] ,tmp %>% select(var_pred )))
-
-  coefs_eff = summary( out$lm_eff )$coefficients
-  coefs_pred = summary( out$lm_pred )$coefficients
-  coefs_zero = summary( out$lm_zero )$coefficients
-  
-  coefs_bias_effect = summary( out$lm_bias_eff )$coefficients
-  coefs_var_effect = summary( out$lm_var_eff )$coefficients
-  coefs_bias_zero = summary( out$lm_bias_zero )$coefficients
-  coefs_var_zero = summary( out$lm_var_zero )$coefficients
-  coefs_bias_pred = summary( out$lm_bias_pred )$coefficients
-  coefs_var_pred = summary( out$lm_var_pred )$coefficients
-    
-  if(method == "NN") {
-    
-    tmp$depth = tmp$depth + rnorm(nrow(tmp), 0, 0.001)
-    cols = cbind( tmp[,1:ind] ,tmp %>% select(mse_eff )) %>% colnames()
-    form1 = paste0("mse_eff ~ 0 +activations +" , paste0("s(", cols[-length(cols)][-1], ")", collapse="+"))
-    cols = cbind( tmp[,1:ind] ,tmp %>% select(mse_zero )) %>% colnames()
-    form2 = paste0("mse_zero ~ 0 +activations +" , paste0("s(", cols[-length(cols)][-1], ")", collapse="+"))
-    cols = cbind( tmp[,1:ind] ,tmp %>% select(mse_pred )) %>% colnames()
-    form3 = paste0("mse_pred ~ 0 +activations +" , paste0("s(", cols[-length(cols)][-1], ")", collapse="+"))
-    
-    cols = cbind( tmp[,1:ind] ,tmp %>% select(bias_effect )) %>% colnames()
-    form4 = paste0("bias_effect ~ 0 +activations +" , paste0("s(", cols[-length(cols)][-1], ")", collapse="+"))
-    cols = cbind( tmp[,1:ind] ,tmp %>% select(var_effect )) %>% colnames()
-    form5 = paste0("var_effect ~ 0 +activations +" , paste0("s(", cols[-length(cols)][-1], ")", collapse="+"))
-    
-    cols = cbind( tmp[,1:ind] ,tmp %>% select(bias_zero )) %>% colnames()
-    form6 = paste0("bias_zero ~ 0 +activations +" , paste0("s(", cols[-length(cols)][-1], ")", collapse="+"))
-    cols = cbind( tmp[,1:ind] ,tmp %>% select(var_zero )) %>% colnames()
-    form7 = paste0("var_zero ~ 0 +activations +" , paste0("s(", cols[-length(cols)][-1], ")", collapse="+"))
-    
-    cols = cbind( tmp[,1:ind] ,tmp %>% select(bias_pred )) %>% colnames()
-    form8 = paste0("bias_pred ~ 0 +activations +" , paste0("s(", cols[-length(cols)][-1], ")", collapse="+"))
-    cols = cbind( tmp[,1:ind] ,tmp %>% select(var_pred )) %>% colnames()
-    form9 = paste0("var_pred ~ 0 +activations +" , paste0("s(", cols[-length(cols)][-1], ")", collapse="+"))
-
-  } else {
-    cols = cbind( tmp[,1:ind] ,tmp %>% select(mse_eff )) %>% colnames()
-    form1 = paste0("mse_eff ~ 0  +" , paste0("s(", cols[-length(cols)], ")", collapse="+"))
-    cols = cbind( tmp[,1:ind] ,tmp %>% select(mse_zero )) %>% colnames()
-    form2 = paste0("mse_zero ~ 0  +" , paste0("s(", cols[-length(cols)], ")", collapse="+"))
-    cols = cbind( tmp[,1:ind] ,tmp %>% select(mse_pred )) %>% colnames()
-    form3 = paste0("mse_pred ~ 0  +" , paste0("s(", cols[-length(cols)], ")", collapse="+"))
-    
-    cols = cbind( tmp[,1:ind] ,tmp %>% select(bias_effect )) %>% colnames()
-    form4 = paste0("bias_effect ~ 0  +" , paste0("s(", cols[-length(cols)], ")", collapse="+"))
-    cols = cbind( tmp[,1:ind] ,tmp %>% select(var_effect )) %>% colnames()
-    form5 = paste0("var_effect ~ 0  +" , paste0("s(", cols[-length(cols)], ")", collapse="+"))
-    
-    cols = cbind( tmp[,1:ind] ,tmp %>% select(bias_zero )) %>% colnames()
-    form6 = paste0("bias_zero ~ 0  +" , paste0("s(", cols[-length(cols)], ")", collapse="+"))
-    cols = cbind( tmp[,1:ind] ,tmp %>% select(var_zero )) %>% colnames()
-    form7 = paste0("var_zero ~ 0 +" , paste0("s(", cols[-length(cols)], ")", collapse="+"))
-    
-    cols = cbind( tmp[,1:ind] ,tmp %>% select(bias_pred )) %>% colnames()
-    form8 = paste0("bias_pred ~ 0  +" , paste0("s(", cols[-length(cols)], ")", collapse="+"))
-    cols = cbind( tmp[,1:ind] ,tmp %>% select(var_pred )) %>% colnames()
-    form9 = paste0("var_pred ~ 0 +" , paste0("s(", cols[-length(cols)], ")", collapse="+"))
-  }
-  
-  if(gam) {
-    out$gam_eff =         qgam(as.formula(form1), data = tmp, qu = 0.5)
-    out$gam_zero =        qgam(as.formula(form2), data = tmp, qu = 0.5)
-    out$gam_pred =        qgam(as.formula(form3), data = tmp, qu = 0.5)
-    out$gam_bias_effect = qgam(as.formula(form4), data = tmp, qu = 0.5)
-    out$gam_var_effect =  qgam(as.formula(form5), data = tmp, qu = 0.5)
-    out$gam_bias_zero =   qgam(as.formula(form6), data = tmp, qu = 0.5)
-    out$gam_var_zero =    qgam(as.formula(form7), data = tmp, qu = 0.5)
-    out$gam_bias_pred =   qgam(as.formula(form8), data = tmp, qu = 0.5)
-    out$gam_var_pred =    qgam(as.formula(form9), data = tmp, qu = 0.5)
-    
-    out$range_eff = c(
-        min(sapply(plot(getViz(out$gam_eff))[[1]], function(obj) min(obj$data$fit$y)  )),
-        max(sapply(plot(getViz(out$gam_eff))[[1]], function(obj) max(obj$data$fit$y)  ))
-      )
-    out$range_pred = c(
-        min(sapply(plot(getViz(out$gam_pred))[[1]], function(obj) min(obj$data$fit$y)  )),
-        max(sapply(plot(getViz(out$gam_pred))[[1]], function(obj) max(obj$data$fit$y)  ))
-      )
-    out$range_zero = c(
-        min(sapply(plot(getViz(out$gam_zero))[[1]], function(obj) min(obj$data$fit$y)  )),
-        max(sapply(plot(getViz(out$gam_zero))[[1]], function(obj) max(obj$data$fit$y)  ))
-      )
-    out$range_bias_effect = c(
-        min(sapply(plot(getViz(out$gam_bias_effect))[[1]], function(obj) min(obj$data$fit$y)  )),
-        max(sapply(plot(getViz(out$gam_bias_effect))[[1]], function(obj) max(obj$data$fit$y)  ))
-      )
-    out$range_var_effect = c(
-        min(sapply(plot(getViz(out$gam_var_effect))[[1]], function(obj) min(obj$data$fit$y)  )),
-        max(sapply(plot(getViz(out$gam_var_effect))[[1]], function(obj) max(obj$data$fit$y)  ))
-      )
-    out$range_bias_zero = c(
-        min(sapply(plot(getViz(out$gam_bias_zero))[[1]], function(obj) min(obj$data$fit$y)  )),
-        max(sapply(plot(getViz(out$gam_bias_zero))[[1]], function(obj) max(obj$data$fit$y)  ))
-      )
-    out$range_var_zero = c(
-        min(sapply(plot(getViz(out$gam_var_zero))[[1]], function(obj) min(obj$data$fit$y)  )),
-        max(sapply(plot(getViz(out$gam_var_zero))[[1]], function(obj) max(obj$data$fit$y)  ))
-      )
-    
-    out$range_bias_pred = c(
-        min(sapply(plot(getViz(out$gam_bias_pred))[[1]], function(obj) min(obj$data$fit$y)  )),
-        max(sapply(plot(getViz(out$gam_bias_pred))[[1]], function(obj) max(obj$data$fit$y)  ))
-      )
-    out$range_var_pred = c(
-        min(sapply(plot(getViz(out$gam_var_pred))[[1]], function(obj) min(obj$data$fit$y)  )),
-        max(sapply(plot(getViz(out$gam_var_pred))[[1]], function(obj) max(obj$data$fit$y)  ))
-      )
-  }
-  #### RF ######
-  
-  tmp = data.frame(model.matrix(~0+., tmp))
-  
-  
-  if(method == "NN") {
-    ind2 = ind+6
-  } else {
-    ind2 = ind
-  }
-
-  rf_eff = ranger::ranger(  mse_eff ~ 0 + .,data = cbind( tmp[,1:ind2] ,tmp %>% select(mse_eff )), num.trees= 4000, importance = "permutation" ) 
-  rf_pred = ranger::ranger( mse_pred ~0+ ., data = cbind( tmp[,1:ind2] ,tmp %>% select(mse_pred )), num.trees= 4000, importance = "permutation" ) 
-  rf_zero = ranger::ranger( mse_zero ~0+ ., data = cbind( tmp[,1:ind2] ,tmp %>% select(mse_zero )), num.trees= 4000, importance = "permutation" ) 
-  rf_bias_effect = ranger::ranger(  bias_effect ~ 0 + .,data = cbind( tmp[,1:ind2] ,tmp %>% select(bias_effect )), num.trees= 4000, importance = "permutation" ) 
-  rf_var_effect = ranger::ranger( var_effect ~0+ ., data = cbind( tmp[,1:ind2] ,tmp %>% select(var_effect )), num.trees= 4000, importance = "permutation" ) 
-  rf_bias_zero = ranger::ranger(  bias_zero ~ 0 + .,data = cbind( tmp[,1:ind2] ,tmp %>% select(bias_zero )), num.trees= 4000, importance = "permutation" ) 
-  rf_var_zero = ranger::ranger( var_zero ~0+ ., data = cbind( tmp[,1:ind2] ,tmp %>% select(var_zero )), num.trees= 4000, importance = "permutation" ) 
-  rf_bias_pred = ranger::ranger(  bias_pred ~ 0 + .,data = cbind( tmp[,1:ind2] ,tmp %>% select(bias_pred )), num.trees= 4000, importance = "permutation" ) 
-  rf_var_pred = ranger::ranger( var_pred ~0+ ., data = cbind( tmp[,1:ind2] ,tmp %>% select(var_pred )), num.trees= 4000, importance = "permutation" )   
-
-  pred_eff = which.min(predict(rf_eff, data = tmp)$predictions)
-  pred_pred = which.min(predict(rf_pred, data = tmp)$predictions)
-  pred_bias_effect = which.min(predict(rf_bias_effect, data = tmp)$predictions)
-  pred_var_effect = which.min(predict(rf_var_effect, data = tmp)$predictions)
-  pred_bias_zero = which.min(predict(rf_bias_zero, data = tmp)$predictions)
-  pred_var_zero = which.min(predict(rf_var_zero, data = tmp)$predictions)
-  pred_bias_pred = which.min(predict(rf_bias_pred, data = tmp)$predictions)
-  pred_var_pred = which.min(predict(rf_var_pred, data = tmp)$predictions)
-
-  out$tmp = tmp
-  
-  transf_imp = function(df) {
-    df = as.data.frame(df)
-    df$Feature = rownames(df)
-    colnames(df)[1] = "Gain"
-    df$Gain = log10(df$Gain+1)
-    return(df[, c(2, 1)])
-  }
-  
-  out$preds = list(eff = pred_eff, pred = pred_pred, bias_effect = pred_bias_effect, var_effect = pred_var_effect, bias_zero = pred_bias_zero, var_zero = pred_var_zero,
-                   bias_pred = pred_bias_pred, var_pred = pred_var_pred)
-  
-  out$importances = list(eff =   transf_imp(ranger::importance(rf_eff)),
-                         pred =   transf_imp(ranger::importance(rf_pred)),
-                         zero = transf_imp(ranger::importance(rf_zero)),
-                         bias_effect = transf_imp(ranger::importance(rf_bias_effect)),
-                         var_effect = transf_imp(ranger::importance(rf_var_effect)),
-                         bias_zero = transf_imp(ranger::importance(rf_bias_zero)),
-                         var_zero = transf_imp(ranger::importance(rf_bias_zero)),
-                         bias_pred = transf_imp(ranger::importance(rf_bias_pred)),
-                         var_pred = transf_imp(ranger::importance(rf_bias_pred))                           
-                         )
-  
-  out$hyper = list(eff = parameter[pred_eff,], pred = parameter[pred_pred,], 
-                   bias_effect = parameter[pred_bias_effect,], var_effect = parameter[pred_var_effect,],
-                   bias_zero = parameter[pred_bias_zero,], var_zero = parameter[pred_var_zero,],
-                   bias_pred = parameter[pred_bias_pred,], var_pred = parameter[pred_var_pred,])
-  
-  out$data =   rbind(
-    as.data.frame(coefs_eff[,c(1, 2, 4)]) %>% mutate(group = "eff") %>% mutate(hyper = rownames(coefs_eff), algorithm = method),
-    as.data.frame(coefs_pred[,c(1, 2, 4)]) %>% mutate(group = "pred") %>% mutate(hyper = rownames(coefs_pred), algorithm = method),
-    as.data.frame(coefs_zero[,c(1, 2, 4)]) %>% mutate(group = "zero") %>% mutate(hyper = rownames(coefs_pred), algorithm = method),
-    as.data.frame(coefs_bias_effect[,c(1, 2, 4)]) %>% mutate(group = "bias_effect") %>% mutate(hyper = rownames(coefs_pred), algorithm = method),
-    as.data.frame(coefs_var_effect[,c(1, 2, 4)]) %>% mutate(group = "var_effect") %>% mutate(hyper = rownames(coefs_pred), algorithm = method),
-    as.data.frame(coefs_bias_zero[,c(1, 2, 4)]) %>% mutate(group = "bias_zero") %>% mutate(hyper = rownames(coefs_pred), algorithm = method),
-    as.data.frame(coefs_var_zero[,c(1, 2, 4)]) %>% mutate(group = "var_zero") %>% mutate(hyper = rownames(coefs_pred), algorithm = method),
-    as.data.frame(coefs_bias_pred[,c(1, 2, 4)]) %>% mutate(group = "bias_pred") %>% mutate(hyper = rownames(coefs_pred), algorithm = method),
-    as.data.frame(coefs_var_pred[,c(1, 2, 4)]) %>% mutate(group = "var_pred") %>% mutate(hyper = rownames(coefs_pred), algorithm = method)    
-  )
-  
-  return( out )
-}
+library(tidyverse)
+results = readRDS("results/hyper_parameter_aggregation_100.RDS")
+data = do.call(rbind, lapply(results, function(r) r$data))
 ```
-
-
-```{r}
-for(n in c(50, 100, 600, 2000)) {
-  paths = c(
-    paste0("results/NN_pars_",n,"_100_replicate.RDS"),
-    paste0("results/BRT_pars_",n,"_100_replicate.RDS"),
-    paste0("results/RF_pars_",n,"_100_replicate.RDS"),
-    paste0("results/Elastic_net_pars_",n,"_100_replicate.RDS")
-  )
-  methods = c("NN", "BRT", "RF", "Elastic_net")
-  results = lapply(1:4, get_coefficients)
-  data = do.call(rbind, lapply(1:4, function(i) results[[i]]$data ))
-  saveRDS(results, paste0("results/hyper_parameter_aggregation_",n,".RDS"))
-}
-```
-
 
 ```{r}
 #| label: Fig_3c
@@ -570,6 +346,9 @@ for(n in c(50, 100, 600, 2000)) {
 #| fig-width: 10
 #| fig-height: 6.7
 #| warning: false
+
+# results = readRDS("results/hyper_parameter_aggregation_100.RDS")
+# data = do.call(rbind, lapply(results, function(r) r$data))
 
 labels = c("CELU",
            "ELU",
@@ -612,150 +391,18 @@ names(labels) = c("activationscelu",
                   "max.depth",
                   "regularization.factor")
 
-
-draw_eff = function(y, x, eff, se, col = "black") {
-  segments(x+eff+1.96*se, y, x+eff-1.96*se, y)
-  #segments(x+eff+1.96*se, y+0.01, x+eff+1.96*se, y-0.01)
-  #segments(x+eff-1.96*se, y+0.01, x+eff-1.96*se, y-0.01)
-  points(x+eff, y, cex = 0.7, pch = 19, col = col)
-}
-
-draw_bar = function(y, x, eff, w = 0.01) {
-  rect(x, ybottom = y-w, ytop = y+w, xright = x+eff, 
-       col = "#32312F", 
-       border = "#000000")
-}
-
-draw_line = function(y, x,se, xr , yr, to_y, p = NULL) {
-  y = y - mean(y)
-  yy = scales::rescale(y, to = yr, from = to_y)
-  conf =  scales::rescale(c(y+1.96*se, rev(y-1.96*se)), to = yr, from = to_y)
-  xx = scales::rescale(x, to = xr, from = c(min(x), max(x)))
-  if(!is.null(p)) pp = scales::rescale(p, to = xr, from = c(min(x), max(x)))
-  polygon(c(xx, rev(xx)), conf, col = "#1124524E", border = NA)
-  points(xx, yy, type = "l", col = "#24526E", lwd = 3)
-  if(!is.null(p)) points(pp, predict(gam(yy~s(xx)), newdata = data.frame(xx = pp)), col = "#FF6F57", cex = 1, pch = 8)
-}
-
-
-cairo_pdf("plots/Fig_44.pdf", width = 9, height = 10)
-
-par(mar = c(2, 9, 4, 2))
-plot(NULL, NULL, xlim = c(0, 1), ylim = c(0, 1), 
-     xaxt = "n", yaxt="n", xlab = "", ylab = "",  xaxs = "i", yaxs = "i")
+cairo_pdf("plots/Fig_4.pdf", width = 9, height = 10)
 tck = 0.015
 mgp = 0.07
-abline(v = 0.495)
-abline(v = 0.505)
-segments(y0 = yys[7]-0.015, y1 = yys[7]-0.015, x0 = 0.0, x1 = 0.3, lty = 2)
-segments(y0 = yys[7+1]+0.015, y1 = yys[7+1]+0.015, x0 = 0.0, x1 = 0.3, lty = 2)
-segments(y0 = yys[7]-0.015, y1 = yys[7]-0.015, x0 = 0.0+0.5, x1 = 0.3+0.5, lty = 2)
-segments(y0 = yys[7+1]+0.015, y1 = yys[7+1]+0.015, x0 = 0.0+0.5, x1 = 0.3+0.5, lty = 2)
-rect(0.4950-0.001, 0, 0.505+0.001, 1.00, col = "black", xpd = NA, border = "black")
-rect(0.4951, -0.05, 0.5049, 1.05, col = "white", xpd = NA, border = "white")
-abline(v = 0.30)
-text(x = 0.22, y = yys[1]*0.990, pos = 3, label = "Coefs", xpd = NA)
-text(x = 0.22+0.5, y = yys[1]*0.990, pos = 3, label = "Coefs", xpd = NA)
-text(x = 0.425, y = yys[1]*0.990, pos = 3, label = "VI", xpd = NA)
-text(x = 0.425+0.5, y = yys[1]*0.990, pos = 3, label = "VI", xpd = NA)
-ytop = 1.03
-text(x = 0.25, y = ytop, pos = 3, label = "Effect", xpd = NA, font = 2)
-text(x = 0.25+0.5, y = ytop, pos = 3, label = "Prediction", xpd = NA, font = 2)
-abline(v = 0.30+0.5)
-yys = c(seq(0.97, 0.815, length.out = 7), seq(0.785-0.04, 0.03, length.out = 16))
-counter1 = counter2 = 1
-methods = c("NN", "BRT", "RF", "Elastic_net")
-eff_range = list(
-  eff_range2 = c(-0.5, 0.5),
-  eff_range1 = c(-0.04, 0.04)
-)
-vi_range = list(
-  c(0, 0.04),
-  c(0, 2.5)
-)
-to_y2 = c(-0.3, 0.3)*2
-to_y = list(to_y2, to_y2*3)
-xr = c(0.05, 0.25)
-xr1 = c(0.01, 0.145)
-xr2 = c(0.165, 0.29)
-xr_ranges = list(xr1, xr2)
-segments(0.15, 1.0, 0.15, y1 =  0.5*(yys[7+1]+yys[7]), lty = 2,  col = "#AAAAAA")
-segments(0.15+0.5, 1.0, 0.15+0.5, y1 =  0.5*(yys[7+1]+yys[7]), lty = 2, col = "#AAAAAA")
-segments(0.15, yys[7]-0.015, 0.15, y1 =  0, lty = 1,  col = "#AAAAAA")
-segments(0.15+0.5,  yys[7]-0.015, 0.15+0.5, y1 = 0, lty =1, col = "#AAAAAA")
-groups = c("bias_effect", "bias_pred", "zero")
-groups2 = c("eff", "pred", "zero")
-for(column in 1:2) {
-  counter1 = counter2 = 1
-  for(m in 1:4) {
-    method_tmp = methods[m]
-    NN_tmp_eff = data %>% filter(algorithm == method_tmp) %>% filter(group == groups[column])
-    if(m == 1) {
-      NN_tmp_eff = NN_tmp_eff[c(1:7, 8, 9, 10, 11, 12),]
-    }
-    NN_imp_eff = results[[m]]$importances[groups2[column]][[1]]
-    for(i in 1:nrow(NN_tmp_eff)) {
-      ## Eff
-      if( (i < 8) & (m == 1) ) {
-        eff = NN_tmp_eff[i, 1]
-        eff = scales::rescale(eff, to = c(-0.18, 0.18), from = eff_range[[column]])
-        ses = scales::rescale(NN_tmp_eff[i, 2], to = c(-0.18, 0.18), from = eff_range[[column]])
-        col = "black"
-        if(i == which.min(NN_tmp_eff[1:7,1])) col = "#FF6F57"
-        draw_eff(eff = eff, se = ses, x = 0.15+(column-1)*0.5, y = yys[counter1], col = col)
-      } else {
-          n = i
-          if(m == 1) n = n - 7
-          for(j in 1:2) {
-            v = c("_effect", "_pred")[column]
-            gam_eff = results[[m]][paste0("gam_", c("bias", "var")[j], v)][[1]]
-            obj = plot(sm(getViz( gam_eff ), n))
-            x = obj$data$fit$x
-            y = obj$data$fit$y
-            se = obj$data$fit$se
-            #best_point = results[[m]]$tmp[ results[[m]]$preds[[paste0(c("bias", "var")[j], v)]],i]
-            best_point = results[[m]]$tmp[ results[[m]]$preds[[groups2[[column]]]],i]
-            #if(j == 2) best_point = NULL
-            draw_line(y, x, se, xr = xr_ranges[[j]]+(column-1)*0.5,
-                      to_y = results[[m]][paste0("range_", c("bias", "var")[j], v)][[1]],
-                      yr = c(yys[counter1]+abs(diff(yys)[10])*0.5-0.004, yys[counter1]-abs(diff(yys)[10])*0.5+0.004)[c(2, 1)],
-                    p = best_point)
-          }
-      }
-      ## VI
-      imp = (NN_imp_eff %>% filter(Feature == NN_tmp_eff$hyper[i]) %>% select(Gain))$Gain
-      if(length(imp) == 0) imp =0
-      imp = scales::rescale(imp, to = c(0, 0.2), from = vi_range[[column]])
-      draw_bar(x = 0.3+(column-1)*0.5,eff= imp, y = yys[counter1])
-      text(xpd = NA, pos = 2, y = yys[counter1]*0.99, x = 0.0, label = labels[NN_tmp_eff$hyper[i]])
-      counter1 = counter1 + 1
-      print(NN_tmp_eff$hyper[i])
-    }
-    if(m < 4) abline(h= 0.5*(yys[counter1]+yys[counter1-1]), lty = 1)
-  }
-}
-rect(0.4951, -0.05, 0.5049, 1.05, col = "white", xpd = NA, border = "white")
+eff_range = list(eff_range2 = c(-0.5, 0.5),eff_range1 = c(-0.04, 0.04))
+vi_range = list(c(0, 0.04), c(0, 2.5))
+plot_tuning(data = data, results = results, eff_range = eff_range, vi_range = vi_range)
 axis(3, at = scales::rescale(c(-0.25, 0.0, 0.25), to = c(0.02, 0.28), from = eff_range[[1]]), labels = c(-0.25, 0.0, 0.25), tck = tck, mgp = c(3, mgp, 0))
 axis(3, at = scales::rescale(c(-0.02, 0.0, 0.02), to = c(0.02, 0.28), from = eff_range[[2]])+0.5, labels = c(-0.02, 0.0, 0.02), tck = tck, mgp = c(3, mgp, 0))
 
 axis(3, at = scales::rescale(c(0, log10(0.03+1), log10(0.08+1)), to = c(0.3, 0.5), from = vi_range[[1]]),  
      labels = c(0, 0.03, 0.08), tck = tck, mgp = c(3, mgp, 0))
 axis(3, at = scales::rescale(c(0, log10(10+1), log10(130+1)), to = c(0.3, 0.5), from = vi_range[[2]])+0.5, labels = c(0, 10, 130), tck = tck, mgp = c(3, mgp, 0))
-text(pos = 4, x = 1.0, y = yys[5], label = "Neural Network", xpd = NA, srt = -90)
-text(pos = 4, x = 1.0, y = yys[14], label = "BRT", xpd = NA, srt = -90)
-text(pos = 4, x = 1.0, y = yys[18], label = "RF", xpd = NA, srt = -90)
-text(pos = 4, x = 1.0, y = yys[22], label = "EN", xpd = NA, srt = -90)
-#text(x = 0.02, y = 1.05, pos = 2, label = "A", font = 2, cex = 1.3 , xpd = NA)
-#text(x = 0.02+0.5, y = 1.05, pos = 2, label = "B", font = 2, cex = 1.3 , xpd = NA)
-text(x = 0.15, y = 0, pos = 1, label = "hyper-parameter range", xpd = NA)
-text(x = 0.15+0.5, y = 0, pos = 1, label = "hyper-parameter range", xpd = NA)
-text(x = 0.15/2, y = yys[7]-0.02, pos = 1, label = "Bias", xpd = NA)
-text(x = 0.15/2+0.15, y = yys[7]-0.02, pos = 1, label = "Variance", xpd = NA)
-text(x = 0.15/2+0.5, y = yys[7]-0.02, pos = 1, label = "Bias", xpd = NA)
-text(x = 0.15/2+0.15+0.5, y = yys[7]-0.02, pos = 1, label = "Variance", xpd = NA)
-
-
-
 dev.off()
 
 ```
@@ -781,7 +428,7 @@ sapply(1:3, function(k) {
   )
   methods = c("NN", "BRT", "RF", "Elastic_net")
   results = lapply(1:4, function(i) {
-    tmp = get_coefficients(i, gam = FALSE)$hyper$eff %>% select(-var_effect, -bias_zero, -var_zero, -bias_pred, -var_pred, -mse_eff, -mse_zero, -bias_effect, -mse_pred)
+    tmp = get_coefficients(i, gam = FALSE, path = paths[i], method = methods[i])$hyper$eff %>% select(-var_effect, -bias_zero, -var_zero, -bias_pred, -var_pred, -mse_eff, -mse_zero, -bias_effect, -mse_pred)
     names(tmp) = paste0(c("NN", "BRT", "RF", "EN")[i], "_", names(tmp))
     return(tmp)
     })
@@ -808,7 +455,7 @@ sapply(1:3, function(k) {
   )
   methods = c("NN", "BRT", "RF", "Elastic_net")
   results = lapply(1:4, function(i) {
-    tmp = get_coefficients(i, gam=FALSE)$hyper$pred %>% select(-var_effect, -bias_zero, -var_zero, -bias_pred, -var_pred, -mse_eff, -mse_zero, -bias_effect, -mse_pred)
+    tmp = get_coefficients(i, gam=FALSE, path = paths[i], method = methods[i])$hyper$pred %>% select(-var_effect, -bias_zero, -var_zero, -bias_pred, -var_pred, -mse_eff, -mse_zero, -bias_effect, -mse_pred)
     names(tmp) = paste0(c("NN", "BRT", "RF", "EN")[i], "_", names(tmp))
     return(tmp)
     })
@@ -825,7 +472,6 @@ sapply(1:3, function(k) {
 })
 
 ```
-
 
 ### Case Study
 
@@ -929,7 +575,3 @@ levels(data$name) = c("Conventional ML 1", "Conventional ML 2", "Causal ML")
 outofsample_conf = data
 
 ```
-
-
-
-

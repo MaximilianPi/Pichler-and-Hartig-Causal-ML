@@ -21,9 +21,9 @@ source("code/Scenarios.R")
 task =   # r , X1, X2
   matrix(c(
     0.0, 1.0, 0.5,
-    0.5, 1.0, 0.5,    
     0.9, 1.0, 0.5,
-    0.9, 1.0, 0.0
+    0.9, 1.0, 0.0,
+    0.0, 1.0, 0.0
   ), ncol = 3, byrow = TRUE)
 
 results = 
