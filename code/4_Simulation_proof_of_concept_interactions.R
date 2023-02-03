@@ -35,16 +35,16 @@ get_result = function(sim ) {
       
       data = sim()
       
-      train = data[1:1000,]
-      test = data[1001:2000,]
+      train = data[1:(nrow(data)/2L),]
+      test = data[(nrow(data)/2L+1):nrow(data),]
       
       result = vector("list", 8L)
       
       mse = function(y, y_hat) (mean((y-y_hat)**2))
       
       ## LM
-      m = lm(Y~., data = data.frame(train))
-      eff = (marginalEffects(m, interactions = FALSE)$mean)
+      m = lm(Y~.^2, data = data.frame(train))
+      eff = (marginalEffects(m, interactions = TRUE)$mean)
       eff = c(diag(eff), eff[1, 2])
       pred = predict(m, newdata = data.frame(test))
       result[[1]] = list(eff, mse(test[,1], pred))
@@ -53,7 +53,7 @@ get_result = function(sim ) {
       ## RF
       m = ranger(Y ~., data = data.frame(train), 
                  num.threads = 3L)
-      eff = (marginalEffects(m, data = data.frame(train), interactions = FALSE)$mean)
+      eff = (marginalEffects(m, data = data.frame(train), interactions = TRUE)$mean)
       eff = c(diag(eff), eff[1, 2])
       pred = predict(m, data = data.frame(test))$predictions
       result[[2]] = list(eff, mse(test[,1], pred))
@@ -64,7 +64,7 @@ get_result = function(sim ) {
                            nrounds = 100,
                            lambda = 0,
                            objective="reg:squarederror", nthread = 1, verbose = 0)
-      (eff = (marginalEffects(m, data = data.frame(train)[,-1], interactions = FALSE)$mean))
+      (eff = (marginalEffects(m, data = data.frame(train)[,-1], interactions = TRUE)$mean))
       eff = c(diag(eff), eff[1, 2])
       pred = predict(m, newdata = xgboost::xgb.DMatrix(test[,-1]))
       result[[3]] = list(eff, mse(test[,1], pred))
@@ -96,11 +96,10 @@ get_result = function(sim ) {
                     device = device,
                     lr_scheduler = config_lr_scheduler("reduce_on_plateau", factor = 0.80, patience = 7), early_stopping = 20)
       m$use_model_epoch = length(m$weights)      
-      eff = (marginalEffects(m, interactions = FALSE)$mean)
+      eff = (marginalEffects(m, interactions = TRUE)$mean)
       eff = c(diag(eff), eff[1, 2])      
       pred = predict(m, newdata = data.frame(test))
       result[[5]] = list(eff, mse(test[,1], pred))
-      
       
       
       
@@ -133,34 +132,20 @@ get_result = function(sim ) {
   return(result_list)
 }
 
-sim = function() simulate(r = 0.9, effs = c(0, 0, 0, 0, 1), inter = c(1),n = 2000)
+sim = function() simulate(r = 0.9, effs = c(1, 0, 0, 0, 1), inter = c(1),n = 2000)
 results = get_result(sim)
-saveRDS(results, "results/collinearity_0.90_interactions.RDS")
+saveRDS(results, "results/collinearity_0.90_interactions_1000.RDS")
 
-sim = function() simulate(effs = c(1.0, 0.0, 1.0, 0.0, 1.0), inter = c(1), r = 0.0,n = 2000)
+sim = function() simulate(effs = c(1.0, 0.0, 0.0, 0.0, 1.0), inter = c(1), r = 0.0,n = 2000)
 results = get_result(sim)
-saveRDS(results, "results/effects_interactions.RDS")
+saveRDS(results, "results/effects_interactions_1000.RDS")
 
 
-sim = function() simulate(r = 0.9, effs = c(1, -0.5, 0, 0, 1), inter = c(1),n = 2000)
+sim = function() simulate(r = 0.9, effs = c(1, 0, 0, 0, 1), inter = c(1),n = 10000)
 results = get_result(sim)
-saveRDS(results, "results/confounder_unequal_interactions.RDS")
+saveRDS(results, "results/collinearity_0.90_interactions_5000.RDS")
 
-sim = function() simulate(r = 0.9, effs = c(1, 0.5, 0, 0, 1), inter = c(1),n = 2000)
+sim = function() simulate(effs = c(1.0, 0.0, 0.0, 0.0, 1.0), inter = c(1), r = 0.0,n = 10000)
 results = get_result(sim)
-saveRDS(results, "results/confounder_interactions.RDS")
-
-
-sim = function() simulate(r = 0.5, effs = c(1, 0, 0, 0, 1), inter = c(1),n = 2000)
-results = get_result(sim)
-saveRDS(results, "results/collinearity_0.5_interactions.RDS")
-
-sim = function() simulate(r = 0.99, effs = c(1, 0, 0, 0, 1), inter = c(1),n = 2000)
-results = get_result(sim)
-saveRDS(results, "results/collinearity_0.99_interactions.RDS")
-
-
-sim = function() simulate( effs = c(0.0, 0.0, 0.0, 0.0, 0.0), inter = c(1), r = 0.0,n = 2000)
-results = get_result(sim)
-saveRDS(results, "results/no_effects_interactions.RDS")
+saveRDS(results, "results/effects_interactions_5000.RDS")
 

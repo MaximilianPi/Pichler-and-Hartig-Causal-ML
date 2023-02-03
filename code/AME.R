@@ -302,6 +302,29 @@ marginalEffects.naiveBRT= function(object, data, interactions=TRUE, epsilon = 0.
 }
 
 
+
+marginalEffectsGeneric= function(object, data, predict_func ,interactions=TRUE, epsilon = 0.1, max_indices = NULL, ...) {
+
+  result = AME(
+    data = data, 
+    predict_f = predict_func, 
+    model = object, 
+    obs_level = TRUE, interactions=interactions, 
+    epsilon = epsilon,
+    max_indices = max_indices
+  )
+  out = list()
+  out$result = result
+  out$mean = apply(result, 2:3, mean)
+  colnames(out$mean) = colnames(data)[1:ncol(out$mean)]
+  rownames(out$mean) = colnames(data)[1:ncol(out$mean)]
+  out$abs = apply(result, 2:3, function(d) mean(abs(d)))
+  out$sd = apply(result, 2:3, function(d) sd(d))
+  class(out) = "marginalEffects"
+  return(out)
+}
+
+
 print.marginalEffects = function(x, ...) {
   print(x$mean)
 }

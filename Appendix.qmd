@@ -310,19 +310,399 @@ legend("topright", lty = 1, col = cols, legend = c("X1 (true effect = 1.0)",
 
 Looking at the evolution of the total effect within a linear booster model (Fig. S2a), we found indeed that the first members of the ensemble absorb the effect of the collinear effect (effect of X1 is absorbed by X1, Fig. S2a), but as members are added to the ensemble, the collinear effect (X2) slowly recovers the effect of the stronger collinear effect until both are at their correct effect estimate (Fig. S2a). This retrieval works by reversing the sign of each member's effect, so that X1, which initially has an effect of 1.5 (because it absorbed the effect of X2), has small negative effects in subsequent trees, while X2, which is initially estimated at 0, has small positive effects (Fig. S2b).
 
-## Extending MCE to two-way interactions
 
-MCE can be extended to \$n\$-dimensions to detect $n$ way feature interactions. Here, we extended MCEs to two dimensions to detect two-way feature interactions by asking what the change is of $\hat{f}(\cdot)$ when features $x_m$ and $x_k$ change together:
+## Proof of concept - Additional results
 
-$$\mathbf{MCE}_{mk} = \frac{\partial^2 \hat{f} (\mathbf{X} )}{ \partial x_m \partial x_k }$$
+### Addtional scenarios
 
-We can approximate $\mathbf{MCE}_{mk}$ with the finite difference method:
 
-$$
-\mathbf{MCE}_{mk} \approx \frac{ \hat{f} (x_1, x_2, ..., x_m + h, x_k + h, ..., x_j ) }{2(h_m + h_k)} -  \frac{ \hat{f} (x_1, x_2, ..., x_m - h, x_k + h, ..., x_j ) }{2(h_m + h_k)} -  \frac{ \hat{f} (x_1, x_2, ..., x_m + h, x_k - h, ..., x_j ) }{2(h_m + h_k)} - \frac{ \hat{f} (x_1, x_2, ..., x_m - h, x_k - h, ..., x_j ) }{2(h_m + h_k)}
-$$
+```{r}
+#| echo: false
 
-$h_m$ and $h_k$ are set to $0.1 \cdot sd(x_m)$ and $0.1 \cdot sd(x_k)$. All features are centered and standardized.
+files =        c("collinearity_0.5.RDS", 
+                 "collinearity_0.90.RDS", 
+                 "collinearity_0.99.RDS", 
+                 "effects.RDS", 
+                 "no_effects.RDS", 
+                 "confounder_unequal.RDS", 
+                 "confounder.RDS")
+
+Results = 
+  lapply(files, function(f) {
+    confounder = readRDS(paste0("results/",f))
+    Result = do.call(rbind, lapply(1:8, function(j) (apply(abind::abind(lapply(1:50, function(i) confounder[[i]][[j]][[1]] ), along = 0L), 2, mean))))
+    colnames(Result) = LETTERS[1:5]
+    rownames(Result) = c("LM", "RF", "BRT", "NN", "Dropout", "l1", "l2", "l1l2")
+    return(Result)
+  })
+names(Results) = unlist(strsplit(files, ".RDS", TRUE))
+
+
+Results_rmse = 
+  lapply(files, function(f) {
+    confounder = readRDS(paste0("results/",f))
+    Result = do.call(rbind, lapply(1:8, function(j) (apply(abind::abind(lapply(1:50, function(i) confounder[[i]][[j]][[2]] ), along = 0L), 2, mean))))
+    colnames(Result) = "RMSE"
+    rownames(Result) = c("LM", "RF", "BRT", "NN", "Dropout","l1", "l2", "l1l2")
+    return(Result)
+  })
+names(Results_rmse) = unlist(strsplit(files, ".RDS", TRUE))
+
+RMSEs = round(do.call(cbind, Results_rmse), 3)
+colnames(RMSEs) = unlist(strsplit(files, ".RDS", TRUE))
+
+Results_sd = 
+  lapply(files, function(f) {
+    confounder = readRDS(paste0("results/",f))
+    Result = do.call(rbind, lapply(1:8, function(j) (apply(abind::abind(lapply(1:50, function(i) confounder[[i]][[j]][[1]] ), along = 0L), 2, sd))))
+    colnames(Result) = LETTERS[1:5]
+    rownames(Result) = c("LM", "RF", "BRT", "NN","Dropout", "l1", "l2", "l1l2")
+    return(Result)
+  })
+names(Results_sd) = unlist(strsplit(files, ".RDS", TRUE))
+
+
+
+```
+
+```{r}
+#| label: fig-Fig_S33
+#| fig-cap: "Bias on effect estimates for different ML algorithms in two different simulated causal simulations (a and b). Sample sizes are so large that stochastic effects can be excluded. Effects of the ML models were inferred using average conditional effects. Row a) shows results for simulations with with features (Pearson correlation factor = 0.5) with effect sizes (X~1~: 1.0, X~2~: -0.5, X~3~: 1.0). Row b) shows the results for simulations with X~1~ and X~2~ being strongly correlated (Pearson correlation factor = 0.99) but only X~1~ has an effect on y. "
+#| fig-width: 12
+#| fig-height: 7
+#| warning: false
+#| message: false
+
+parser = function(true, bias, pos = 1) {
+  if(pos == 1) { 
+    yp = 1.25
+    xp = 0.15
+  }
+  if(pos == 3) {
+    yp = 1.63
+    xp = -0.05
+  }
+  if(pos == 2) {
+    yp = 0.37
+    xp = -0.05
+  }
+  
+  bb = round(bias, 2)
+  if(bb > 0) { 
+    symb = "+" 
+    if(abs(bb) > 0.001) text(x = xp + 0.280, y = yp+0.01, pos = 4, symb, cex = 1.3, col = "#e60000", font = 2)
+  } else { 
+    symb = "-"
+      if(abs(bb) > 0.001) text(x = xp + 0.29, y = yp, pos = 4, symb, cex = 1.3, col = "#e60000", font = 2)
+    }
+  bb = abs(bb)
+   text(x = xp, y = yp, pos = 4,label = format(true, nsmall = 2), cex = 1.3)
+
+  if(bb> 0.001) text(x = xp+ 0.35, y = yp, pos = 4, label = format(bb, nsmall = 2), cex = 1.3, col = "#e60000", font = 1)
+}
+
+
+
+sc = c("collinearity_0.99", "confounder_unequal")
+
+#cairo_pdf("plots/Fig_2.pdf", width = 12, height = 7)
+
+par(mfcol = c(2,6), mar = c(5,0.5, 2, 1.4), oma = c(1, 2, 2, 1))
+labs =  c("LM","RF",  "BRT", "NN","Dropout", "l1", "l2", "Elastic-net")
+cex_fac = 1.3
+minArrow = function(x) sapply(x, function(xx) max(c(0.1, xx)))
+
+true_effs = matrix(c(
+  1, 0.0, 1,
+  1, -0.5, 1
+), 2, 3, byrow = TRUE)
+
+# A simulation
+g1 <- graph(c("x\U2081", "y", "x\U2082","y", "x\U2083", "y", "x\U2081", "x\U2082"),  
+            directed=TRUE ) 
+eqarrowPlot(g1, matrix(c(1,1,
+                       0,1,
+                       0,0,
+                       0,2), nrow = 4L, 2L, byrow = TRUE) , 
+            cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 2), 1.0)),
+            edge.arrow.size=minArrow(c(1.00, 0.5, 1.0, 0.9)),#abs(edges[c(1, 2, 5)]), 
+            edge.width=c(1.00, 0.5, 1.0, 0.5)*cex_fac,#abs(edges[c(1, 2, 5)])*cex_fac,
+            edge.label = rep("", 3), 
+            edge.label.cex = 1.4, 
+            edge.arrow.mode = c(rep(">", 3), "-"), 
+            edge.colors = c(rep("#B0A8B9", 1),"#B0A8B9","#B0A8B9", "#ffab02"))
+text(letters[2], cex = 1.9, x = -1.6, y = 1.5, xpd = NA, font = 2)
+text("Simulation", x = 0.3, y = 2.3, xpd = NA, cex = 1.4, pos = 3)
+parser(1.00, 0.0000, pos = 1)
+parser(-0.5, 0.0000, pos = 2)
+parser(1.00, 0.0000, pos = 3)  
+text("0.90", cex = 1.3, x = 0.74, y = 0.5, xpd = NA, font = 1, col = "#ff9902")
+segments(x0 = 1.4, x1 = 1.4, y0 = -0.5, y1 = 2.5, xpd = NA)
+
+
+
+# B simulation
+g1 <- graph(c("x\U2081", "y", "x\U2082","y", "x\U2083", "y", "x\U2081", "x\U2082"),  
+            directed=TRUE ) 
+eqarrowPlot(g1, matrix(c(1,1,
+                       0,1,
+                       0,0,
+                       0,2), nrow = 4L, 2L, byrow = TRUE) , 
+            cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 2), 1.0)),
+            edge.arrow.size=minArrow(c(1.00, 0.1, 1.0, 0.9)),#abs(edges[c(1, 2, 5)]), 
+            edge.width=c(1.00, 0.1, 1.0, 0.5)*cex_fac,#abs(edges[c(1, 2, 5)])*cex_fac,
+            edge.label = rep("", 3), 
+            edge.label.cex = 1.4, 
+            edge.arrow.mode = c(rep(">", 3), "-"), 
+            edge.colors = c(rep("#B0A8B9", 1),"#B0A8B9","#B0A8B9", "#ffab02"))
+text(letters[2], cex = 1.9, x = -1.6, y = 1.5, xpd = NA, font = 2)
+text("Simulation", x = 0.3, y = 2.3, xpd = NA, cex = 1.4, pos = 3)
+parser(1.00, 0.0000, pos = 1)
+parser(0.0, 0.0000, pos = 2)
+parser(1.00, 0.0000, pos = 3)  
+text("0.99", cex = 1.3, x = 0.74, y = 0.5, xpd = NA, font = 1, col = "#ff9902")
+segments(x0 = 1.4, x1 = 1.4, y0 = -0.5, y1 = 2.5, xpd = NA)
+points(x = 0, y = -0.55, col = "grey", xpd = NA, pch = 15, cex = 1.8)
+text(x = 0.1, y = -0.55, label = "True effect", xpd = NA, pos = 4, cex = 1.4)
+points(x = 0, y = -0.75, col = "#ffab02", xpd = NA, pch = 15, cex = 1.8)
+text(x = 0.1, y = -0.75, label = "Correlation", xpd = NA, pos = 4, cex = 1.4)
+for(i in c(1, 2, 3, 4, 8)) {
+  counter = 1
+  for(j in c(1, 2)) {
+
+    tmp = Results[[sc[j]]]
+    sd = Results_sd[[sc[j]]][i,]
+    edges = round(tmp[i,], 5)
+    bias = edges[c(1, 2, 5)] - true_effs[j,]
+    g1 = graph(c("x\U2081", "y", "x\U2082", "y", "x\U2083", "y"),  
+                directed=TRUE ) 
+    layout_as_tree(g1, root = "y", circular = TRUE, flip.y = TRUE)
+    eqarrowPlot(g1, matrix(c(1,1,
+                             0,1,
+                             0,0,
+                             0,2), nrow = 4L, 2L, byrow = TRUE) ,
+                cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 1), 1.0)),
+                edge.arrow.size=minArrow(abs(-true_effs[j,] - bias)),#abs(edges[c(1, 2, 5)]), 
+                edge.width=abs(-true_effs[j,] - bias)*cex_fac,#abs(edges[c(1, 2, 5)])*cex_fac,
+                edge.label = rep("",3),
+                edge.label.cex = 1.4,
+                edge.colors = ifelse(abs(bias) < 0.01, "#B0A8B9", "#e60000"))
+    parser(true_effs[j, 1], bias[1], pos = 1)
+    parser(true_effs[j, 2], bias[2], pos = 2)
+    parser(true_effs[j, 3], bias[3], pos = 3)
+    text(labs[i], x = 0, y = 2.3, xpd = NA, cex = 1.4, pos = 3)
+    if(i == 1) {
+      text(letters[counter], cex = 1.9, x = -2.2, y = 2.5, xpd = NA, font = 2)
+      counter = counter + 1
+    }
+
+  }
+  if(i == 3) {
+    points(x = 0-1, y = -1.1*0.5, col = "#e60000", xpd = NA, pch = 15, cex = 1.8)
+    text(x = 0.1-1, y = -1.1*0.5, label = "Bias", xpd = NA, pos = 4, cex = 1.4)
+  }
+}
+
+
+```
+
+
+### Additional models 
+
+
+```{r}
+#| label: fig-Fig_S34
+#| fig-cap: "Bias on effect estimates for different ML algorithms in two different simulated causal simulations (a and b). Sample sizes are so large that stochastic effects can be excluded. Effects of the ML models were inferred using average conditional effects. Row a) shows results for simulations with with features (Pearson correlation factor = 0.5) with effect sizes (X~1~: 1.0, X~2~: -0.5, X~3~: 1.0). Row b) shows the results for simulations with X~1~ and X~2~ being strongly correlated (Pearson correlation factor = 0.99) but only X~1~ has an effect on y. "
+#| fig-width: 9
+#| fig-height: 13
+#| warning: false
+#| message: false
+
+parser = function(true, bias, pos = 1) {
+  if(pos == 1) { 
+    yp = 1.25
+    xp = 0.15
+  }
+  if(pos == 3) {
+    yp = 1.63
+    xp = -0.05
+  }
+  if(pos == 2) {
+    yp = 0.37
+    xp = -0.05
+  }
+  
+  bb = round(bias, 2)
+  if(bb > 0) { 
+    symb = "+" 
+    if(abs(bb) > 0.001) text(x = xp + 0.280, y = yp+0.01, pos = 4, symb, cex = 1.3, col = "#e60000", font = 2)
+  } else { 
+    symb = "-"
+      if(abs(bb) > 0.001) text(x = xp + 0.29, y = yp, pos = 4, symb, cex = 1.3, col = "#e60000", font = 2)
+    }
+  bb = abs(bb)
+   text(x = xp, y = yp, pos = 4,label = format(true, nsmall = 2), cex = 1.3)
+
+  if(bb> 0.001) text(x = xp+ 0.35, y = yp, pos = 4, label = format(bb, nsmall = 2), cex = 1.3, col = "#e60000", font = 1)
+}
+
+
+
+sc = c("effects", "collinearity_0.90", "collinearity_0.99", "confounder_unequal")
+
+#cairo_pdf("plots/Fig_2.pdf", width = 12, height = 7)
+
+par(mfcol = c(4,4), mar = c(5,0.5, 2, 1.4), oma = c(1, 2, 2, 1))
+labs =  c("LM","RF",  "BRT", "NN","Dropout", "l1", "l2", "Elastic-net")
+cex_fac = 1.3
+minArrow = function(x) sapply(x, function(xx) max(c(0.1, xx)))
+
+true_effs = matrix(c(
+  1, 0.0, 1,
+  1, 0.0, 1,
+  1, 0.0, 1,
+  1, -0.5, 1
+), 4, 3, byrow = TRUE)
+
+
+# A simulation
+g1 = graph(c("x\U2081", "y", "x\U2082", "y", "x\U2083", "y"),  
+            directed=TRUE ) 
+layout_as_tree(g1, root = "y", circular = TRUE, flip.y = TRUE)
+eqarrowPlot(g1, matrix(c(1,1,
+                         0,1,
+                         0,0,
+                         0,2), nrow = 4L, 2L, byrow = TRUE) ,
+            cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 1), 1.0)),
+            edge.arrow.size=minArrow(c(1.00, 0.1, 1.0)),#abs(edges[c(1, 2, 5)]), 
+            edge.width=c(1.00, 0.1, 1.0)*cex_fac,#abs(edges[c(1, 2, 5)])*cex_fac,
+            edge.label = rep("",3),
+            edge.label.cex = 1.4,
+            edge.colors = rep("#B0A8B9", 3))
+  text(letters[1], cex = 1.9, x = -1.6, y = 1.5, xpd = NA, font = 2)
+  text("Simulation", x = 0.3, y = 2.3, xpd = NA, cex = 1.4, pos = 3)
+parser(1.00, 0.0000, pos = 1)
+parser(0.0, 0.0000, pos = 2)
+parser(1.00, 0.0000, pos = 3)  
+segments(x0 = 1.4, x1 = 1.4, y0 = -0.5, y1 = 2.5, xpd = NA)
+
+
+# B simulation
+g1 <- graph(c("x\U2081", "y", "x\U2082","y", "x\U2083", "y", "x\U2081", "x\U2082"),  
+            directed=TRUE ) 
+eqarrowPlot(g1, matrix(c(1,1,
+                       0,1,
+                       0,0,
+                       0,2), nrow = 4L, 2L, byrow = TRUE) , 
+            cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 2), 1.0)),
+            edge.arrow.size=minArrow(c(1.00, 0.1, 1.0, 0.9)),#abs(edges[c(1, 2, 5)]), 
+            edge.width=c(1.00, 0.1, 1.0, 0.5)*cex_fac,#abs(edges[c(1, 2, 5)])*cex_fac,
+            edge.label = rep("", 3), 
+            edge.label.cex = 1.4, 
+            edge.arrow.mode = c(rep(">", 3), "-"), 
+            edge.colors = c(rep("#B0A8B9", 1),"#B0A8B9","#B0A8B9", "#ffab02"))
+text(letters[2], cex = 1.9, x = -1.6, y = 1.5, xpd = NA, font = 2)
+text("Simulation", x = 0.3, y = 2.3, xpd = NA, cex = 1.4, pos = 3)
+parser(1.00, 0.0000, pos = 1)
+parser(0.0, 0.0000, pos = 2)
+parser(1.00, 0.0000, pos = 3)  
+text("0.90", cex = 1.3, x = 0.74, y = 0.5, xpd = NA, font = 1, col = "#ff9902")
+segments(x0 = 1.4, x1 = 1.4, y0 = -0.5, y1 = 2.5, xpd = NA)
+
+
+# C simulation
+g1 <- graph(c("x\U2081", "y", "x\U2082","y", "x\U2083", "y", "x\U2081", "x\U2082"),  
+            directed=TRUE ) 
+eqarrowPlot(g1, matrix(c(1,1,
+                       0,1,
+                       0,0,
+                       0,2), nrow = 4L, 2L, byrow = TRUE) , 
+            cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 2), 1.0)),
+            edge.arrow.size=minArrow(c(1.00, 0.5, 1.0, 0.9)),#abs(edges[c(1, 2, 5)]), 
+            edge.width=c(1.00, 0.5, 1.0, 0.5)*cex_fac,#abs(edges[c(1, 2, 5)])*cex_fac,
+            edge.label = rep("", 3), 
+            edge.label.cex = 1.4, 
+            edge.arrow.mode = c(rep(">", 3), "-"), 
+            edge.colors = c(rep("#B0A8B9", 1),"#B0A8B9","#B0A8B9", "#ffab02"))
+text(letters[2], cex = 1.9, x = -1.6, y = 1.5, xpd = NA, font = 2)
+text("Simulation", x = 0.3, y = 2.3, xpd = NA, cex = 1.4, pos = 3)
+parser(1.00, 0.0000, pos = 1)
+parser(-0.5, 0.0000, pos = 2)
+parser(1.00, 0.0000, pos = 3)  
+text("0.90", cex = 1.3, x = 0.74, y = 0.5, xpd = NA, font = 1, col = "#ff9902")
+segments(x0 = 1.4, x1 = 1.4, y0 = -0.5, y1 = 2.5, xpd = NA)
+
+
+
+# D simulation
+g1 <- graph(c("x\U2081", "y", "x\U2082","y", "x\U2083", "y", "x\U2081", "x\U2082"),  
+            directed=TRUE ) 
+eqarrowPlot(g1, matrix(c(1,1,
+                       0,1,
+                       0,0,
+                       0,2), nrow = 4L, 2L, byrow = TRUE) , 
+            cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 2), 1.0)),
+            edge.arrow.size=minArrow(c(1.00, 0.1, 1.0, 0.9)),#abs(edges[c(1, 2, 5)]), 
+            edge.width=c(1.00, 0.1, 1.0, 0.5)*cex_fac,#abs(edges[c(1, 2, 5)])*cex_fac,
+            edge.label = rep("", 3), 
+            edge.label.cex = 1.4, 
+            edge.arrow.mode = c(rep(">", 3), "-"), 
+            edge.colors = c(rep("#B0A8B9", 1),"#B0A8B9","#B0A8B9", "#ffab02"))
+text(letters[2], cex = 1.9, x = -1.6, y = 1.5, xpd = NA, font = 2)
+text("Simulation", x = 0.3, y = 2.3, xpd = NA, cex = 1.4, pos = 3)
+parser(1.00, 0.0000, pos = 1)
+parser(0.0, 0.0000, pos = 2)
+parser(1.00, 0.0000, pos = 3)  
+text("0.99", cex = 1.3, x = 0.74, y = 0.5, xpd = NA, font = 1, col = "#ff9902")
+segments(x0 = 1.4, x1 = 1.4, y0 = -0.5, y1 = 2.5, xpd = NA)
+points(x = 0, y = -0.55, col = "grey", xpd = NA, pch = 15, cex = 1.8)
+text(x = 0.1, y = -0.55, label = "True effect", xpd = NA, pos = 4, cex = 1.4)
+points(x = 0, y = -0.75, col = "#ffab02", xpd = NA, pch = 15, cex = 1.8)
+text(x = 0.1, y = -0.75, label = "Correlation", xpd = NA, pos = 4, cex = 1.4)
+for(i in c(5, 6, 7)) {
+  counter = 1
+  for(j in c(1, 2, 3, 4)) {
+
+    tmp = Results[[sc[j]]]
+    sd = Results_sd[[sc[j]]][i,]
+    edges = round(tmp[i,], 5)
+    bias = edges[c(1, 2, 5)] - true_effs[j,]
+    g1 = graph(c("x\U2081", "y", "x\U2082", "y", "x\U2083", "y"),  
+                directed=TRUE ) 
+    layout_as_tree(g1, root = "y", circular = TRUE, flip.y = TRUE)
+    eqarrowPlot(g1, matrix(c(1,1,
+                             0,1,
+                             0,0,
+                             0,2), nrow = 4L, 2L, byrow = TRUE) ,
+                cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 1), 1.0)),
+                edge.arrow.size=minArrow(abs(-true_effs[j,] - bias)),#abs(edges[c(1, 2, 5)]), 
+                edge.width=abs(-true_effs[j,] - bias)*cex_fac,#abs(edges[c(1, 2, 5)])*cex_fac,
+                edge.label = rep("",3),
+                edge.label.cex = 1.4,
+                edge.colors = ifelse(abs(bias) < 0.01, "#B0A8B9", "#e60000"))
+    parser(true_effs[j, 1], bias[1], pos = 1)
+    parser(true_effs[j, 2], bias[2], pos = 2)
+    parser(true_effs[j, 3], bias[3], pos = 3)
+    text(labs[i], x = 0, y = 2.3, xpd = NA, cex = 1.4, pos = 3)
+    if(i == 1) {
+      text(letters[counter], cex = 1.9, x = -2.2, y = 2.5, xpd = NA, font = 2)
+      counter = counter + 1
+    }
+
+  }
+  if(i == 3) {
+    points(x = 0-1, y = -1.1*0.5, col = "#e60000", xpd = NA, pch = 15, cex = 1.8)
+    text(x = 0.1-1, y = -1.1*0.5, label = "Bias", xpd = NA, pos = 4, cex = 1.4)
+  }
+}
+
+
+```
+
+
+
+
+
 
 ## Hyperparameter tuning
 
@@ -759,533 +1139,86 @@ g1
 ```
 
 
+## Proof of concept - Inferring interactions
 
-## Detecting interactions
 
+### Extending MCE to two-way interactions
 
+MCE can be extended to \$n\$-dimensions to detect $n$ way feature interactions. Here, we extended MCEs to two dimensions to detect two-way feature interactions by asking what the change is of $\hat{f}(\cdot)$ when features $x_m$ and $x_k$ change together:
 
+$$\mathbf{MCE}_{mk} = \frac{\partial^2 \hat{f} (\mathbf{X} )}{ \partial x_m \partial x_k }$$
 
-<!-- ## Proof of concept - Additional results -->
+We can approximate $\mathbf{MCE}_{mk}$ with the finite difference method:
 
-<!-- ```{r} -->
+$$
+\mathbf{MCE}_{mk} \approx \frac{ \hat{f} (x_1, x_2, ..., x_m + h, x_k + h, ..., x_j ) }{2(h_m + h_k)} -  \frac{ \hat{f} (x_1, x_2, ..., x_m - h, x_k + h, ..., x_j ) }{2(h_m + h_k)} -  \frac{ \hat{f} (x_1, x_2, ..., x_m + h, x_k - h, ..., x_j ) }{2(h_m + h_k)} - \frac{ \hat{f} (x_1, x_2, ..., x_m - h, x_k - h, ..., x_j ) }{2(h_m + h_k)}
+$$
 
-<!-- #| echo: false -->
+$h_m$ and $h_k$ are set to $0.1 \cdot sd(x_m)$ and $0.1 \cdot sd(x_k)$. All features are centered and standardized.
 
-<!-- files =        c("collinearity_0.5.RDS", -->
 
-<!--                  "collinearity_0.90.RDS", -->
+### Proof of concept simulations
 
-<!--                  "collinearity_0.99.RDS", -->
+To test the ability of ML algorithms to identify feature-feature interactions, we repeated the proof-of-concept simulations, but with an interaction between X~1~ and X~2~. The data generation model was $Y\sim 1.0\cdot X_1 + 1.0\cdot X_5 + 1.0\cdot (X_1 \cdot X_2) + \epsilon, epsilon \sim N(0, 1.0) $. We simulated two scenarios, in the first ("collinear") X~1~ and X~2~ were collinear (Pearson correlation factor = 0.9) and in the second without collinearity between the features. 
 
-<!--                  "effects.RDS", -->
+We sampled 1000 and 5000 observations from each scenario. The ML algorithms (RF, BRT, NN, and NN with dropout) were fit to the data without feature engineering the feature interactions (because ML algorithms are known to be able to infer interactions automatically), while the regression algorithms (LM, l1, l2, and elastic-net) received all combinatorially possible feature interactions as possible features. All effects were inferred using ACE. The bias was calculated for the interaction X~1~:X~2~.
 
-<!--                  "no_effects.RDS", -->
+```{r}
+#| warning: false
+#| message: false
+collinear_results_1000 = readRDS("results/collinearity_0.90_interactions_1000.RDS")
+collinear_results_5000 = readRDS("results/collinearity_0.90_interactions_5000.RDS")
+effect_results_1000 = readRDS("results/effects_interactions_1000.RDS")
+effect_results_5000 = readRDS("results/effects_interactions_5000.RDS")
 
-<!--                  "confounder_unequal.RDS", -->
 
-<!--                  "confounder.RDS") -->
+transform_data = function(tmp, N = 1000, scenario = "effects") {
+  tmp = t(apply(abind::abind(lapply(1:50, function(i) { sapply(1:8, function(j)  tmp[[i]][[j]][[1]][c(1,2, 6)] ) } ), along = 0L), 2:3, mean))
+  
+  colnames(tmp) = c("X1", "X2", "X1:X2")
+  tmp = data.frame(tmp)
+  tmp[,1] = 1-tmp[,1]
+  tmp[,3] = 1 - tmp[,3]
+  tmp$algorithm = c("LM", "RF", "BRT", "NN","NN Dropout", "L1", "L2", "EN")
+  tmp$N = N
+  tmp$scenario = scenario
+  return(tmp)
+}
 
-<!-- Results = -->
 
-<!--   lapply(files, function(f) { -->
+collinear_res_1000 = transform_data(collinear_results_1000, 1000, "collinear")
+collinear_res_5000 = transform_data(collinear_results_5000, 5000, "collinear")
+effect_res_1000 = transform_data(effect_results_1000, 1000, "effect")
+effect_res_5000 = transform_data(effect_results_5000, 5000, "effect")
 
-<!--     confounder = readRDS(paste0("results/",f)) -->
 
-<!--     Result = do.call(rbind, lapply(1:8, function(j) (apply(abind::abind(lapply(1:100, function(i) confounder[[i]][[j]][[1]] ), along = 0L), 2, mean)))) -->
+results = rbind(collinear_res_1000, collinear_res_5000, effect_res_1000, effect_res_5000)
+res = results %>% 
+  pivot_longer(cols = c(X1, X2, X1.X2)) %>% 
+  mutate(algorithm = as.factor(algorithm), scenario = as.factor(scenario), name = as.factor(name))
+res$algorithm = forcats::lvls_reorder(res$algorithm, c(8, 1, 6, 7, 5, 3, 4, 2))
+res$name = forcats::lvls_reorder(res$name, c(1, 3, 2))
+res$N = as.factor(res$N)
+```
 
-<!--     colnames(Result) = LETTERS[1:5] -->
+```{r}
+#| label: fig-Fig_S55
+#| fig-cap: "Bias of proof of concept simulations in inferring two-way interactions between features. First panel shows results for simulations (200 repititions) for 1000 and 5000 observations with collinear features (Pearson correlation factor = 0.9 between X~1~ and X~2~). Second panel shows results for simulations (200 repititions) for 1000 and 5000 observations with without collinear. Red bars correspond to 1000 observations and blue bars to 5000 observations. "
+#| fig-width: 7
+#| fig-height: 6
+#| warning: false
+#| message: false
 
-<!--     rownames(Result) = c("LM", "RF", "BRT", "NN", "Dropout", "l1", "l2", "l1l2") -->
+ggplot(data = res %>% filter(name == "X1.X2"), aes(x = algorithm, fill = N, y = value)) + 
+  geom_bar(position="dodge", stat="identity") +
+  facet_grid(~scenario) +
+  theme_bw() + 
+  ylab("Bias") +
+  theme(legend.position = c(.85, 0.76)) +
+  theme(strip.background =element_rect(fill="white"))
+```
 
-<!--     return(Result) -->
 
-<!--   }) -->
-
-<!-- names(Results) = unlist(strsplit(files, ".RDS", TRUE)) -->
-
-<!-- Results_rmse = -->
-
-<!--   lapply(files, function(f) { -->
-
-<!--     confounder = readRDS(paste0("results/",f)) -->
-
-<!--     Result = do.call(rbind, lapply(1:8, function(j) (apply(abind::abind(lapply(1:100, function(i) confounder[[i]][[j]][[2]] ), along = 0L), 2, mean)))) -->
-
-<!--     #colnames(Result) = LETTERS[1:5] -->
-
-<!--     rownames(Result) = c("LM", "RF", "BRT", "NN", "Dropout", "l1", "l2", "l1l2") -->
-
-<!--     return(Result) -->
-
-<!--   }) -->
-
-<!-- names(Results_rmse) = unlist(strsplit(files, ".RDS", TRUE)) -->
-
-<!-- Results_rmse_sd = -->
-
-<!--   lapply(files, function(f) { -->
-
-<!--     confounder = readRDS(paste0("results/",f)) -->
-
-<!--     Result = do.call(rbind, lapply(1:8, function(j) (apply(abind::abind(lapply(1:100, function(i) confounder[[i]][[j]][[2]] ), along = 0L), 2, sd)))) -->
-
-<!--     #colnames(Result) = LETTERS[1:5] -->
-
-<!--     rownames(Result) = c("LM", "RF", "BRT", "NN", "Dropout", "l1", "l2", "l1l2") -->
-
-<!--     return(Result) -->
-
-<!--   }) -->
-
-<!-- names(Results_rmse_sd) = unlist(strsplit(files, ".RDS", TRUE)) -->
-
-<!-- Results_sd = -->
-
-<!--   lapply(files, function(f) { -->
-
-<!--     confounder = readRDS(paste0("results/",f)) -->
-
-<!--     Result = do.call(rbind, lapply(1:8, function(j) (apply(abind::abind(lapply(1:100, function(i) confounder[[i]][[j]][[1]] ), along = 0L), 2, sd)))) -->
-
-<!--     colnames(Result) = LETTERS[1:5] -->
-
-<!--     rownames(Result) = c("LM", "RF", "BRT", "NN", "Dropout", "l1", "l2", "l1l2") -->
-
-<!--     return(Result) -->
-
-<!--   }) -->
-
-<!-- names(Results_sd) = unlist(strsplit(files, ".RDS", TRUE)) -->
-
-<!-- layout = matrix(c(0,10, -->
-
-<!--                   0,5, -->
-
-<!--                   0,0, -->
-
-<!--                   5,5), nrow = 4L, 2L, byrow = TRUE) -->
-
-<!-- ``` -->
-
-<!-- All models (Fig. 2) showed small variances $<0.01$ (Fig. S7) -->
-
-<!-- ```{r} -->
-
-<!-- #| label: fig-Fig_S7 -->
-
-<!-- #| fig-cap: 'Variances of effect estimates for different ML algorithms in three different simulated causal simulations (a, b, and c). Sample sizes are so large that stochastic effects can be excluded. Effects of the ML models were inferred using marginal conditional effects. Row a) shows results for simulations with uncorrelated features with effect sizes (x~1~: 1.0, x~2~: 0.5, x~3~: 1.0). Row b) shows the results for simulations with x~1~ and x~2~ being strongly correlated (Pearson correlation factor = 0.9) but only x~1~ has an effect on y (mediator) and row c) shows the results for x~1~ and x~2~ being strongly correlated (Pearson correlation factor = 0.9 with x~1~ and x~2~ having effects on y (confounder scenario)' -->
-
-<!-- #| fig-width: 10 -->
-
-<!-- #| fig-height: 9 -->
-
-<!-- sc = c("no_effects", "effects", "confounder_unequal", "collinearity_0.90") -->
-
-<!-- algorithms = c("LM","RF",  "BRT", "NN","Dropout", "l1", "l2", "l1l2") -->
-
-<!-- par(mfcol = c(3,6), mar = c(5,0.5, 2, 1.4), oma = c(1, 2, 2, 1)) -->
-
-<!-- labs =  c("LM","RF",  "BRT", "NN", "Dropout", "l1", "l2", "Elastic-net") -->
-
-<!-- #plot_scenarios(1.0) -->
-
-<!-- #dev.off() -->
-
-<!-- cex_fac = 1.3 -->
-
-<!-- plot_scenarios(1.0, layout = matrix(c(1,1, -->
-
-<!--                              0,1, -->
-
-<!--                              0,0, -->
-
-<!--                              0,2), nrow = 4L, 2L, byrow = TRUE)) -->
-
-<!-- true_effs = matrix(c( -->
-
-<!--   NA, NA, NA, -->
-
-<!--   0, 0.0, 0, -->
-
-<!--   1, 1, 1, -->
-
-<!--   1, 0, 1 -->
-
-<!-- ), 4, 3, byrow = TRUE) -->
-
-<!-- for(i in c(1, 2, 3, 4, 8)) { -->
-
-<!--   counter = 1 -->
-
-<!--   for(j in c(2, 4, 3)) { -->
-
-<!--     tmp = Results_sd[[sc[j]]]**2 -->
-
-<!--     sd = Results_sd[[sc[j]]][i,] -->
-
-<!--     edges = round(tmp[i,], 5) -->
-
-<!--     bias = edges[c(1, 2, 5)] #- true_effs[j,] -->
-
-<!--     g1 = graph(c("X1", "Y", "X2", "Y", "X3", "Y"), -->
-
-<!--                 directed=TRUE ) -->
-
-<!--     layout_as_tree(g1, root = "Y", circular = TRUE, flip.y = TRUE) -->
-
-<!--     eqarrowPlot(g1, matrix(c(1,1, -->
-
-<!--                              0,1, -->
-
-<!--                              0,0, -->
-
-<!--                              0,2), nrow = 4L, 2L, byrow = TRUE) , -->
-
-<!--                 #cols = c( "skyblue","#B0A8B9", "#B0A8B9", "#B0A8B9"), -->
-
-<!--                 cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 1), 1.0)), -->
-
-<!--                 edge.arrow.size=abs(edges[c(1, 2, 5)]), -->
-
-<!--                 edge.width=abs(edges[c(1, 2, 5)])*cex_fac, -->
-
-<!--                 edge.label = c(paste0(format(round(bias, 2)[1], nsmall = 1), "\n\n"),paste0(format(round(bias, 2)[2], nsmall = 1), "\n"), paste0("", format(round(bias, 2)[3], nsmall=1))), -->
-
-<!--                 edge.label.cex = 1.4, -->
-
-<!--                 edge.colors = ifelse(abs(edges[c(1, 2, 5)]) < 0.001, "white", "grey")) -->
-
-<!--     text(labs[i], x = 0, y = 2.3, xpd = NA, cex = 1.4, pos = 3) -->
-
-<!--     if(i == 1) { -->
-
-<!--       text(letters[counter], cex = 1.9, x = -2.2, y = 2.5, xpd = NA, font = 2) -->
-
-<!--       counter = counter + 1 -->
-
-<!--     } -->
-
-<!--   } -->
-
-<!--   if(i == 3) { -->
-
-<!--     points(x = 0-1, y = -1.1*0.5, col = "#e60000", xpd = NA, pch = 15, cex = 1.8) -->
-
-<!--     text(x = 0.1-1, y = -1.1*0.5, label = "Variance", xpd = NA, pos = 4, cex = 1.4) -->
-
-<!--   } -->
-
-<!-- } -->
-
-<!-- ``` -->
-
-<!-- ### NN with Dropout, LASSO, and Ridge -->
-
-<!-- We additionally tested NN with dropout (rate = 0.2), LASSO regression, and Ridge regression for the proof-of-concept simulations. -->
-
-<!-- ```{r} -->
-
-<!-- #| label: fig-Fig_S8 -->
-
-<!-- #| fig-cap: "Bias on effect estimates for additional ML algorithms (NN with Dropout, LASSO, and Ridge regression) in three different simulated causal simulations (a, b, and c).Sample sizes are so large that stochastic effects can be excluded. Effects of the ML models were inferred using marginal conditional effects. Row a) shows results for simulations with uncorrelated features with effect sizes (x~1~: 1.0, x~2~: 0.5, x~3~: 1.0). Row b) shows the results for simulations with x~1~ and x~2~ being strongly correlated (Pearson correlation factor = 0.9) but only x~1~ has an effect on y (mediator) and row c) shows the results for x~1~ and x~2~ being strongly correlated (Pearson correlation factor = 0.9 with x~1~ and x~2~ having effects on y (confounder scenario)" -->
-
-<!-- #| fig-width: 10 -->
-
-<!-- #| fig-height: 9 -->
-
-<!-- sc = c("no_effects", "effects", "confounder_unequal", "collinearity_0.90") -->
-
-<!-- algorithms = c("LM","RF",  "BRT", "NN","Dropout", "l1", "l2", "l1l2") -->
-
-<!-- par(mfcol = c(3,4), mar = c(5,0.5, 2, 1.4), oma = c(1, 2, 2, 1)) -->
-
-<!-- labs =  c("LM","RF",  "BRT", "NN","NN+Dropout", "LASSO", "Ridge", "Elastic-net") -->
-
-<!-- #plot_scenarios(1.0) -->
-
-<!-- #dev.off() -->
-
-<!-- cex_fac = 1.3 -->
-
-<!-- plot_scenarios(1.0, layout = matrix(c(1,1, -->
-
-<!--                              0,1, -->
-
-<!--                              0,0, -->
-
-<!--                              0,2), nrow = 4L, 2L, byrow = TRUE)) -->
-
-<!--     points(x = 0, y = -0.55, col = "grey", xpd = NA, pch = 15, cex = 1.8) -->
-
-<!--     text(x = 0.1, y = -0.55, label = "True effect", xpd = NA, pos = 4, cex = 1.4) -->
-
-<!--     points(x = 0, y = -0.75, col = "#ffab02", xpd = NA, pch = 15, cex = 1.8) -->
-
-<!--     text(x = 0.1, y = -0.75, label = "Correlation", xpd = NA, pos = 4, cex = 1.4) -->
-
-<!-- true_effs = matrix(c( -->
-
-<!--   NA, NA, NA, -->
-
-<!--   1, 0.5, 1, -->
-
-<!--   -1, 0.5, 1, -->
-
-<!--   1, 0, 1 -->
-
-<!-- ), 4, 3, byrow = TRUE) -->
-
-<!-- for(i in c(5, 6, 7)) { -->
-
-<!--   counter = 1 -->
-
-<!--   for(j in c(2, 4, 3)) { -->
-
-<!--     tmp = Results[[sc[j]]] -->
-
-<!--     edges = round(tmp[i,], 5) -->
-
-<!--     bias = edges[c(1, 2, 5)] - true_effs[j,] -->
-
-<!--     g1 = graph(c("x\U2081", "y", "x\U2082", "y", "x\U2083", "y"), -->
-
-<!--                 directed=TRUE ) -->
-
-<!--     layout_as_tree(g1, root = "y", circular = TRUE, flip.y = TRUE) -->
-
-<!--     eqarrowPlot(g1, matrix(c(1,1, -->
-
-<!--                              0,1, -->
-
-<!--                              0,0, -->
-
-<!--                              0,2), nrow = 4L, 2L, byrow = TRUE) , -->
-
-<!--                 #cols = c( "skyblue","#B0A8B9", "#B0A8B9", "#B0A8B9"), -->
-
-<!--                 cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 1), 1.0)), -->
-
-<!--                 edge.arrow.size=abs(bias)*2.3,#abs(edges[c(1, 2, 5)]), -->
-
-<!--                 edge.width=abs(bias)*cex_fac*2,#abs(edges[c(1, 2, 5)])*cex_fac, -->
-
-<!--                 edge.label = c(paste0(format(round(bias, 2)[1], nsmall = 1), "\n\n"), -->
-
-<!--                                paste0("          ",format(round(bias, 2)[2], nsmall = 1), "\n"), -->
-
-<!--                                paste0("          ", format(round(bias, 2)[3], nsmall=1))), -->
-
-<!--                 edge.label.cex = 1.4, -->
-
-<!--                 edge.colors = ifelse(abs(edges[c(1, 2, 5)]) < 0.001, "white", "#e60000")) -->
-
-<!--     text(labs[i], x = 0, y = 2.3, xpd = NA, cex = 1.4, pos = 3) -->
-
-<!--     if(i == 1) { -->
-
-<!--       text(letters[counter], cex = 1.9, x = -2.2, y = 2.5, xpd = NA, font = 2) -->
-
-<!--       counter = counter + 1 -->
-
-<!--     } -->
-
-<!--   } -->
-
-<!--   if(i == 3) { -->
-
-<!--     points(x = 0-1, y = -1.1*0.5, col = "#e60000", xpd = NA, pch = 15, cex = 1.8) -->
-
-<!--     text(x = 0.1-1, y = -1.1*0.5, label = "Bias = estiamted effect - true effect", xpd = NA, pos = 4, cex = 1.4) -->
-
-<!--   } -->
-
-<!-- } -->
-
-<!-- ``` -->
-
-<!-- All three methods showed biased estimates in the first scenario for effects without collinearity (Fig. S8). With collinearity, all three showed larger biases but Ridge regression showed the largest biases (Fig. S8). -->
-
-<!-- ```{r} -->
-
-<!-- #| label: fig-Fig_S9 -->
-
-<!-- #| fig-cap: "Variances of effect estimates for additional ML algorithms (NN with Dropout, LASSO, and Ridge regression) in three different simulated causal simulations (a, b, and c). Sample sizes are so large that stochastic effects can be excluded. Effects of the ML models were inferred using marginal conditional effects. Row a) shows results for simulations with uncorrelated features with effect sizes (x~1~: 1.0, x~2~: 0.5, x~3~: 1.0). Row b) shows the results for simulations with x~1~ and x~2~ being strongly correlated (Pearson correlation factor = 0.9) but only x~1~ has an effect on y (mediator) and row c) shows the results for x~1~ and x~2~ being strongly correlated (Pearson correlation factor = 0.9 with x~1~ and x~2~ having effects on y (confounder scenario)" -->
-
-<!-- #| fig-width: 10 -->
-
-<!-- #| fig-height: 9 -->
-
-<!-- sc = c("no_effects", "effects", "confounder_unequal", "collinearity_0.90") -->
-
-<!-- algorithms = c("LM","RF",  "BRT", "NN","Dropout", "l1", "l2", "l1l2") -->
-
-<!-- par(mfcol = c(3,4), mar = c(5,0.5, 2, 1.4), oma = c(1, 2, 2, 1)) -->
-
-<!-- labs =  c("LM","RF",  "BRT", "NN","NN+Dropout", "LASSO", "Ridge", "Elastic-net") -->
-
-<!-- cex_fac = 1.3 -->
-
-<!-- plot_scenarios(1.0, layout = matrix(c(1,1, -->
-
-<!--                              0,1, -->
-
-<!--                              0,0, -->
-
-<!--                              0,2), nrow = 4L, 2L, byrow = TRUE)) -->
-
-<!--     points(x = 0, y = -0.55, col = "grey", xpd = NA, pch = 15, cex = 1.8) -->
-
-<!--     text(x = 0.1, y = -0.55, label = "True effect", xpd = NA, pos = 4, cex = 1.4) -->
-
-<!--     points(x = 0, y = -0.75, col = "#ffab02", xpd = NA, pch = 15, cex = 1.8) -->
-
-<!--     text(x = 0.1, y = -0.75, label = "Correlation", xpd = NA, pos = 4, cex = 1.4) -->
-
-<!-- true_effs = matrix(c( -->
-
-<!--   NA, NA, NA, -->
-
-<!--   1, 0.5, 1, -->
-
-<!--   -1, 0.5, 1, -->
-
-<!--   1, 0, 1 -->
-
-<!-- ), 4, 3, byrow = TRUE) -->
-
-<!-- for(i in c(5, 6, 7)) { -->
-
-<!--   counter = 1 -->
-
-<!--   for(j in c(2, 4, 3)) { -->
-
-<!--     tmp = Results_sd[[sc[j]]]**2 -->
-
-<!--     edges = round(tmp[i,], 5) -->
-
-<!--     bias = edges[c(1, 2, 5)] #- true_effs[j,] -->
-
-<!--     g1 = graph(c("x\U2081", "y", "x\U2082", "y", "x\U2083", "y"), -->
-
-<!--                 directed=TRUE ) -->
-
-<!--     layout_as_tree(g1, root = "y", circular = TRUE, flip.y = TRUE) -->
-
-<!--     eqarrowPlot(g1, matrix(c(1,1, -->
-
-<!--                              0,1, -->
-
-<!--                              0,0, -->
-
-<!--                              0,2), nrow = 4L, 2L, byrow = TRUE) , -->
-
-<!--                 #cols = c( "skyblue","#B0A8B9", "#B0A8B9", "#B0A8B9"), -->
-
-<!--                 cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 1), 1.0)), -->
-
-<!--                 edge.arrow.size=abs(bias)*2.3,#abs(edges[c(1, 2, 5)]), -->
-
-<!--                 edge.width=abs(bias)*cex_fac*2,#abs(edges[c(1, 2, 5)])*cex_fac, -->
-
-<!--                 edge.label = c(paste0(format(round(bias, 2)[1], nsmall = 1), "\n\n"), -->
-
-<!--                                paste0("          ",format(round(bias, 2)[2], nsmall = 1), "\n"), -->
-
-<!--                                paste0("          ", format(round(bias, 2)[3], nsmall=1))), -->
-
-<!--                 edge.label.cex = 1.4, -->
-
-<!--                 edge.colors = ifelse(abs(edges[c(1, 2, 5)]) < 0.001, "white", "#e60000")) -->
-
-<!--     text(labs[i], x = 0, y = 2.3, xpd = NA, cex = 1.4, pos = 3) -->
-
-<!--     if(i == 1) { -->
-
-<!--       text(letters[counter], cex = 1.9, x = -2.2, y = 2.5, xpd = NA, font = 2) -->
-
-<!--       counter = counter + 1 -->
-
-<!--     } -->
-
-<!--   } -->
-
-<!--   if(i == 6) { -->
-
-<!--     points(x = 0-1, y = -1.1*0.5, col = "#e60000", xpd = NA, pch = 15, cex = 1.8) -->
-
-<!--     text(x = 0.1-1, y = -1.1*0.5, label = "Variance", xpd = NA, pos = 4, cex = 1.4) -->
-
-<!--   } -->
-
-<!-- } -->
-
-<!-- ``` -->
-
-<!-- While estimates from NN with dropout had the smallest biases, they had the largest variances (Fig. S9), though these variances were still small (Fig. S9). -->
-
-<!-- ### RMSE on holdout -->
-
-<!-- In addition to bias and variance, we calculated the predictive error using the RMSE on holdout data which had the same size as the training data (N = 1000). -->
-
-<!-- RF, BRT, and Dropout showed the highest RMSE in all three scenarios (Fig. S10). LASSO and elastic-net showed the smallest RMSE in all three scenarios (Fig. S10). -->
-
-<!-- ```{r} -->
-
-<!-- #| label: fig-Fig_S10 -->
-
-<!-- #| fig-width: 7 -->
-
-<!-- #| fig-height: 3 -->
-
-<!-- #| fig-cap: "Root mean squared error (RMSE) for different ML algorithms in three different simulated causal simulations (a, b, and c). Sample sizes are so large that stochastic effects can be excluded. 1,000 observations were used to train the models and 1,000 observations were used to evaluate the predictive performance of the models. Column 'effects' shows results for simulations with uncorrelated features with effect sizes (x1: 1.0, x2: 0.5, x3: 1.0). Column 'collinearity_0.90' shows the results for simulations with x1 and x2 being strongly correlated (Pearson correlation factor = 0.9) but only x1 has an effect on y (mediator) and column 'confounder_unequal' shows the results for x1 and x2 being strongly correlated (Pearson correlation factor = 0.9 with x1 and x2 having effects on y (confounder scenario)." -->
-
-<!-- res_rmse = do.call(rbind, lapply(Results_rmse, function(d) data.frame(values = d, method = rownames(d)))) -->
-
-<!-- res_rmse$scenario = rep(names(Results_rmse), each = 8) -->
-
-<!-- res_rmse$type = "rmse" -->
-
-<!-- res_rmse_sd = do.call(rbind, lapply(Results_rmse_sd, function(d) data.frame(values = d, method = rownames(d)))) -->
-
-<!-- res_rmse$var = res_rmse_sd$values -->
-
-<!-- res_rmse = -->
-
-<!--   res_rmse %>% -->
-
-<!--            filter(scenario %in% sc[-1]) -->
-
-<!-- res_rmse$method = forcats::lvls_reorder(res_rmse$method, c(6, 8, 1, 7, 4, 3, 5, 2)) -->
-
-<!-- res_rmse$scenario = forcats::lvls_reorder(res_rmse$scenario, c(3, 1, 2)) -->
-
-<!-- ggplot(res_rmse, aes(y=values, x=method)) + -->
-
-<!--   geom_bar(stat = 'identity', fill = "lightgrey") + -->
-
-<!--   geom_errorbar(aes(ymin=values-var, ymax=values+var), width=.2) + -->
-
-<!--   facet_grid(~ scenario) + -->
-
-<!--   theme_bw()  + -->
-
-<!--   labs(x = "", y = "") + -->
-
-<!--   theme(panel.grid.major.x = element_blank()) + -->
-
-<!--   theme(strip.background = element_rect(fill = "white")) + -->
-
-<!--   theme(strip.text = element_text(colour = 'black')) + -->
-
-<!--   theme(strip.placement = "outside") + -->
-
-<!--   theme(strip.text = element_text(hjust = 0.5)) + -->
-
-<!--   theme(legend.position="bottom")+ -->
-
-<!--   theme(axis.text.x = element_text(angle = 45, hjust=1)) -->
-
-<!-- ``` -->
 
 ## Weighted MCE
 
@@ -1419,3 +1352,58 @@ ft = flextable((data %>% pivot_wider(names_from = model))) %>% colformat_double(
 ft
 
 ```
+
+
+
+## Learning in neural networks
+
+
+```{r}
+res0 = readRDS("results/NN_learning_0.RDS")
+res50 = readRDS("results/NN_learning_50.RDS")
+res500 = readRDS("results/NN_learning_500.RDS")
+
+a = 
+  ggplot(data = res50, aes(X1, X2)) +
+    geom_point(color = "lightgrey") +
+    geom_line() +
+    theme_bw() +
+    xlim(-0.2, 1.2) + 
+    ylim(-0.2, 1.2) +
+    labs(tag = "A") +
+    theme(panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(), 
+          panel.background = element_blank())
+
+b = 
+  ggplot(data = res500, aes(X1, X2)) +
+    geom_point(color = "lightgrey") +
+    geom_line() +
+    theme_bw() +
+    xlim(-0.2, 1.2) + 
+    ylim(-0.2, 1.2) +
+    labs(tag = "B") +
+    theme(panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(), 
+          panel.background = element_blank())
+
+
+XX = seq(-5, 5, length.out = 50)
+DD = expand.grid(XX, XX)
+
+lls = sapply(1:nrow(DD), function(i) sum(dnorm(data[,1], data[,2:3] %*% t(DD[i,]),sd = 0.3, log = TRUE)))
+c = 
+  ggplot(data.frame(X = DD[,1], Y = DD[,2], Z = lls), aes(X, Y, z= Z)) + 
+       geom_contour_filled() +
+        theme_bw() + 
+    xlab("X1") +
+    ylab("X2") + 
+    labs(tag = "C") +
+    theme(panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(), 
+          panel.background = element_blank())
+
+grid.arrange(a, b, c, nrow = 2, ncol =2, layout_matrix = matrix(c(1, 2, 3, 3), 2, 2, byrow = TRUE))
+```
+
+
