@@ -55,6 +55,7 @@ knitr::opts_chunk$set(fig.path="plots/", echo = FALSE)
 
 ```
 
+
 **Summary:** This document provides supporting information on Pichler & Hartig -- Can machine learning be used for causal inference.
 
 ## Boosting and regression trees
@@ -66,6 +67,7 @@ Random forest (RF) and boosted regression trees (BRT) showed bias in both scenar
 For BRT, however, it is unclear what is causing the bias (boosting or regression trees) because each member in the ensemble is always presented with all features (at least with the default hyperparameters, the BRT implementation in xgboost has options to use bootstrap samples for each tree and also subsamples of columns in each tree (or node), see @chen2016xgboost).
 
 To understand how boosting and regression trees affect effect estimates, we simulated three different scenarios (Fig. S1, first column) without collinearity (Fig. S1a) and with collinearity (Fig. S1a, b) (we sampled 1000 observations from each data generating model (Fig. S1, first column) and estimated effects using ACE (100 repititions)).
+
 
 ```{r}
 #| echo: false
@@ -242,6 +244,7 @@ for(i in 1:6) {
 
 ```
 
+
 We found that the regression tree (RT) is unable to estimate unbiased effects (Fig. S1), regardless of the presence or absence of collinearity or the complexity of the RT (depth of the regression trees). Without collinearity, effects in regression trees were biased toward zero, less so with higher complexity (Fig. S1). With collinearity, there was a small spillover effect for the RT with high complexity (Fig. S1b) to the collinear zero effect (X~2~), similar to an l2 regularization. When the collinear feature (X~2~) had an effect (Fig. S1c), we found a stronger absolute bias for the smaller of the two collinear effects (X~2~), confirming our expectation that RTs show a greedy effect. This greedy behavior was particularly strong for the low complexity RT (Fig. S1c).
 
 To answer the question of how boosting affects the greediness and spillover effects of RT, we first investigated the behavior of a linear booster because of the well-known behavior of OLS under collinearity. And indeed, we found that the linear booster was unbiased in all three scenarios (compare LM and linear booster in Fig. S1), showing that boosting itself can produce unbiased effects.
@@ -251,6 +254,7 @@ Now, comparing the vanilla BRTs with low and high complexity (depth of individua
 ### Understanding boosting
 
 Intuitive boosting shouldn't work because it's basically a regression of residuals. That is, and in the case of collinearity, the stronger of two collinear features in the first model would absorb the effect of the weaker second feature that, for example, causes the omitted variable bias (the effect of the missing confounder is absorbed by the collinear effect).
+
 
 ```{r}
 #| warning: false
@@ -308,12 +312,14 @@ legend("topright", lty = 1, col = cols, legend = c("X1 (true effect = 1.0)",
 
 ```
 
+
 Looking at the evolution of the total effect within a linear booster model (Fig. S2a), we found indeed that the first members of the ensemble absorb the effect of the collinear effect (effect of X1 is absorbed by X1, Fig. S2a), but as members are added to the ensemble, the collinear effect (X2) slowly recovers the effect of the stronger collinear effect until both are at their correct effect estimate (Fig. S2a). This retrieval works by reversing the sign of each member's effect, so that X1, which initially has an effect of 1.5 (because it absorbed the effect of X2), has small negative effects in subsequent trees, while X2, which is initially estimated at 0, has small positive effects (Fig. S2b).
 
 
 ## Proof of concept - Additional results
 
 ### Addtional scenarios
+
 
 
 ```{r}
@@ -507,7 +513,9 @@ for(i in c(1, 2, 3, 4, 8)) {
 ```
 
 
+
 ### Additonal models 
+
 
 
 ```{r}
@@ -703,6 +711,7 @@ for(i in c(5, 6, 7)) {
 
 
 
+
 ## Hyperparameter tuning
 
 We performed a hyperparameter search to check if and how hyperparameters influence differently or equally effect estimates and the prediction error, so does a model tune after the prediction error has biased effects? For that, we created simulation scenarios with 50, 100, 600, and 2000 observations and 100 features with effects ($beta_i, i = 1,...,100$) $\beta_1 = 1.0$, and $\beta_2$ to $\beta_3$ were equally spaced between 0.0 to 1.0 so that $\beta_2 = 0.0$ and $\beta_{100} = 1.0$.
@@ -734,6 +743,7 @@ Features were sampled from a multivariate normal distribution and all features w
 : Overview over hyper-parameters for Neural Network, Boosted Regression Tree, and Random Forest {#tbl-Hyper}
 
 ### Results hyperparameter tuning
+
 
 ```{r}
 #| label: fig-Fig_S5
@@ -864,9 +874,11 @@ axis(3, at = scales::rescale(c(0, log10(10+1), log10(130+1)), to = c(0.3, 0.5), 
 
 ```
 
+
 ### Optimal hyperparameters
 
 The hyperparameters were chosen based on the lowest MSE for the predictive performance of the models (Table S2) and the lowest MSE for the effect ($\beta_1$) on X~1~ (Table S3). The selection of the best hyperparameters was done by first fitting a random forest (default parameters) with the MSE as response and the hyperparameters as features, and then using the set of hyperparameters that predicted the lowest MSE. 
+
 
 ```{r}
 #| warning: false
@@ -907,6 +919,7 @@ create_table(results_50[[4]]$hyper$pred[,1:2], results_100[[4]]$hyper$pred[,1:2]
 ```
 
 
+
 `r input_pred`
 
 : Best predicted set of hyperparameterfor ML algorithms (tuned after MSE of predictions) {#tbl-Hyper_selected_pred}
@@ -918,6 +931,7 @@ create_table(results_50[[4]]$hyper$pred[,1:2], results_100[[4]]$hyper$pred[,1:2]
 ## Additional results for data-poor scenarios
 
 ### Prediction error of scenarios
+
 
 ```{r}
 #| warning: false
@@ -949,7 +963,6 @@ levels(res$N) = c("N = 600", "N = 100", "N = 50")
 res$N = forcats::lvls_reorder(res$N, c(3, 2, 1))
 ```
 
-
 ```{r}
 #| label: fig-Fig_S7
 #| fig-cap: "Prediction error (mean square error, MSE) of data poor simulations with optimal hyperparameters either tuned after the best MSE of the effect size (red) or the best MSE of the prediction error (blue)."
@@ -971,9 +984,11 @@ g1
 ```
 
 
+
 ## Data-poor scenarios without collinearity
 
 ### Bias and variance of effects
+
 
 
 ```{r}
@@ -1084,7 +1099,9 @@ text(x = rep(-0.2, 2)+0.01, y = c(-0.7, -0.8)-0.02, pos = 4, labels = c("Tuned a
 ```
 
 
+
 ### Prediction error of scenarios
+
 
 ```{r}
 #| warning: false
@@ -1114,7 +1131,6 @@ levels(res$N) = c("N = 600", "N = 100", "N = 50")
 res$N = forcats::lvls_reorder(res$N, c(3, 2, 1))
 ```
 
-
 ```{r}
 #| label: fig-Fig_S9
 #| fig-cap: "Prediction error (mean square error, MSE) of data poor simulations with optimal hyperparameters either tuned after the best MSE of the effect size (red) or the best MSE of the prediction error (blue)."
@@ -1134,6 +1150,7 @@ g1 =ggplot(data = res, aes(x = algorithm, y = mse, fill = tuned)) +
   theme(strip.background =element_rect(fill="white"))
 g1
 ```
+
 
 
 ## Proof of concept - Inferring interactions
@@ -1159,6 +1176,7 @@ $h_m$ and $h_k$ are set to $0.1 \cdot sd(x_m)$ and $0.1 \cdot sd(x_k)$. All feat
 To test the ability of ML algorithms to identify feature-feature interactions, we repeated the proof-of-concept simulations, but with an interaction between X~1~ and X~2~. The data generation model was $Y\sim 1.0\cdot X_1 + 1.0\cdot X_5 + 1.0\cdot (X_1 \cdot X_2) + \epsilon, epsilon \sim N(0, 1.0) $. We simulated two scenarios, in the first ("collinear") X~1~ and X~2~ were collinear (Pearson correlation factor = 0.9) and in the second without collinearity between the features. 
 
 We sampled 1000 and 5000 observations from each scenario. The ML algorithms (RF, BRT, NN, and NN with dropout) were fit to the data without feature engineering the feature interactions (because ML algorithms are known to be able to infer interactions automatically), while the regression algorithms (LM, l1, l2, and elastic-net) received all combinatorially possible feature interactions as possible features. All effects were inferred using ACE. The bias was calculated for the interaction X~1~:X~2~.
+
 
 ```{r}
 #| warning: false
@@ -1217,6 +1235,7 @@ ggplot(data = res %>% filter(name == "X1.X2"), aes(x = algorithm, fill = N, y = 
 
 
 
+
 ## Weighted ACE
 
 If the instances of a feature x_j are not uniformly distributed, we propose to calculate a weighted $wACE_k = \Sigma^{N}_{i=1} w_i ACE_{ik}$ with the $w_i$ being, for example, the inverse probabilities of an estimated density function over the feature space of $x_k$.
@@ -1224,6 +1243,7 @@ If the instances of a feature x_j are not uniformly distributed, we propose to c
 To demonstrate the idea of weighted ACE, we simulated a scenario with one feature where the $\beta_1 = 2$ for values of the feature $< 2$ and for the other feature values $\beta_1=0$ (Fig. S4). The feature was sampled from a log-Normal distribution. We fitted a linear regression model and a NN on the data and compared the effect estimated by the LM, the unweighted ACE, and the weighted ACE.
 
 The LM estimated an effect of 1.48, the unweighted ACE was 1.95, and the weighted ACE was 1.48 (Fig. S16).
+
 
 ```{r}
 #| label: fig-Fig_S11
@@ -1272,7 +1292,9 @@ legend("bottomright", legend = c(paste0(round(coef(m2)[[2]], 2), "LM OLS "),
 
 ```
 
+
 ## Case study - RMSE
+
 
 ```{r}
 #| label: tbl-Table_S4
@@ -1352,11 +1374,13 @@ ft
 
 
 
+
 ## Learning in neural networks
 
 To understand the internal learning of neural networks, we trained neural networks of two different sizes (3 layers of 50 units and 3 layers of 500 units) on a simple collinear scenario ($Y \sim 1. 0\cdot X_1 + 0.0\cdot X_2+ \epsilon, \epsilon \sim N(0, 0.3)$; X~1~ and X~2~ were collinear (Pearson correlation factor = 0.9)) and calculated the ACE after each batch optimization step. 
 
 We found that the estimates of the botch effect were initially estimated to be around 0 (Fig. S12 A, B), probably due to the initialization of the neural networks, which resembles a shrinkage behavior (weights have to be moved away from 0 step by step in the gradient descent). After this initialization phase, both estimates are within the expected negative log-likelihood surface of OLS (Fig. S12C) and are estimated over the training period to the correct estimates (X~1~ = 1.0 and X~2~ = 0.0). 
+
 
 
 ```{r}
@@ -1418,6 +1442,7 @@ c =
 
 grid.arrange(a, b, c, nrow = 4, ncol =4, layout_matrix = matrix(c(1, 1, 2, 2, 1, 1, 2, 2, 3, 3, 3, 4, 3, 3, 3, 4), 4, 4, byrow = TRUE))
 ```
+
 
 
 ## References
