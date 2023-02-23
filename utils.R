@@ -3,8 +3,7 @@ addA = function(col, alpha = 0.25) apply(sapply(col, grDevices::col2rgb)/255, 2,
 
 eqarrowPlot <- function(graph, layout, edge.lty=rep(1, ecount(graph)),edge.width=rep(1, ecount(graph)),
                         edge.arrow.size=rep(1, ecount(graph)), cols = c( "pink","pink", "skyblue"), edge.arrow.mode = NULL, edge.colors = NULL,
-                        rangeX = c(0, 1), rangeY = c(0, 2), ...) {
-  vertex.label.cex = 1.6
+                        rangeX = c(0, 1), rangeY = c(0, 2),vertex.label.cex = 2.1, ...) {
   plot(graph, edge.lty=0, edge.arrow.size=0, layout=layout,
        vertex.shape="none",  vertex.size=50, vertex.color = cols, rescale=FALSE, xlim = rangeX, ylim = rangeY, vertex.label.cex = vertex.label.cex)
   if(is.null(edge.arrow.mode)) edge.arrow.mode = rep(">", (ecount(graph)))
@@ -21,8 +20,7 @@ eqarrowPlot <- function(graph, layout, edge.lty=rep(1, ecount(graph)),edge.width
        add=TRUE,
        vertex.size=50, 
        vertex.color = cols,
-       vertex.label.cex = vertex.label.cex,
-       vertex.label.color="black", xlim = rangeX, ylim = rangeY,
+       vertex.label.cex = vertex.label.cex, xlim = rangeX, ylim = rangeY,
        edge.label.color = "black", rescale=FALSE,...)
   invisible(NULL)
 }
@@ -431,15 +429,15 @@ draw_bar = function(y, x, eff, w = 0.01) {
        border = "#000000")
 }
 
-draw_line = function(y, x,se, xr , yr, to_y, p = NULL) {
+draw_line = function(y, x,se, xr , yr, to_y, p = NULL, line_col) {
   y = y - mean(y)
   yy = scales::rescale(y, to = yr, from = to_y)
   conf =  scales::rescale(c(y+1.96*se, rev(y-1.96*se)), to = yr, from = to_y)
   xx = scales::rescale(x, to = xr, from = c(min(x), max(x)))
   if(!is.null(p)) pp = scales::rescale(p, to = xr, from = c(min(x), max(x)))
-  polygon(c(xx, rev(xx)), conf, col = "#1124524E", border = NA)
-  points(xx, yy, type = "l", col = "#24526E", lwd = 3)
-  if(!is.null(p)) points(pp, predict(mgcv::gam(yy~s(xx)), newdata = data.frame(xx = pp)), col = "#FF6F57", cex = 1, pch = 18)
+  polygon(c(xx, rev(xx)), conf, col = addA(line_col[1]), border = NA)
+  points(xx, yy, type = "l", col = line_col[1], lwd = 3)
+  if(!is.null(p)) points(pp, predict(mgcv::gam(yy~s(xx)), newdata = data.frame(xx = pp)), col = line_col[2], cex = 1, pch = 18)
 }
 
 
@@ -447,7 +445,8 @@ draw_line = function(y, x,se, xr , yr, to_y, p = NULL) {
 plot_tuning = function(data, 
                        results,
                        eff_range = list(eff_range2 = c(-0.5, 0.5),eff_range1 = c(-0.04, 0.04)),
-                       vi_range =  list(c(0, 0.04), c(0, 2.5))
+                       vi_range =  list(c(0, 0.04), c(0, 2.5)),
+                       line_col = c("#24526E", "#FF6F57")
                        ) {
   par(mar = c(2, 9, 4, 2))
   plot(NULL, NULL, xlim = c(0, 1), ylim = c(0, 1), 
@@ -458,7 +457,7 @@ plot_tuning = function(data,
   diff_tmp = diff1
   for(i in 1:23) {
     if(i > 7) diff_tmp = diff2
-    rect(0+0.001, yys[i]+diff_tmp, 1-0.001, yys[i]-diff_tmp, col = c("#F0F0F0", "white")[i%%2 + 1], border = NA)
+    rect(0+0.001, yys[i]+diff_tmp, 1-0.001, yys[i]-diff_tmp, col = c(addA("#f7f2e4", 0.5), "white")[i%%2 + 1], border = NA)
   }
   
   tck = 0.015
@@ -477,8 +476,8 @@ plot_tuning = function(data,
   text(x = 0.425, y = yys[1]*0.990, pos = 3, label = "VI", xpd = NA)
   text(x = 0.425+0.5, y = yys[1]*0.990, pos = 3, label = "VI", xpd = NA)
   ytop = 1.03
-  text(x = 0.25, y = ytop, pos = 3, label = "Effect", xpd = NA, font = 2)
-  text(x = 0.25+0.5, y = ytop, pos = 3, label = "Prediction", xpd = NA, font = 2)
+  text(x = 0.25, y = ytop, pos = 3, label = latex2exp::TeX(r"( \textbf{Effect} $ \hat{\beta}_1 $ )"), xpd = NA, font = 1) #"Effect \U03B2\U0302\U2081" Effect $\hat{\beta}_1$
+  text(x = 0.25+0.5, y = ytop, pos = 3, label = latex2exp::TeX(r"( \textbf{Prediction} $ \hat{y} $ )"), xpd = NA, font = 2)
   abline(v = 0.30+0.5)
   counter1 = counter2 = 1
   methods = c("NN", "BRT", "RF", "Elastic_net")
@@ -511,7 +510,7 @@ plot_tuning = function(data,
           eff = scales::rescale(eff, to = c(-0.18, 0.18), from = eff_range[[column]])
           ses = scales::rescale(NN_tmp_eff[i, 2], to = c(-0.18, 0.18), from = eff_range[[column]])
           col = "black"
-            if(i == which.min(NN_tmp_eff[1:7,1])) col = "#FF6F57"
+            if(i == which.min(NN_tmp_eff[1:7,1])) col = line_col[2]
             draw_eff(eff = eff, se = ses, x = 0.15+(column-1)*0.5, y = yys[counter1], col = col)
         } else {
           n = i
@@ -527,7 +526,7 @@ plot_tuning = function(data,
             draw_line(y, x, se, xr = xr_ranges[[j]]+(column-1)*0.5,
                       to_y = results[[m]][paste0("range_", c("bias", "var")[j], v)][[1]],
                       yr = c(yys[counter1]+abs(diff(yys)[10])*0.5-0.004, yys[counter1]-abs(diff(yys)[10])*0.5+0.004)[c(2, 1)],
-                      p = best_point)
+                      p = best_point, line_col = line_col)
           }
         }
         ## VI
@@ -547,8 +546,8 @@ plot_tuning = function(data,
   text(pos = 4, x = 1.0, y = yys[14], label = "BRT", xpd = NA, srt = -90)
   text(pos = 4, x = 1.0, y = yys[18], label = "RF", xpd = NA, srt = -90)
   text(pos = 4, x = 1.0, y = yys[22], label = "EN", xpd = NA, srt = -90)
-  text(x = 0.15, y = 0, pos = 1, label = "hyper-parameter range", xpd = NA)
-  text(x = 0.15+0.5, y = 0, pos = 1, label = "hyper-parameter range", xpd = NA)
+  text(x = 0.15, y = 0, pos = 1, label = "hyperparameter range", xpd = NA)
+  text(x = 0.15+0.5, y = 0, pos = 1, label = "hyperparameter range", xpd = NA)
   text(x = 0.15/2, y = yys[7]-0.012, pos = 1, label = "Bias", xpd = NA)
   text(x = 0.15/2+0.15, y = yys[7]-0.012, pos = 1, label = "Variance", xpd = NA)
   text(x = 0.15/2+0.5, y = yys[7]-0.012, pos = 1, label = "Bias", xpd = NA)

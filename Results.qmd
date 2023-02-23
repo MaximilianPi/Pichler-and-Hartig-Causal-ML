@@ -39,7 +39,7 @@ files =        c("collinearity_0.5.RDS",
 Results = 
   lapply(files, function(f) {
     confounder = readRDS(paste0("results/",f))
-    Result = do.call(rbind, lapply(1:8, function(j) (apply(abind::abind(lapply(1:50, function(i) confounder[[i]][[j]][[1]] ), along = 0L), 2, mean))))
+    Result = do.call(rbind, lapply(1:8, function(j) (apply(abind::abind(lapply(1:length(confounder), function(i) confounder[[i]][[j]][[1]] ), along = 0L), 2, mean))))
     colnames(Result) = LETTERS[1:5]
     rownames(Result) = c("LM", "RF", "BRT", "NN", "Dropout", "l1", "l2", "l1l2")
     return(Result)
@@ -50,7 +50,7 @@ names(Results) = unlist(strsplit(files, ".RDS", TRUE))
 Results_rmse = 
   lapply(files, function(f) {
     confounder = readRDS(paste0("results/",f))
-    Result = do.call(rbind, lapply(1:8, function(j) (apply(abind::abind(lapply(1:50, function(i) confounder[[i]][[j]][[2]] ), along = 0L), 2, mean))))
+    Result = do.call(rbind, lapply(1:8, function(j) (apply(abind::abind(lapply(1:length(confounder), function(i) confounder[[i]][[j]][[2]] ), along = 0L), 2, mean))))
     colnames(Result) = "RMSE"
     rownames(Result) = c("LM", "RF", "BRT", "NN", "Dropout","l1", "l2", "l1l2")
     return(Result)
@@ -63,7 +63,7 @@ colnames(RMSEs) = unlist(strsplit(files, ".RDS", TRUE))
 Results_sd = 
   lapply(files, function(f) {
     confounder = readRDS(paste0("results/",f))
-    Result = do.call(rbind, lapply(1:8, function(j) (apply(abind::abind(lapply(1:50, function(i) confounder[[i]][[j]][[1]] ), along = 0L), 2, sd))))
+    Result = do.call(rbind, lapply(1:8, function(j) (apply(abind::abind(lapply(1:length(confounder), function(i) confounder[[i]][[j]][[1]] ), along = 0L), 2, sd))))
     colnames(Result) = LETTERS[1:5]
     rownames(Result) = c("LM", "RF", "BRT", "NN","Dropout", "l1", "l2", "l1l2")
     return(Result)
@@ -124,7 +124,13 @@ true_effs = matrix(c(
   1, 0.0, 1
 ), 2, 3, byrow = TRUE)
 
+vertex_col_p = "#86A3B8"
+vertex_col_y = "#E8D2A6"
+vertex_col_frame = "#181823"
+vertex_frame_width = 2.0
+
 # A simulation
+
 g1 = graph(c("x\U2081", "y", "x\U2082", "y", "x\U2083", "y"),  
             directed=TRUE ) 
 layout_as_tree(g1, root = "y", circular = TRUE, flip.y = TRUE)
@@ -132,11 +138,17 @@ eqarrowPlot(g1, matrix(c(1,1,
                          0,1,
                          0,0,
                          0,2), nrow = 4L, 2L, byrow = TRUE) ,
-            cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 1), 1.0)),
-            edge.arrow.size=minArrow(c(1.00, 0.1, 1.0)),#abs(edges[c(1, 2, 5)]), 
-            edge.width=c(1.00, 0.1, 1.0)*cex_fac,#abs(edges[c(1, 2, 5)])*cex_fac,
+            cols = c(addA(rep(vertex_col_p, 1), 1.0), 
+                     vertex_col_y, 
+                     addA(rep(vertex_col_p, 1), 1.0),
+                     addA(rep(vertex_col_p, 1), 1.0)),
+            edge.arrow.size=minArrow(c(1.00, 0.1, 1.0)),
+            edge.width=c(1.00, 0.1, 1.0)*cex_fac,
             edge.label = rep("",3),
-            edge.label.cex = 1.4,
+            edge.label.cex = 1.6,
+            vertex.frame.color=vertex_col_frame,
+            vertex.label.color= vertex_col_frame,
+            vertex.frame.width = vertex_frame_width,
             edge.colors = rep("#B0A8B9", 3))
   text(letters[1], cex = 1.9, x = -1.6, y = 1.5, xpd = NA, font = 2)
   text("Simulation", x = 0.3, y = 2.3, xpd = NA, cex = 1.4, pos = 3)
@@ -153,12 +165,15 @@ eqarrowPlot(g1, matrix(c(1,1,
                        0,1,
                        0,0,
                        0,2), nrow = 4L, 2L, byrow = TRUE) , 
-            cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 2), 1.0)),
+            cols = c(addA(rep(vertex_col_p, 1), 1.0), vertex_col_y, addA(rep(vertex_col_p, 1), 1.0), addA(rep(vertex_col_p, 2), 1.0)),
             edge.arrow.size=minArrow(c(1.00, 0.1, 1.0, 0.9)),#abs(edges[c(1, 2, 5)]), 
             edge.width=c(1.00, 0.1, 1.0, 0.5)*cex_fac,#abs(edges[c(1, 2, 5)])*cex_fac,
             edge.label = rep("", 3), 
             edge.label.cex = 1.4, 
             edge.arrow.mode = c(rep(">", 3), "-"), 
+            vertex.frame.width = vertex_frame_width,
+            vertex.frame.color=vertex_col_frame,
+            vertex.label.color= vertex_col_frame,
             edge.colors = c(rep("#B0A8B9", 1),"#B0A8B9","#B0A8B9", "#ffab02"))
 text(letters[2], cex = 1.9, x = -1.6, y = 1.5, xpd = NA, font = 2)
 text("Simulation", x = 0.3, y = 2.3, xpd = NA, cex = 1.4, pos = 3)
@@ -186,12 +201,15 @@ for(i in c(1, 2, 3, 4, 8)) {
                              0,1,
                              0,0,
                              0,2), nrow = 4L, 2L, byrow = TRUE) ,
-                cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 1), 1.0)),
+                cols = c(addA(rep(vertex_col_p, 1), 1.0), vertex_col_y, addA(rep(vertex_col_p, 1), 1.0), addA(rep(vertex_col_p, 1), 1.0)),
                 edge.arrow.size=minArrow(abs(-true_effs[j,] - bias)),#abs(edges[c(1, 2, 5)]), 
                 edge.width=abs(-true_effs[j,] - bias)*cex_fac,#abs(edges[c(1, 2, 5)])*cex_fac,
                 edge.label = rep("",3),
+                vertex.frame.width = vertex_frame_width,
+                vertex.frame.color=vertex_col_frame,
+                vertex.label.color= vertex_col_frame,
                 edge.label.cex = 1.4,
-                edge.colors = ifelse(abs(bias) < 0.01, "#B0A8B9", "#e60000"))
+                edge.colors = ifelse(abs(bias) < 0.01, "#B0A8B9", "#DD5353"))
     parser(true_effs[j, 1], bias[1], pos = 1)
     parser(true_effs[j, 2], bias[2], pos = 2)
     parser(true_effs[j, 3], bias[3], pos = 3)
@@ -203,7 +221,7 @@ for(i in c(1, 2, 3, 4, 8)) {
 
   }
   if(i == 3) {
-    points(x = 0-1, y = -1.1*0.5, col = "#e60000", xpd = NA, pch = 15, cex = 1.8)
+    points(x = 0-1, y = -1.1*0.5, col = "#DD5353", xpd = NA, pch = 15, cex = 1.8)
     text(x = 0.1-1, y = -1.1*0.5, label = "Bias", xpd = NA, pos = 4, cex = 1.4)
   }
 }
@@ -263,8 +281,7 @@ draw_stacked_bar = function(bias, var, xleft = 0.0, w = 0.15) {
   rect(xleft, 0, xleft+w, abs(bias), col = "#96c6ed" )
   rect(xleft, abs(bias), xleft+w, abs(bias)+var, col = "#e0acd5" )
 }
-
-methods2 = methods
+methods2 = c("LM", "RF", "BRT", "NN", "Elastic-net")
 methods2[-1] = paste0(methods2[-1], " tuned")
 par(mfrow = c(3, 5), mar = c(1, 1, 1, 1)*0.5, oma = c(12, 4, 4, 4))
 y_labels = c("N = 50", "N = 100", "N = 600")
@@ -288,7 +305,7 @@ for(j in 1:3) {
         draw_stacked_bar(xleft = 0.325+0.18, res_pred[[j]]$bias[i, 2], res_pred[[j]]$var[i, 2])
 
         text(x = c(0.185, 0.185+0.18),y = -0.24, 
-        labels = c("Bias+Variance X1", "Bias+Variance X2"), 
+        labels = c("Bias+Variance \U03B2\U2081", "Bias+Variance \U03B2\U2082"), 
         srt = 45,
         xpd = NA, pos = 1)        
       }
@@ -304,7 +321,7 @@ for(j in 1:3) {
     }
     if( (j == 3) && (i > 1) ){
       text(x = c(0.185, 0.185+0.18, c(0.185, 0.185+0.18)+0.47)-0.22,y = -0.24, 
-           labels = c("Bias+Variance X1", "Bias+Variance X2", "Bias+Variance X1", "Bias+Variance X2"), 
+           labels = c("Bias+Variance \U03B2\U2081", "Bias+Variance \U03B2\U2082", "Bias+Variance \U03B2\U2081", "Bias+Variance \U03B2\U2082"), 
            srt = 45,
            xpd = NA, pos = 1)
     }    
@@ -315,7 +332,7 @@ points(pch = 15, x = rep(-1.0, 2), y = c(-0.7, -0.8), xpd = NA, col = c("#96c6ed
 text(x = rep(-1.0, 2)+0.01, y = c(-0.7, -0.8)-0.02, pos = 4, labels = c("Bias", "Variance"), xpd = NA)
 
 points(pch = 15, x = rep(-0.2, 2), y = c(-0.7, -0.8), xpd = NA, col = c("#9BED96","#EDBD96"), cex = 1.5)
-text(x = rep(-0.2, 2)+0.01, y = c(-0.7, -0.8)-0.02, pos = 4, labels = c("Tuned after MSE of predictions", "Tuned after MSE of X1"), xpd = NA)
+text(x = rep(-0.2, 2)+0.01, y = c(-0.7, -0.8)-0.02, pos = 4, labels = c("Tuned after MSE of predictions", "Tuned after MSE of \U03B2\U2081"), xpd = NA)
 
 dev.off()      
 
@@ -393,10 +410,11 @@ names(labels) = c("activationscelu",
 
 cairo_pdf("plots/Fig_4.pdf", width = 9, height = 10)
 tck = 0.015
-mgp = 0.07
+mgp = 0.07 
 eff_range = list(eff_range2 = c(-0.5, 0.5),eff_range1 = c(-0.04, 0.04))
 vi_range = list(c(0, 0.04), c(0, 2.5))
-plot_tuning(data = data, results = results, eff_range = eff_range, vi_range = vi_range)
+cols = (c("#1C1C1BFF","#CC4A7EFF"))
+plot_tuning(data = data, results = results, eff_range = eff_range, vi_range = vi_range, line_col = cols)
 axis(3, at = scales::rescale(c(-0.25, 0.0, 0.25), to = c(0.02, 0.28), from = eff_range[[1]]), labels = c(-0.25, 0.0, 0.25), tck = tck, mgp = c(3, mgp, 0))
 axis(3, at = scales::rescale(c(-0.02, 0.0, 0.02), to = c(0.02, 0.28), from = eff_range[[2]])+0.5, labels = c(-0.02, 0.0, 0.02), tck = tck, mgp = c(3, mgp, 0))
 
@@ -475,103 +493,62 @@ sapply(1:3, function(k) {
 
 ### Case Study
 
-#### No Change
 
 ```{r}
-#| label: Fig_4a_no_change
-#| fig-format: pdf
-#| fig-width: 3
-#| fig-height: 3
+#| warning: false
+#| message: false
+methods = c("LM", "BRT", "RF","EN", "NN" )
 
-coll_no = readRDS("results/res_changed_no.RDS")
-coll_no_results = apply(coll_no [1:10, ,], 2:3, mean)
-coll_no_results = as.data.frame(coll_no_results)[1:4,]
-rownames(coll_no_results) = c("BRT", "RF", "NN", "LM")
-colnames(coll_no_results) = c("H", "HT", "HO", "HOT")
-data = coll_no_results
-data$model = rownames(data)
-data = data %>% pivot_longer(cols = c("H", "HT", "HO", "HOT")) 
-data = data %>% filter(name %in% c("HO", "H"))
-color = RColorBrewer::brewer.pal(4, "Set2")
-labels = c("Conventional ML 1", "Causal ML")
-data$name = forcats::lvls_reorder(data$name, c(2, 1))
 
-ggplot(data, aes(fill=model, y=value, x=name)) + 
-  geom_bar(position="dodge", stat="identity") +
-  scale_fill_manual("",  values = c("BRT" = color[1], "RF" = color[2], "LM" = color[3], "NN" = color[4]) )+
-  labs(x = "", y = "R2") +
-  theme_bw() +
-  scale_x_discrete(labels = labels, guide = guide_axis(angle = 45)) +
-  theme(panel.grid.major.x = element_blank()) +
-  theme(axis.text=element_text(size=13))
+results = readRDS("results/results_case_study.RDS")
+results = apply(results, 2:3, mean)
 
-levels(data$name) = c("Conventional ML 1", "Causal ML")
-insample = data
+rownames(results) = methods
+colnames(results) = c("Conv_out", "Conv_in", "Causal_out", "Causal_in" )
+results = data.frame(results, method = methods)
+results = 
+  results %>% 
+    pivot_longer(c(Conv_out, Conv_in, Causal_out, Causal_in), names_to = "scenario", values_to = "R2") %>% 
+    mutate(model = ifelse(stringr::str_detect(scenario, "Causal"), "Causal model", "Conventional model"),
+           prediction = ifelse(stringr::str_detect(scenario, "out"), "out", "in")
+           ) %>% 
+    dplyr::select(-scenario)
+
+
+
+results$method = as.factor(results$method)
+results$method = forcats::lvls_reorder(results$method, c(3,5,1, 4, 2) )
+results$model = as.factor(results$model)
+results$model = forcats::lvls_reorder(results$model, c(2, 1))
+
+res_ML = results %>% filter(method %in% c("RF", "BRT", "NN"))
+
+g1 = 
+  ggplot(res_ML %>% filter(prediction == "out"), 
+         aes(y = R2, x = method, fill = model)) +
+    geom_bar(stat="identity", color="black", 
+             position=position_dodge(), show.legend = FALSE) +
+    ggplot2::theme_bw() +
+    xlab("Models") +
+    ylab("R\U00B2") +
+    ylim(0.0, 1.0) + 
+    labs(tag = "a") +
+    scale_fill_manual(values = rev(c("#00203FFF","#ADEFD1FF")))
+g2 =
+  ggplot(res_ML %>% filter(prediction == "in"), 
+         aes(y = R2, x = method, fill = model)) +
+    geom_bar(stat="identity", color="black", 
+             position=position_dodge()) +
+    ylab("R\U00B2") +
+    xlab("Models") + 
+    ggplot2::theme_bw() +
+    ylim(0.0, 1.0) +
+    labs(tag = "b") +
+    scale_fill_manual(values = rev(c("#00203FFF","#ADEFD1FF"))) + 
+    theme(legend.position = c(0.8, 0.8))
+cairo_pdf(filename = "plots/Fig_5.pdf", width = 5, height = 2.3)
+gridExtra::grid.arrange(g1, g2, nrow = 1)
+dev.off()
 
 ```
 
-```{r}
-#| label: Fig_4b_collider
-#| fig-format: pdf
-#| fig-width: 3
-#| fig-height: 3
-
-coll_no = readRDS("results/res_changed_intervention.RDS")
-coll_no_results = apply(coll_no [1:10, ,], 2:3, mean)
-coll_no_results = as.data.frame(coll_no_results)[1:4,]
-rownames(coll_no_results) = c("BRT", "RF", "NN", "LM")
-colnames(coll_no_results) = c("H", "HT", "HO", "HOT")
-data = coll_no_results
-data$model = rownames(data)
-data = data %>% pivot_longer(cols = c("H", "HT", "HO", "HOT")) %>% filter(name %in% c("HO", "H"))
-color = RColorBrewer::brewer.pal(4, "Set2")
-labels = c("Conventional ML 1", "Causal ML")
-data$name = forcats::lvls_reorder(data$name, c(2, 1))
-
-ggplot(data, aes(fill=model, y=value, x=name)) + 
-  geom_bar(position="dodge", stat="identity") +
-  scale_fill_manual("",  values = c("BRT" = color[1], "RF" = color[2], "LM" = color[3], "NN" = color[4]) )+
-  labs(x = "", y = "R2") +
-  theme_bw() +
-  scale_x_discrete(labels = labels, guide = guide_axis(angle = 45)) +
-  theme(panel.grid.major.x = element_blank()) +
-  theme(axis.text=element_text(size=12))
-
-levels(data$name) = c("Conventional ML 1", "Causal ML")
-outofsample = data
-
-```
-
-```{r}
-#| label: Fig_4c_confounder
-#| fig-format: pdf
-#| fig-width: 3.3
-#| fig-height: 3
-
-coll_no = readRDS("results/res_changed_coll.RDS")
-coll_no_results = apply(coll_no [1:10, ,], 2:3, mean)
-coll_no_results = as.data.frame(coll_no_results)[1:4,]
-rownames(coll_no_results) = c("BRT", "RF", "NN", "LM")
-colnames(coll_no_results) = c("H", "HT", "HO", "HOT")
-data = coll_no_results
-data$model = rownames(data)
-data = data %>% pivot_longer(cols = c("H", "HT", "HO", "HOT")) %>% filter(name %in% c("HOT", "HT", "H"))
-color = RColorBrewer::brewer.pal(4, "Set2")
-
-data$name = forcats::lvls_reorder(data$name, idx = c(1,2 , 3))
-labels = c("Conventional ML 1","Conventional ML 2", "Causal ML")
-
-ggplot(data, aes(fill=model, y=value, x=name)) + 
-  geom_bar(position="dodge", stat="identity") +
-  scale_fill_manual("",  values = c("BRT" = color[1], "RF" = color[2], "LM" = color[3], "NN" = color[4]) )+
-  labs(x = "", y = "R2") +
-  theme_bw() +
-  scale_x_discrete(labels = labels, guide = guide_axis(angle = 45)) +
-  theme(panel.grid.major.x = element_blank()) +
-  theme(axis.text=element_text(size=12))
-
-
-levels(data$name) = c("Conventional ML 1", "Conventional ML 2", "Causal ML")
-outofsample_conf = data
-
-```

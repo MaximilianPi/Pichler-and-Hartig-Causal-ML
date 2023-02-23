@@ -13,7 +13,7 @@ source("code/Scenarios.R")
 
 
 get_result = function(sim ) {
-  samples = 200L
+  samples = 500L
   result_list = vector("list", samples)
   cl = parallel::makeCluster(50L)
   nodes = unlist(parallel::clusterEvalQ(cl, paste(Sys.info()[['nodename']], Sys.getpid(), sep='-')))
@@ -59,7 +59,6 @@ get_result = function(sim ) {
       m = xgboost::xgboost(data=xgboost::xgb.DMatrix(as.matrix(train)[,-1],
                                                      label = (as.matrix(train)[,1, drop=FALSE])),
                            nrounds = 100,
-                           lambda = 0,
                            objective="reg:squarederror", nthread = 1, verbose = 0)
       (eff = diag(marginalEffects(m, data = data.frame(train)[,-1], interactions = FALSE)$mean))
       pred = predict(m, newdata = xgboost::xgb.DMatrix(test[,-1]))
@@ -124,6 +123,10 @@ get_result = function(sim ) {
   return(result_list)
 }
 
+sim = function() simulate(r = 0.9, effs = c(1, 0.5, 0, 0, 1),n = 2000)
+results = get_result(sim)
+saveRDS(results, "results/confounder.RDS")
+
 sim = function() simulate(r = 0.9, effs = c(1, 0, 0, 0, 1),n = 2000)
 results = get_result(sim)
 saveRDS(results, "results/collinearity_0.90.RDS")
@@ -136,10 +139,6 @@ saveRDS(results, "results/effects.RDS")
 sim = function() simulate(r = 0.9, effs = c(1, -0.5, 0, 0, 1),n = 2000)
 results = get_result(sim)
 saveRDS(results, "results/confounder_unequal.RDS")
-
-sim = function() simulate(r = 0.9, effs = c(1, 0.5, 0, 0, 1),n = 2000)
-results = get_result(sim)
-saveRDS(results, "results/confounder.RDS")
 
 
 sim = function() simulate(r = 0.5, effs = c(1, 0, 0, 0, 1),n = 2000)

@@ -34,7 +34,7 @@ results =
     parallel::clusterExport(cl, varlist = ls(envir = .GlobalEnv))
     parallel::clusterEvalQ(cl, {library(ranger);library(xgboost);library(cito);library(glmnet);library(glmnetUtils);library(tree)})
     
-    results = parallel::parLapply(cl, 1:100, function(KK) {
+    results = parallel::parLapply(cl, 1:500, function(KK) {
       
       source("code/AME.R")
       
