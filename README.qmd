@@ -2,11 +2,31 @@
 title: "README"
 format: gfm
 editor: visual
+bibliography: references.bib
 ---
 
-# Can machine learning be used for causal inference?
-
 This repository contains the code to reproduce the results in Pichler and Hartig, Can machine learning be used for causal inference?
+
+## Scripts 
+
+Scripts to reproduce the analysis can be found in the `code` folder. To rerun everything, run in the following order:
+
+```{r, eval=FALSE}
+source("code/0_Boosting_Regression_Trees.R")
+source("code/1_Simulation_proof_of_concept.R")
+source("code/2_Simulation_BRT_Pars_Replicated.R")
+source("code/2_Simulation_Elastic_net_Pars_Replicated.R")
+source("code/2_Simulation_NN_Pars_Replicated.R")
+source("code/2_Simulation_RF_Pars_Replicated.R")
+source("code/3_aggregate_hyper_parameter_results.R")
+source("code/3_Simulation_data_poor.R")
+source("code/3_Simulation_data_poor_no_coll.R")
+source("code/4_Simulation_proof_of_concept_interactions.R")
+source("code/5_NN_learning.R")
+source("code/6_Predictions.R")
+```
+
+
 
 # Results
 
@@ -15,3 +35,10 @@ This repository contains the code to reproduce the results in Pichler and Hartig
 # Appendix
 
 {{< include Appendix.qmd >}}
+
+# Session info
+
+```{r}
+sessionInfo()
+```
+

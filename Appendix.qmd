@@ -5,7 +5,7 @@ format:
     toc: true
     number-sections: true
     reference-doc: custom-reference-doc.docx
-    keep-md: true
+    keep-md: false
     fig-format: svg
 crossref:
   fig-title: '**Figure S**'
@@ -62,11 +62,11 @@ knitr::opts_chunk$set(fig.path="figures/", echo = FALSE)
 
 ### Unbiasedness
 
-Random forest (RF) and boosted regression trees (BRT) showed bias in both scenarios, with and without collinearity, raising the question of whether the bias is caused by the boosting/bagging or the regression trees themselves. For RF, we know that the observed spillover effect is caused by the random subsampling (mtry parameter) in the algorithm, which explains the bias.
+Random forest (RF) and boosted regression trees (BRT) showed biased effect estimates in both scenarios, with and without collinearity, raising the question of whether the bias is caused by the boosting/bagging or the regression trees themselves. For RF, we know that the observed spillover effect is caused by the random subsampling (mtry parameter) in the algorithm, which explains the bias.
 
 For BRT, however, it is unclear what is causing the bias (boosting or regression trees) because each member in the ensemble is always presented with all predictors (at least with the default hyperparameters, the BRT implementation in xgboost has options to use bootstrap samples for each tree and also subsamples of columns in each tree (or node), see @chen2016xgboost).
 
-To understand how boosting and regression trees affect effect estimates, we simulated three different scenarios (Fig. S1, first column) without collinearity (Fig. S1a) and with collinearity (Fig. S1a, b) (we sampled 1000 observations from each data generating model (Fig. S1, first column) and estimated effects using ACE (100 repititions)).
+To understand how boosting and regression trees affect effect estimates, we simulated three different scenarios (Fig. S1, first column) without collinearity (Fig. S1a) and with collinearity (Fig. S1a, b) (we sampled 1000 observations from each data generating model (Fig. S1, first column) and estimated effects using ACE (500 repititions)).
 
 ```{r}
 #| echo: false
@@ -89,7 +89,7 @@ plot_results = list(no_coll, coll, conf)
 
 ```{r}
 #| label: fig-Fig_S1
-#| fig-cap: "Bias on effect estimates for different ML algorithms (LM = liner regression model (OLS), RT LC = regression tree with low complexity (depth), RT HC = regression tree with high complexity, Linear Booster, Tree Booster LC = tree booster with low complexity, Tree Booster HC = tree boster with high complexity) in three different simulated causal scenarios (a, b, and c). Sample sizes are so large that stochastic effects can be excluded (1000 observations). Effects of the ML models were inferred using average conditional effects. Row a) shows results for simulations with uncorrelated predictors with the true effect sizes . Row b) shows the results for simulations with X~1~ and X~2~ being strongly correlated (Pearson correlation factor = 0.9) but only X~1~ has an effect on y (mediator) and row c) shows the results for X~1~ and X~2~ being strongly correlated (Pearson correlation factor = 0.9) with X~1~ and X~2~ having effects on Y (confounder scenario)."
+#| fig-cap: "Bias on effect estimates for different ML algorithms (LM = liner regression model (OLS), RT LC = regression tree with low complexity (depth), RT HC = regression tree with high complexity, Linear Booster, Tree Booster LC = tree booster with low complexity, Tree Booster HC = tree boster with high complexity) in three different simulated causal scenarios (a, b, and c). Sample sizes are so large that stochastic effects can be excluded (1000 observations). Effects of the ML models were inferred using average conditional effects. Row a) shows results for simulations with uncorrelated predictors with the true effect sizes. Row b) shows the results for simulations with X~1~ and X~2~ being strongly correlated (Pearson correlation factor = 0.9) but only X~1~ has an effect on y (mediator) and row c) shows the results for X~1~ and X~2~ being strongly correlated (Pearson correlation factor = 0.9) with X~1~ and X~2~ having effects on Y (confounder scenario)."
 #| fig-width: 14
 #| fig-height: 10
 #| warning: false
@@ -111,15 +111,15 @@ parser = function(true, bias, pos = 1) {
   bb = round(bias, 2)
   if(bb > 0) { 
     symb = "+" 
-    if(abs(bb) > 0.001) text(x = xp + 0.280, y = yp+0.01, pos = 4, symb, cex = 1.3, col = "#e60000", font = 2)
+    if(abs(bb) > 0.001) text(x = xp + 0.280, y = yp+0.01, pos = 4, symb, cex = 1.3, col = "#DD5353", font = 2)
   } else { 
     symb = "-"
-      if(abs(bb) > 0.001) text(x = xp + 0.29, y = yp, pos = 4, symb, cex = 1.3, col = "#e60000", font = 2)
+      if(abs(bb) > 0.001) text(x = xp + 0.29, y = yp, pos = 4, symb, cex = 1.3, col = "#DD5353", font = 2)
     }
   bb = abs(bb)
    text(x = xp, y = yp, pos = 4,label = format(true, nsmall = 2), cex = 1.3)
 
-  if(bb> 0.001) text(x = xp+ 0.35, y = yp, pos = 4, label = format(bb, nsmall = 2), cex = 1.3, col = "#e60000", font = 1)
+  if(bb> 0.001) text(x = xp+ 0.35, y = yp, pos = 4, label = format(bb, nsmall = 2), cex = 1.3, col = "#DD5353", font = 1)
 }
 
 
@@ -134,6 +134,11 @@ true_effs = matrix(c(
   1, 0.5, 1
 ), 3, 3, byrow = TRUE)
 
+vertex_col_p = "#86A3B8"
+vertex_col_y = "#E8D2A6"
+vertex_col_frame = "#181823"
+vertex_frame_width = 2.0
+
 # A simulation
 g1 = graph(c("x\U2081", "y", "x\U2082", "y", "x\U2083", "y"),  
             directed=TRUE ) 
@@ -142,11 +147,17 @@ eqarrowPlot(g1, matrix(c(1,1,
                          0,1,
                          0,0,
                          0,2), nrow = 4L, 2L, byrow = TRUE) ,
-            cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 1), 1.0)),
+            cols = c(addA(rep(vertex_col_p, 1), 1.0), 
+                     vertex_col_y, 
+                     addA(rep(vertex_col_p, 1), 1.0),
+                     addA(rep(vertex_col_p, 1), 1.0)),
             edge.arrow.size=minArrow(c(1.00, 0.1, 1.0)),#abs(edges[c(1, 2, 5)]), 
             edge.width=c(1.00, 0.1, 1.0)*cex_fac,#abs(edges[c(1, 2, 5)])*cex_fac,
             edge.label = rep("",3),
             edge.label.cex = 1.4,
+            vertex.frame.color=vertex_col_frame,
+            vertex.label.color= vertex_col_frame,
+            vertex.frame.width = vertex_frame_width,
             edge.colors = rep("#B0A8B9", 3))
   text(letters[1], cex = 1.9, x = -1.6, y = 1.5, xpd = NA, font = 2)
   text("Simulation", x = 0.3, y = 2.3, xpd = NA, cex = 1.4, pos = 3)
@@ -162,11 +173,14 @@ eqarrowPlot(g1, matrix(c(1,1,
                        0,1,
                        0,0,
                        0,2), nrow = 4L, 2L, byrow = TRUE) , 
-            cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 2), 1.0)),
+            cols = c(addA(rep(vertex_col_p, 1), 1.0), vertex_col_y, addA(rep(vertex_col_p, 1), 1.0), addA(rep(vertex_col_p, 2), 1.0)),
             edge.arrow.size=minArrow(c(1.00, 0.1, 1.0, 0.9)),#abs(edges[c(1, 2, 5)]), 
             edge.width=c(1.00, 0.1, 1.0, 0.5)*cex_fac,#abs(edges[c(1, 2, 5)])*cex_fac,
             edge.label = rep("", 3), 
             edge.label.cex = 1.4, 
+            vertex.frame.color=vertex_col_frame,
+            vertex.label.color= vertex_col_frame,
+            vertex.frame.width = vertex_frame_width,            
             edge.arrow.mode = c(rep(">", 3), "-"), 
             edge.colors = c(rep("#B0A8B9", 1),"#B0A8B9","#B0A8B9", "#ffab02"))
 text(letters[2], cex = 1.9, x = -1.6, y = 1.5, xpd = NA, font = 2)
@@ -184,11 +198,14 @@ eqarrowPlot(g1, matrix(c(1,1,
                        0,1,
                        0,0,
                        0,2), nrow = 4L, 2L, byrow = TRUE) , 
-            cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 2), 1.0)),
+                cols = c(addA(rep(vertex_col_p, 1), 1.0), vertex_col_y, addA(rep(vertex_col_p, 1), 1.0), addA(rep(vertex_col_p, 1), 1.0)),
             edge.arrow.size=minArrow(c(1.00, 0.1, 1.0, 0.9)),#abs(edges[c(1, 2, 5)]), 
             edge.width=c(1.00, 0.5, 1.0, 0.5)*cex_fac,#abs(edges[c(1, 2, 5)])*cex_fac,
             edge.label = rep("", 3), 
             edge.label.cex = 1.4, 
+            vertex.frame.width = vertex_frame_width,
+            vertex.frame.color=vertex_col_frame,
+            vertex.label.color= vertex_col_frame,            
             edge.arrow.mode = c(rep(">", 3), "-"), 
             edge.colors = c(rep("#B0A8B9", 1),"#B0A8B9","#B0A8B9", "#ffab02"))
 text(letters[2], cex = 1.9, x = -1.6, y = 1.5, xpd = NA, font = 2)
@@ -219,12 +236,15 @@ for(i in 1:6) {
                              0,1,
                              0,0,
                              0,2), nrow = 4L, 2L, byrow = TRUE) ,
-                cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 1), 1.0)),
-                edge.arrow.size=minArrow(abs(-true_effs[j,] - bias)),#abs(edges[c(1, 2, 5)]), 
-                edge.width=abs(-true_effs[j,] - bias)*cex_fac,#abs(edges[c(1, 2, 5)])*cex_fac,
+                cols = c(addA(rep(vertex_col_p, 1), 1.0), vertex_col_y, addA(rep(vertex_col_p, 1), 1.0), addA(rep(vertex_col_p, 1), 1.0)),
+                edge.arrow.size=minArrow(abs(-true_effs[j,] - bias)),
+                edge.width=abs(-true_effs[j,] - bias)*cex_fac,
                 edge.label = rep("",3),
                 edge.label.cex = 1.4,
-                edge.colors = ifelse(abs(bias) < 0.01, "#B0A8B9", "#e60000"))
+                vertex.frame.color=vertex_col_frame,
+                vertex.label.color= vertex_col_frame,
+                vertex.frame.width = vertex_frame_width,                  
+                edge.colors = ifelse(abs(bias) < 0.01, "#B0A8B9", "#DD5353"))
     parser(true_effs[j, 1], bias[1], pos = 1)
     parser(true_effs[j, 2], bias[2], pos = 2)
     parser(true_effs[j, 3], bias[3], pos = 3)
@@ -236,7 +256,7 @@ for(i in 1:6) {
 
   }
   if(i == 3) {
-    points(x = 0-1, y = -1.1*0.5, col = "#e60000", xpd = NA, pch = 15, cex = 1.8)
+    points(x = 0-1, y = -1.1*0.5, col = "#DD5353", xpd = NA, pch = 15, cex = 1.8)
     text(x = 0.1-1, y = -1.1*0.5, label = "Bias", xpd = NA, pos = 4, cex = 1.4)
   }
 }
@@ -309,12 +329,14 @@ legend("topright", lty = 1, col = cols, legend = c("\U03B2\U2081 (true effect = 
 
 ```
 
-Looking at the evolution of the total effect within a linear booster model (Fig. S2a), we found indeed that the first members of the ensemble absorb the effect of the collinear effect (effect of X~1~ is absorbed by X1, Fig. S2a), but as members are added to the ensemble, the collinear effect (X2) slowly recovers the effect of the stronger collinear effect until both are at their correct effect estimate (Fig. S2a). This retrieval works by reversing the sign of each member's effect, so that X1, which initially has an effect of 1.5 (because it absorbed the effect of X2), has small negative effects in subsequent trees, while X2, which is initially estimated at 0, has small positive effects (Fig. S2b).
+Looking at the development of the total effect within a linear booster model (Fig. S2a), we found indeed that the first members of the ensemble absorb the effect of the collinear effect (effect of X~1~ is absorbed by X1, Fig. S2a), but as members are added to the ensemble, the collinear effect (X2) slowly recovers the effect of the stronger collinear effect until both are at their correct effect estimate (Fig. S2a). This retrieval works by reversing the sign of each member's effect, so that X1, which initially has an effect of 1.5 (because it absorbed the effect of X2), has small negative effects in subsequent trees, while X2, which is initially estimated at 0, has small positive effects (Fig. S2b).
 
 
 ## Proof of concept - Additional results
 
 ### Addtional scenarios
+
+To better understand the ability of ML algorithms in learning unbiased effects, we tested additional scenarios (Fig. S3, first column). 
 
 
 ```{r}
@@ -391,15 +413,15 @@ parser = function(true, bias, pos = 1) {
   bb = round(bias, 2)
   if(bb > 0) { 
     symb = "+" 
-    if(abs(bb) > 0.001) text(x = xp + 0.280, y = yp+0.01, pos = 4, symb, cex = 1.3, col = "#e60000", font = 2)
+    if(abs(bb) > 0.001) text(x = xp + 0.280, y = yp+0.01, pos = 4, symb, cex = 1.3, col = "#DD5353", font = 2)
   } else { 
     symb = "-"
-      if(abs(bb) > 0.001) text(x = xp + 0.29, y = yp, pos = 4, symb, cex = 1.3, col = "#e60000", font = 2)
+      if(abs(bb) > 0.001) text(x = xp + 0.29, y = yp, pos = 4, symb, cex = 1.3, col = "#DD5353", font = 2)
     }
   bb = abs(bb)
    text(x = xp, y = yp, pos = 4,label = format(true, nsmall = 2), cex = 1.3)
 
-  if(bb> 0.001) text(x = xp+ 0.35, y = yp, pos = 4, label = format(bb, nsmall = 2), cex = 1.3, col = "#e60000", font = 1)
+  if(bb> 0.001) text(x = xp+ 0.35, y = yp, pos = 4, label = format(bb, nsmall = 2), cex = 1.3, col = "#DD5353", font = 1)
 }
 
 
@@ -426,12 +448,18 @@ eqarrowPlot(g1, matrix(c(1,1,
                        0,1,
                        0,0,
                        0,2), nrow = 4L, 2L, byrow = TRUE) , 
-            cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 2), 1.0)),
+            cols = c(addA(rep(vertex_col_p, 1), 1.0), 
+                     vertex_col_y, 
+                     addA(rep(vertex_col_p, 1), 1.0),
+                     addA(rep(vertex_col_p, 1), 1.0)),
             edge.arrow.size=minArrow(c(1.00, 0.1, 1.0, 0.9)),#abs(edges[c(1, 2, 5)]), 
             edge.width=c(1.00, 0.1, 1.0, 0.5)*cex_fac,#abs(edges[c(1, 2, 5)])*cex_fac,
             edge.label = rep("", 3), 
             edge.label.cex = 1.4, 
             edge.arrow.mode = c(rep(">", 3), "-"), 
+            vertex.frame.color=vertex_col_frame,
+            vertex.label.color= vertex_col_frame,
+            vertex.frame.width = vertex_frame_width,            
             edge.colors = c(rep("#B0A8B9", 1),"#B0A8B9","#B0A8B9", "#ffab02"))
 text(letters[1], cex = 1.9, x = -1.6, y = 1.5, xpd = NA, font = 2)
 text("Simulation", x = 0.3, y = 2.3, xpd = NA, cex = 1.4, pos = 3)
@@ -449,11 +477,17 @@ eqarrowPlot(g1, matrix(c(1,1,
                        0,1,
                        0,0,
                        0,2), nrow = 4L, 2L, byrow = TRUE) , 
-            cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 2), 1.0)),
+            cols = c(addA(rep(vertex_col_p, 1), 1.0), 
+                     vertex_col_y, 
+                     addA(rep(vertex_col_p, 1), 1.0),
+                     addA(rep(vertex_col_p, 1), 1.0)),
             edge.arrow.size=minArrow(c(1.00, 0.5, 1.0, 0.9)),#abs(edges[c(1, 2, 5)]), 
             edge.width=c(1.00, 0.5, 1.0, 0.5)*cex_fac,#abs(edges[c(1, 2, 5)])*cex_fac,
             edge.label = rep("", 3), 
             edge.label.cex = 1.4, 
+            vertex.frame.color=vertex_col_frame,
+            vertex.label.color= vertex_col_frame,
+            vertex.frame.width = vertex_frame_width,            
             edge.arrow.mode = c(rep(">", 3), "-"), 
             edge.colors = c(rep("#B0A8B9", 1),"#B0A8B9","#B0A8B9", "#ffab02"))
 text(letters[2], cex = 1.9, x = -1.6, y = 1.5, xpd = NA, font = 2)
@@ -473,11 +507,17 @@ eqarrowPlot(g1, matrix(c(1,1,
                        0,1,
                        0,0,
                        0,2), nrow = 4L, 2L, byrow = TRUE) , 
-            cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 2), 1.0)),
+            cols = c(addA(rep(vertex_col_p, 1), 1.0), 
+                     vertex_col_y, 
+                     addA(rep(vertex_col_p, 1), 1.0),
+                     addA(rep(vertex_col_p, 1), 1.0)),            
             edge.arrow.size=minArrow(c(1.00, 0.5, 1.0, 0.9)),#abs(edges[c(1, 2, 5)]), 
             edge.width=c(1.00, 0.5, 1.0, 0.5)*cex_fac,#abs(edges[c(1, 2, 5)])*cex_fac,
             edge.label = rep("", 3), 
             edge.label.cex = 1.4, 
+            vertex.frame.color=vertex_col_frame,
+            vertex.label.color= vertex_col_frame,
+            vertex.frame.width = vertex_frame_width,            
             edge.arrow.mode = c(rep(">", 3), "-"), 
             edge.colors = c(rep("#B0A8B9", 1),"#B0A8B9","#B0A8B9", "#ffab02"))
 text(letters[3], cex = 1.9, x = -1.6, y = 1.5, xpd = NA, font = 2)
@@ -510,12 +550,18 @@ for(i in c(1, 2, 3, 4, 8)) {
                              0,1,
                              0,0,
                              0,2), nrow = 4L, 2L, byrow = TRUE) ,
-                cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 1), 1.0)),
+              cols = c(addA(rep(vertex_col_p, 1), 1.0), 
+                     vertex_col_y, 
+                     addA(rep(vertex_col_p, 1), 1.0),
+                     addA(rep(vertex_col_p, 1), 1.0)),
                 edge.arrow.size=minArrow(abs(-true_effs[j,] - bias)),#abs(edges[c(1, 2, 5)]), 
                 edge.width=abs(-true_effs[j,] - bias)*cex_fac,#abs(edges[c(1, 2, 5)])*cex_fac,
                 edge.label = rep("",3),
                 edge.label.cex = 1.4,
-                edge.colors = ifelse(abs(bias) < 0.01, "#B0A8B9", "#e60000"))
+                vertex.frame.color=vertex_col_frame,
+                vertex.label.color= vertex_col_frame,
+                vertex.frame.width = vertex_frame_width,                
+                edge.colors = ifelse(abs(bias) < 0.01, "#B0A8B9", "#DD5353"))
     parser(true_effs[j, 1], bias[1], pos = 1)
     parser(true_effs[j, 2], bias[2], pos = 2)
     parser(true_effs[j, 3], bias[3], pos = 3)
@@ -527,7 +573,7 @@ for(i in c(1, 2, 3, 4, 8)) {
 
   }
   if(i == 3) {
-    points(x = 0-1, y = -1.1*0.5, col = "#e60000", xpd = NA, pch = 15, cex = 1.8)
+    points(x = 0-1, y = -1.1*0.5, col = "#DD5353", xpd = NA, pch = 15, cex = 1.8)
     text(x = 0.1-1, y = -1.1*0.5, label = "Bias", xpd = NA, pos = 4, cex = 1.4)
   }
 }
@@ -536,7 +582,11 @@ for(i in c(1, 2, 3, 4, 8)) {
 ```
 
 
+We found that NN cannot separate extreme collinear effects as the OLS (Fig. S3a) which, however, may improve with additional observations. 
+
 ### Additonal models 
+
+To understand the different effects of regularization in NN (dropout), LASSO regression, and Ridge regression, we tested these models on our theoretical scenarios (Fig. S4, first column). 
 
 
 ```{r}
@@ -564,15 +614,15 @@ parser = function(true, bias, pos = 1) {
   bb = round(bias, 2)
   if(bb > 0) { 
     symb = "+" 
-    if(abs(bb) > 0.001) text(x = xp + 0.280, y = yp+0.01, pos = 4, symb, cex = 1.3, col = "#e60000", font = 2)
+    if(abs(bb) > 0.001) text(x = xp + 0.280, y = yp+0.01, pos = 4, symb, cex = 1.3, col = "#DD5353", font = 2)
   } else { 
     symb = "-"
-      if(abs(bb) > 0.001) text(x = xp + 0.29, y = yp, pos = 4, symb, cex = 1.3, col = "#e60000", font = 2)
+      if(abs(bb) > 0.001) text(x = xp + 0.29, y = yp, pos = 4, symb, cex = 1.3, col = "#DD5353", font = 2)
     }
   bb = abs(bb)
    text(x = xp, y = yp, pos = 4,label = format(true, nsmall = 2), cex = 1.3)
 
-  if(bb> 0.001) text(x = xp+ 0.35, y = yp, pos = 4, label = format(bb, nsmall = 2), cex = 1.3, col = "#e60000", font = 1)
+  if(bb> 0.001) text(x = xp+ 0.35, y = yp, pos = 4, label = format(bb, nsmall = 2), cex = 1.3, col = "#DD5353", font = 1)
 }
 
 
@@ -601,11 +651,14 @@ eqarrowPlot(g1, matrix(c(1,1,
                          0,1,
                          0,0,
                          0,2), nrow = 4L, 2L, byrow = TRUE) ,
-            cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 1), 1.0)),
+                cols = c(addA(rep(vertex_col_p, 1), 1.0), vertex_col_y, addA(rep(vertex_col_p, 1), 1.0), addA(rep(vertex_col_p, 1), 1.0)),
             edge.arrow.size=minArrow(c(1.00, 0.1, 1.0)),#abs(edges[c(1, 2, 5)]), 
             edge.width=c(1.00, 0.1, 1.0)*cex_fac,#abs(edges[c(1, 2, 5)])*cex_fac,
             edge.label = rep("",3),
             edge.label.cex = 1.4,
+            vertex.frame.width = vertex_frame_width,
+            vertex.frame.color=vertex_col_frame,
+            vertex.label.color= vertex_col_frame,            
             edge.colors = rep("#B0A8B9", 3))
   text(letters[1], cex = 1.9, x = -0.7, y = 2.5, xpd = NA, font = 2)
   text("Simulation", x = 0.3, y = 2.3, xpd = NA, cex = 1.4, pos = 3)
@@ -622,11 +675,14 @@ eqarrowPlot(g1, matrix(c(1,1,
                        0,1,
                        0,0,
                        0,2), nrow = 4L, 2L, byrow = TRUE) , 
-            cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 2), 1.0)),
+                cols = c(addA(rep(vertex_col_p, 1), 1.0), vertex_col_y, addA(rep(vertex_col_p, 1), 1.0), addA(rep(vertex_col_p, 1), 1.0)),
             edge.arrow.size=minArrow(c(1.00, 0.1, 1.0, 0.9)),#abs(edges[c(1, 2, 5)]), 
             edge.width=c(1.00, 0.1, 1.0, 0.5)*cex_fac,#abs(edges[c(1, 2, 5)])*cex_fac,
             edge.label = rep("", 3), 
             edge.label.cex = 1.4, 
+            vertex.frame.width = vertex_frame_width,
+            vertex.frame.color=vertex_col_frame,
+            vertex.label.color= vertex_col_frame,            
             edge.arrow.mode = c(rep(">", 3), "-"), 
             edge.colors = c(rep("#B0A8B9", 1),"#B0A8B9","#B0A8B9", "#ffab02"))
   text(letters[2], cex = 1.9, x = -0.7, y = 2.5, xpd = NA, font = 2)
@@ -645,11 +701,14 @@ eqarrowPlot(g1, matrix(c(1,1,
                        0,1,
                        0,0,
                        0,2), nrow = 4L, 2L, byrow = TRUE) , 
-            cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 2), 1.0)),
+                cols = c(addA(rep(vertex_col_p, 1), 1.0), vertex_col_y, addA(rep(vertex_col_p, 1), 1.0), addA(rep(vertex_col_p, 1), 1.0)),
             edge.arrow.size=minArrow(c(1.00, 0.5, 1.0, 0.9)),#abs(edges[c(1, 2, 5)]), 
             edge.width=c(1.00, 0.5, 1.0, 0.5)*cex_fac,#abs(edges[c(1, 2, 5)])*cex_fac,
             edge.label = rep("", 3), 
             edge.label.cex = 1.4, 
+            vertex.frame.width = vertex_frame_width,
+            vertex.frame.color=vertex_col_frame,
+            vertex.label.color= vertex_col_frame,            
             edge.arrow.mode = c(rep(">", 3), "-"), 
             edge.colors = c(rep("#B0A8B9", 1),"#B0A8B9","#B0A8B9", "#ffab02"))
   text(letters[3], cex = 1.9, x = -0.7, y = 2.5, xpd = NA, font = 2)
@@ -668,11 +727,14 @@ eqarrowPlot(g1, matrix(c(1,1,
                        0,1,
                        0,0,
                        0,2), nrow = 4L, 2L, byrow = TRUE) , 
-            cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 2), 1.0)),
+                cols = c(addA(rep(vertex_col_p, 1), 1.0), vertex_col_y, addA(rep(vertex_col_p, 1), 1.0), addA(rep(vertex_col_p, 1), 1.0)),
             edge.arrow.size=minArrow(c(1.00, 0.5, 1.0, 0.9)),#abs(edges[c(1, 2, 5)]), 
             edge.width=c(1.00, 0.5, 1.0, 0.5)*cex_fac,#abs(edges[c(1, 2, 5)])*cex_fac,
             edge.label = rep("", 3), 
             edge.label.cex = 1.4, 
+            vertex.frame.width = vertex_frame_width,
+            vertex.frame.color=vertex_col_frame,
+            vertex.label.color= vertex_col_frame,            
             edge.arrow.mode = c(rep(">", 3), "-"), 
             edge.colors = c(rep("#B0A8B9", 1),"#B0A8B9","#B0A8B9", "#ffab02"))
   text(letters[4], cex = 1.9, x = -0.7, y = 2.5, xpd = NA, font = 2)
@@ -704,12 +766,15 @@ for(i in c(5, 6, 7)) {
                              0,1,
                              0,0,
                              0,2), nrow = 4L, 2L, byrow = TRUE) ,
-                cols = c(addA(rep("#87CEEB", 1), 1.0), "#B0A8B9", addA(rep("#87CEEB", 1), 1.0), addA(rep("#87CEEB", 1), 1.0)),
+                cols = c(addA(rep(vertex_col_p, 1), 1.0), vertex_col_y, addA(rep(vertex_col_p, 1), 1.0), addA(rep(vertex_col_p, 1), 1.0)),
                 edge.arrow.size=minArrow(abs(-true_effs[j,] - bias)),#abs(edges[c(1, 2, 5)]), 
                 edge.width=abs(-true_effs[j,] - bias)*cex_fac,#abs(edges[c(1, 2, 5)])*cex_fac,
                 edge.label = rep("",3),
                 edge.label.cex = 1.4,
-                edge.colors = ifelse(abs(bias) < 0.01, "#B0A8B9", "#e60000"))
+                vertex.frame.width = vertex_frame_width,
+                vertex.frame.color=vertex_col_frame,
+                vertex.label.color= vertex_col_frame,                
+                edge.colors = ifelse(abs(bias) < 0.01, "#B0A8B9", "#DD5353"))
     parser(true_effs[j, 1], bias[1], pos = 1)
     parser(true_effs[j, 2], bias[2], pos = 2)
     parser(true_effs[j, 3], bias[3], pos = 3)
@@ -721,7 +786,7 @@ for(i in c(5, 6, 7)) {
 
   }
   if(i == 3) {
-    points(x = 0-1, y = -1.1*0.5, col = "#e60000", xpd = NA, pch = 15, cex = 1.8)
+    points(x = 0-1, y = -1.1*0.5, col = "#DD5353", xpd = NA, pch = 15, cex = 1.8)
     text(x = 0.1-1, y = -1.1*0.5, label = "Bias", xpd = NA, pos = 4, cex = 1.4)
   }
 }
@@ -730,15 +795,14 @@ for(i in c(5, 6, 7)) {
 ```
 
 
-
-
+Dropout has an negative effect on the ability to separate collinear effects in NN (Fig. S4) while also LASSO and Ridge (as expected) affect negatively the ability to separate collinear effects (Fig. S4).
 
 
 ## Hyperparameter tuning
 
 We performed a hyperparameter search to check if and how hyperparameters influence differently or equally effect estimates and the prediction error, so does a model tune after the prediction error has biased effects? For that, we created simulation scenarios with 50, 100, 600, and 2000 observations and 100 predictors with effects ($beta_i, i = 1,...,100$) $\beta_1 = 1.0$, and $\beta_2$ to $\beta_3$ were equally spaced between 0.0 to 1.0 so that $\beta_2 = 0.0$ and $\beta_{100} = 1.0$.
 
-predictors were sampled from a multivariate normal distribution and all predictors were randomly correlated (Variance-covariance matrix $\Sigma$ was sampled from a LKJ-distribution with $\eta = 2.0$.
+Predictors were sampled from a multivariate normal distribution and all predictors were randomly correlated (Variance-covariance matrix $\Sigma$ was sampled from a LKJ-distribution with $\eta = 2.0$.
 
 1,000 combinations of hyper-parameters were randomly drawn (Table S1). For each draw of hyperparameters, the data simulation and model fitting was repeated 20 times. Effect sizes of X~1~ and X~2~ were recorded (for each hyperparameter combination and for each reptition). Moreover, bias, variance, and mean square error (MSE) were recorded for the predictions on a holdout of the same size as the training data.
 
@@ -765,6 +829,8 @@ predictors were sampled from a multivariate normal distribution and all predicto
 : Overview over hyper-parameters for Neural Network, Boosted Regression Tree, and Random Forest {#tbl-Hyper}
 
 ### Results hyperparameter tuning
+
+As described in the main text, we analyzed the effects of the hyperparameters on the different errors using GAMs and variable importance of random forest (Fig. S5, S6, S7). 
 
 ```{r}
 #| label: fig-Fig_S5
@@ -898,7 +964,6 @@ axis(3, at = scales::rescale(c(0, log10(10+1), log10(130+1)), to = c(0.3, 0.5), 
 ```
 
 
-
 ```{r}
 #| label: fig-Fig_S7
 #| fig-cap: "Results of hyperparameter tuning for Neural Networks (NN), Boosted Regression Trees (BRT), Random Forests (RF), and Elastic Net (EN) for 2000 observations with 100 predictors. The influence of the hyperparameters on effect $\\hat{\\beta}_1$ (bias, variance, and MSE)(true simulated effect $\\beta_1 = 1.0$  ) and the predictions, $\\hat{y}$ of the model (bias, variance, and MSE) were estimated by a multivariate generalized additive model (GAM). Categorical hyperparameters (activation function in NN) were estimated as fixed effects. The responses (bias, variance, MSE) were centered so that the categorical hyperparameters correspond to the intercepts. The variable importance of the hyperparameters was estimated by a random forest with the MSE of the effect $\\hat{\\beta}_1$ (first plot) or the prediction $\\hat{y}$ (second plot) as the response. Red dots correspond to the best predicted set of hyperparameters (based on a random forest), in the first plot for the minimum MSE of the effect $\\hat{\\beta}_1$ and in the second plot for the minimum MSE of the predictions $\\hat{y}$."
@@ -1020,6 +1085,8 @@ create_table(results_50[[4]]$hyper$pred[,1:2], results_100[[4]]$hyper$pred[,1:2]
 
 ### Prediction error of scenarios
 
+Fig. S8 shows the MSE of the predictions on the holdouts for the different ML algorithms and different number of observations of the data-poor scenarios (see main text).
+
 ```{r}
 #| warning: false
 #| message: false
@@ -1076,6 +1143,8 @@ g1
 
 ### Bias and variance of effects
 
+To assess the effect of collinearity on the data-poor simulations, we repeated the scenarios but without collinearity. $\Sigma$ which was used in the sampling process of the predictor matrix (multivariate normal distribution) was set to the identity matrix. While it is not ideal, we used the best hyperparameters (Table S3, Table S4) which were tuned for the collinear scenarios, for these scenarios
+
 
 ```{r}
 #| echo: false
@@ -1117,7 +1186,7 @@ res_eff = lapply(c("small", "mid", "big"), function(n) extract_results(paste0("r
 #| label: fig-Fig_S9
 #| fig-width: 10
 #| fig-height: 7
-#| fig-cap: "Bias and variance of estimated effects in data-poor situations. N = 50, 100, and 600 observations of 100 weakly correlated predictors were simulated. The effects of X~1~ and X~2~ were 1.0 and 0.0. The other 98 effects were equally spaced between 0 and 1. Models were fitted to the simulated data (1000 repititions) with the optimal hyperparameters (except for LM, which doesn't have hyperparameters). Hyperparameters were chosen based on the minimum MSE of an effect (green) or the prediction error (red). Bias and variance were calculated for X~1~ and X~2~. Effects were approximated using ACE."
+#| fig-cap: "Bias and variance of estimated effects in data-poor situations. N = 50, 100, and 600 observations of 100 uncorrelated predictors were simulated. True effects in the data generating model were $\\beta_1$=1.0, $\\beta_2$=0.0, and the other 98 effects were equally spaced between 0 and 1. Models were fitted to the simulated data (1000 replicates) with the optimal hyperparameters (except for LM, which doesn’t have hyperparameters). Hyperparameters were selected based on the minimum MSE of ($\\hat{\\beta}_1$) (green) or the prediction error (based on $\\hat{y}$  ) (red). Bias and variance were calculated for $\\hat{\\beta}_1$ and $\\hat{\\beta}_2$. Effects $\\hat{\\beta}_i$ for $i=1,…,100$) were approximated using ACE."
 #| warning: false
 
 
@@ -1184,8 +1253,11 @@ text(x = rep(-0.2, 2)+0.01, y = c(-0.7, -0.8)-0.02, pos = 4, labels = c("Tuned a
 
 ```
 
+We found similar results as for data-poor scenarios with collinearity (Fig. S9). NN and elastic-net show the lowest errors and strongest increase in those errors with increasing number of observations (Fig. S9).
 
 ### Prediction error of scenarios
+
+Fig. S10 shows the prediction errors for the ML algorithms for the data-poor simulations without collinearity. We found similar results as for the data-poor simulations with collinearity.
 
 ```{r}
 #| warning: false
@@ -1255,9 +1327,9 @@ $$
 $h_m$ and $h_k$ are set to $0.1 \cdot sd(x_m)$ and $0.1 \cdot sd(x_k)$. All predictors are centered and standardized.
 
 
-### Proof of concept simulations
+### Proof of concept simulations for inferring interactions
 
-To test the ability of ML algorithms to identify predictor-predictor interactions, we repeated the proof-of-concept simulations, but with an interaction between X~1~ and X~2~. The data generation model was $Y\sim 1.0\cdot X_1 + 1.0\cdot X_5 + 1.0\cdot (X_1 \cdot X_2) + \epsilon, epsilon \sim N(0, 1.0) $. We simulated two scenarios, in the first ("collinear") X~1~ and X~2~ were collinear (Pearson correlation factor = 0.9) and in the second without collinearity between the predictors. 
+To test the ability of ML algorithms to identify predictor-predictor interactions, we repeated the proof-of-concept simulations, but with an interaction between X~1~ and X~2~. The data generation model was $Y\sim 1.0 \cdot X_1 + 1.0 \cdot X_5 + 1.0 \cdot (X_1 \cdot X_2) + \epsilon$ with  $\epsilon \sim N(0, 1.0) $. We simulated two scenarios, in the first ("collinear") X~1~ and X~2~ were collinear (Pearson correlation factor = 0.9) and in the second without collinearity between the predictors. 
 
 We sampled 1000 and 5000 observations from each scenario. The ML algorithms (RF, BRT, NN, and NN with dropout) were fit to the data without predictor engineering the predictor interactions (because ML algorithms are known to be able to infer interactions automatically), while the regression algorithms (LM, l1, l2, and elastic-net) received all combinatorially possible predictor interactions as possible predictors. All effects were inferred using ACE. The bias was calculated for the interaction X~1~:X~2~.
 
@@ -1316,7 +1388,7 @@ ggplot(data = res %>% filter(name == "X1.X2"), aes(x = algorithm, fill = N, y = 
   theme(strip.background =element_rect(fill="white"))
 ```
 
-
+We found that for the ML algorithms (RF, BRT, and NN) NN showed the lowest for all scenarios (Fig. S11). Also collinearity increased the bias for the ML algorithms. No collinearity or more observations decreased the bias (Fig. S11). The regression models, LM, LASSO and Ridge regression, and elastic-net showed the lowest and in case of LM, no bias. However, we want to note here that the regression models received all possible predictor-predictor interactions as predictors while the ML algorithms had to infer the interactions on their own. Whit this in mind, the performance of the NN is surprising well, even competing with the penalized regression models. On the other hand, NN with dropout showed larger biases than BRT (Fig. S11).
 
 ## Weighted ACE
 

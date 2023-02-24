@@ -2,22 +2,34 @@ Supporting information Appendix for Pichler & Hartig – Can machine
 learning be used for causal inference?
 ================
 
-# Can machine learning be used for causal inference?
-
 This repository contains the code to reproduce the results in Pichler
 and Hartig, Can machine learning be used for causal inference?
+
+## Scripts
+
+Scripts to reproduce the analysis can be found in the `code` folder. To
+rerun everything, run in the following order:
+
+``` r
+source("code/0_Boosting_Regression_Trees.R")
+source("code/1_Simulation_proof_of_concept.R")
+source("code/2_Simulation_BRT_Pars_Replicated.R")
+source("code/2_Simulation_Elastic_net_Pars_Replicated.R")
+source("code/2_Simulation_NN_Pars_Replicated.R")
+source("code/2_Simulation_RF_Pars_Replicated.R")
+source("code/3_aggregate_hyper_parameter_results.R")
+source("code/3_Simulation_data_poor.R")
+source("code/3_Simulation_data_poor_no_coll.R")
+source("code/4_Simulation_proof_of_concept_interactions.R")
+source("code/5_NN_learning.R")
+source("code/6_Predictions.R")
+```
 
 # Results
 
 ## Results
 
 ### Proof of concept
-
-                  [,1]      [,2]
-    [1,]  1.000000e+00 0.7071068
-    [2,]  0.000000e+00 0.7071068
-    [3,] -7.071068e-01 0.0000000
-    [4,] -1.836970e-16 1.7071068
 
 <figure>
 <img src="figures/fig-Fig_2-1.png" id="fig-Fig_2"
@@ -89,10 +101,6 @@ for the minimum MSE of the predictions <span
 class="math inline"><em>ŷ</em></span>.</figcaption>
 </figure>
 
-    [1] 0 0 0
-
-    [1] 0 0 0
-
 ### Case Study
 
 <figure>
@@ -124,29 +132,29 @@ Hartig – Can machine learning be used for causal inference.
 
 ### Unbiasedness
 
-Random forest (RF) and boosted regression trees (BRT) showed bias in
-both scenarios, with and without collinearity, raising the question of
-whether the bias is caused by the boosting/bagging or the regression
-trees themselves. For RF, we know that the observed spillover effect is
-caused by the random subsampling (mtry parameter) in the algorithm,
-which explains the bias.
+Random forest (RF) and boosted regression trees (BRT) showed biased
+effect estimates in both scenarios, with and without collinearity,
+raising the question of whether the bias is caused by the
+boosting/bagging or the regression trees themselves. For RF, we know
+that the observed spillover effect is caused by the random subsampling
+(mtry parameter) in the algorithm, which explains the bias.
 
 For BRT, however, it is unclear what is causing the bias (boosting or
 regression trees) because each member in the ensemble is always
 presented with all predictors (at least with the default
 hyperparameters, the BRT implementation in xgboost has options to use
 bootstrap samples for each tree and also subsamples of columns in each
-tree (or node), see @chen2016xgboost).
+tree (or node), see Chen and Guestrin (2016)).
 
 To understand how boosting and regression trees affect effect estimates,
 we simulated three different scenarios (Fig. S1, first column) without
 collinearity (Fig. S1a) and with collinearity (Fig. S1a, b) (we sampled
 1000 observations from each data generating model (Fig. S1, first
-column) and estimated effects using ACE (100 repititions)).
+column) and estimated effects using ACE (500 repititions)).
 
 <figure>
 <img src="figures/fig-Fig_S1-1.png" id="fig-Fig_S1"
-alt="Figure S 5: Bias on effect estimates for different ML algorithms (LM = liner regression model (OLS), RT LC = regression tree with low complexity (depth), RT HC = regression tree with high complexity, Linear Booster, Tree Booster LC = tree booster with low complexity, Tree Booster HC = tree boster with high complexity) in three different simulated causal scenarios (a, b, and c). Sample sizes are so large that stochastic effects can be excluded (1000 observations). Effects of the ML models were inferred using average conditional effects. Row a) shows results for simulations with uncorrelated predictors with the true effect sizes . Row b) shows the results for simulations with X1 and X2 being strongly correlated (Pearson correlation factor = 0.9) but only X1 has an effect on y (mediator) and row c) shows the results for X1 and X2 being strongly correlated (Pearson correlation factor = 0.9) with X1 and X2 having effects on Y (confounder scenario)." />
+alt="Figure S 5: Bias on effect estimates for different ML algorithms (LM = liner regression model (OLS), RT LC = regression tree with low complexity (depth), RT HC = regression tree with high complexity, Linear Booster, Tree Booster LC = tree booster with low complexity, Tree Booster HC = tree boster with high complexity) in three different simulated causal scenarios (a, b, and c). Sample sizes are so large that stochastic effects can be excluded (1000 observations). Effects of the ML models were inferred using average conditional effects. Row a) shows results for simulations with uncorrelated predictors with the true effect sizes. Row b) shows the results for simulations with X1 and X2 being strongly correlated (Pearson correlation factor = 0.9) but only X1 has an effect on y (mediator) and row c) shows the results for X1 and X2 being strongly correlated (Pearson correlation factor = 0.9) with X1 and X2 having effects on Y (confounder scenario)." />
 <figcaption aria-hidden="true"><strong>Figure S</strong> 5: Bias on
 effect estimates for different ML algorithms (LM = liner regression
 model (OLS), RT LC = regression tree with low complexity (depth), RT HC
@@ -156,7 +164,7 @@ high complexity) in three different simulated causal scenarios (a, b,
 and c). Sample sizes are so large that stochastic effects can be
 excluded (1000 observations). Effects of the ML models were inferred
 using average conditional effects. Row a) shows results for simulations
-with uncorrelated predictors with the true effect sizes . Row b) shows
+with uncorrelated predictors with the true effect sizes. Row b) shows
 the results for simulations with X<sub>1</sub> and X<sub>2</sub> being
 strongly correlated (Pearson correlation factor = 0.9) but only
 X<sub>1</sub> has an effect on y (mediator) and row c) shows the results
@@ -210,7 +218,7 @@ n-th ensemble member. X1 and X2 were correlated (Pearson correlationf
 factor = 0.9).</figcaption>
 </figure>
 
-Looking at the evolution of the total effect within a linear booster
+Looking at the development of the total effect within a linear booster
 model (Fig. S2a), we found indeed that the first members of the ensemble
 absorb the effect of the collinear effect (effect of X<sub>1</sub> is
 absorbed by X1, Fig. S2a), but as members are added to the ensemble, the
@@ -225,6 +233,9 @@ effects (Fig. S2b).
 ## Proof of concept - Additional results
 
 ### Addtional scenarios
+
+To better understand the ability of ML algorithms in learning unbiased
+effects, we tested additional scenarios (Fig. S3, first column).
 
 <figure>
 <img src="figures/fig-Fig_S3-1.png" id="fig-Fig_S3"
@@ -244,7 +255,14 @@ correlation factor = 0.5) with effect sizes (X<sub>1</sub>: 1.0,
 X<sub>2</sub>: -0.5, X<sub>3</sub>: 1.0)</figcaption>
 </figure>
 
+We found that NN cannot separate extreme collinear effects as the OLS
+(Fig. S3a) which, however, may improve with additional observations.
+
 ### Additonal models
+
+To understand the different effects of regularization in NN (dropout),
+LASSO regression, and Ridge regression, we tested these models on our
+theoretical scenarios (Fig. S4, first column).
 
 <figure>
 <img src="figures/fig-Fig_S4-1.png" id="fig-Fig_S4"
@@ -261,6 +279,10 @@ being strongly correlated (Pearson correlation factor = 0.99) but only
 X<sub>1</sub> has an effect on y.</figcaption>
 </figure>
 
+Dropout has an negative effect on the ability to separate collinear
+effects in NN (Fig. S4) while also LASSO and Ridge (as expected) affect
+negatively the ability to separate collinear effects (Fig. S4).
+
 ## Hyperparameter tuning
 
 We performed a hyperparameter search to check if and how hyperparameters
@@ -272,7 +294,7 @@ and 2000 observations and 100 predictors with effects
 were equally spaced between 0.0 to 1.0 so that $\beta_2 = 0.0$ and
 $\beta_{100} = 1.0$.
 
-predictors were sampled from a multivariate normal distribution and all
+Predictors were sampled from a multivariate normal distribution and all
 predictors were randomly correlated (Variance-covariance matrix $\Sigma$
 was sampled from a LKJ-distribution with $\eta = 2.0$.
 
@@ -312,6 +334,10 @@ Boosted Regression Tree, and Random Forest
 </div>
 
 ### Results hyperparameter tuning
+
+As described in the main text, we analyzed the effects of the
+hyperparameters on the different errors using GAMs and variable
+importance of random forest (Fig. S5, S6, S7).
 
 <figure>
 <img src="figures/fig-Fig_S5-1.png" id="fig-Fig_S5"
@@ -462,6 +488,10 @@ lowest MSE.
 
 ### Prediction error of scenarios
 
+Fig. S8 shows the MSE of the predictions on the holdouts for the
+different ML algorithms and different number of observations of the
+data-poor scenarios (see main text).
+
 <figure>
 <img src="figures/fig-Fig_S8-1.png" id="fig-Fig_S8"
 alt="Figure S 12: Prediction error (mean square error, MSE) of data poor simulations with optimal hyperparameters either tuned after the best MSE of the effect size (red) or the best MSE of the prediction error (blue)." />
@@ -475,23 +505,46 @@ or the best MSE of the prediction error (blue).</figcaption>
 
 ### Bias and variance of effects
 
+To assess the effect of collinearity on the data-poor simulations, we
+repeated the scenarios but without collinearity. $\Sigma$ which was used
+in the sampling process of the predictor matrix (multivariate normal
+distribution) was set to the identity matrix. While it is not ideal, we
+used the best hyperparameters (Table S3, Table S4) which were tuned for
+the collinear scenarios, for these scenarios
+
 <figure>
 <img src="figures/fig-Fig_S9-1.png" id="fig-Fig_S9"
-alt="Figure S 13: Bias and variance of estimated effects in data-poor situations. N = 50, 100, and 600 observations of 100 weakly correlated predictors were simulated. The effects of X1 and X2 were 1.0 and 0.0. The other 98 effects were equally spaced between 0 and 1. Models were fitted to the simulated data (1000 repititions) with the optimal hyperparameters (except for LM, which doesn’t have hyperparameters). Hyperparameters were chosen based on the minimum MSE of an effect (green) or the prediction error (red). Bias and variance were calculated for X1 and X2. Effects were approximated using ACE." />
+alt="Figure S 13: Bias and variance of estimated effects in data-poor situations. N = 50, 100, and 600 observations of 100 uncorrelated predictors were simulated. True effects in the data generating model were \beta_1=1.0, \beta_2=0.0, and the other 98 effects were equally spaced between 0 and 1. Models were fitted to the simulated data (1000 replicates) with the optimal hyperparameters (except for LM, which doesn’t have hyperparameters). Hyperparameters were selected based on the minimum MSE of (\hat{\beta}_1) (green) or the prediction error (based on \hat{y} ) (red). Bias and variance were calculated for \hat{\beta}_1 and \hat{\beta}_2. Effects \hat{\beta}_i for i=1,…,100) were approximated using ACE." />
 <figcaption aria-hidden="true"><strong>Figure S</strong> 13: Bias and
 variance of estimated effects in data-poor situations. N = 50, 100, and
-600 observations of 100 weakly correlated predictors were simulated. The
-effects of X<sub>1</sub> and X<sub>2</sub> were 1.0 and 0.0. The other
-98 effects were equally spaced between 0 and 1. Models were fitted to
-the simulated data (1000 repititions) with the optimal hyperparameters
+600 observations of 100 uncorrelated predictors were simulated. True
+effects in the data generating model were <span
+class="math inline"><em>β</em><sub>1</sub></span>=1.0, <span
+class="math inline"><em>β</em><sub>2</sub></span>=0.0, and the other 98
+effects were equally spaced between 0 and 1. Models were fitted to the
+simulated data (1000 replicates) with the optimal hyperparameters
 (except for LM, which doesn’t have hyperparameters). Hyperparameters
-were chosen based on the minimum MSE of an effect (green) or the
-prediction error (red). Bias and variance were calculated for
-X<sub>1</sub> and X<sub>2</sub>. Effects were approximated using
-ACE.</figcaption>
+were selected based on the minimum MSE of (<span
+class="math inline"><em>β̂</em><sub>1</sub></span>) (green) or the
+prediction error (based on <span class="math inline"><em>ŷ</em></span> )
+(red). Bias and variance were calculated for <span
+class="math inline"><em>β̂</em><sub>1</sub></span> and <span
+class="math inline"><em>β̂</em><sub>2</sub></span>. Effects <span
+class="math inline"><em>β̂</em><sub><em>i</em></sub></span> for <span
+class="math inline"><em>i</em> = 1, …, 100</span>) were approximated
+using ACE.</figcaption>
 </figure>
 
+We found similar results as for data-poor scenarios with collinearity
+(Fig. S9). NN and elastic-net show the lowest errors and strongest
+increase in those errors with increasing number of observations (Fig.
+S9).
+
 ### Prediction error of scenarios
+
+Fig. S10 shows the prediction errors for the ML algorithms for the
+data-poor simulations without collinearity. We found similar results as
+for the data-poor simulations with collinearity.
 
 <figure>
 <img src="figures/fig-Fig_S10-1.png" id="fig-Fig_S10"
@@ -523,15 +576,17 @@ $$
 $h_m$ and $h_k$ are set to $0.1 \cdot sd(x_m)$ and $0.1 \cdot sd(x_k)$.
 All predictors are centered and standardized.
 
-### Proof of concept simulations
+### Proof of concept simulations for inferring interactions
 
 To test the ability of ML algorithms to identify predictor-predictor
 interactions, we repeated the proof-of-concept simulations, but with an
 interaction between X<sub>1</sub> and X<sub>2</sub>. The data generation
-model was \$Y1.0X_1 + 1.0X_5 + 1.0(X_1 X_2) + , epsilon N(0, 1.0) \$. We
-simulated two scenarios, in the first (“collinear”) X<sub>1</sub> and
-X<sub>2</sub> were collinear (Pearson correlation factor = 0.9) and in
-the second without collinearity between the predictors.
+model was
+$Y\sim 1.0 \cdot X_1 + 1.0 \cdot X_5 + 1.0 \cdot (X_1 \cdot X_2) + \epsilon$
+with \$N(0, 1.0) \$. We simulated two scenarios, in the first
+(“collinear”) X<sub>1</sub> and X<sub>2</sub> were collinear (Pearson
+correlation factor = 0.9) and in the second without collinearity between
+the predictors.
 
 We sampled 1000 and 5000 observations from each scenario. The ML
 algorithms (RF, BRT, NN, and NN with dropout) were fit to the data
@@ -554,6 +609,18 @@ Second panel shows results for simulations (200 repititions) for 1000
 and 5000 observations with without collinear. Red bars correspond to
 1000 observations and blue bars to 5000 observations.</figcaption>
 </figure>
+
+We found that for the ML algorithms (RF, BRT, and NN) NN showed the
+lowest for all scenarios (Fig. S11). Also collinearity increased the
+bias for the ML algorithms. No collinearity or more observations
+decreased the bias (Fig. S11). The regression models, LM, LASSO and
+Ridge regression, and elastic-net showed the lowest and in case of LM,
+no bias. However, we want to note here that the regression models
+received all possible predictor-predictor interactions as predictors
+while the ML algorithms had to infer the interactions on their own. Whit
+this in mind, the performance of the NN is surprising well, even
+competing with the penalized regression models. On the other hand, NN
+with dropout showed larger biases than BRT (Fig. S11).
 
 ## Weighted ACE
 
@@ -620,3 +687,87 @@ OLS.</figcaption>
 </figure>
 
 ## References
+
+# Session info
+
+    R version 4.0.5 (2021-03-31)
+    Platform: x86_64-pc-linux-gnu (64-bit)
+    Running under: Ubuntu 20.04.5 LTS
+
+    Matrix products: default
+    BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3
+    LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/liblapack.so.3
+
+    locale:
+     [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+     [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
+     [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+     [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                 
+     [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+    [11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+
+    attached base packages:
+    [1] stats     graphics  grDevices utils     datasets  methods   base     
+
+    other attached packages:
+     [1] latex2exp_0.9.6   MASS_7.3-54       glmnetUtils_1.1.8 glmnet_4.1-4     
+     [5] Matrix_1.5-3      cito_1.0.1        torch_0.9.0       ggeffects_1.1.4  
+     [9] broom_1.0.1       kableExtra_1.3.4  knitr_1.40        flextable_0.8.3  
+    [13] glmmTMB_1.1.5     gridExtra_2.3     viridis_0.6.2     viridisLite_0.4.1
+    [17] hrbrthemes_0.8.0  mgcViz_0.1.9      qgam_1.3.4        mgcv_1.8-35      
+    [21] nlme_3.1-152      ranger_0.14.1     xgboost_1.6.0.1   Cairo_1.6-0      
+    [25] igraph_1.3.5      forcats_0.5.2     stringr_1.4.1     dplyr_1.0.10     
+    [29] purrr_0.3.5       readr_2.1.3       tidyr_1.2.1       tibble_3.1.8     
+    [33] tidyverse_1.3.2   ggbreak_0.1.1     ggplot2_3.4.0    
+
+    loaded via a namespace (and not attached):
+      [1] readxl_1.4.1        uuid_1.1-0          backports_1.4.1    
+      [4] systemfonts_1.0.4   plyr_1.8.8          TMB_1.9.1          
+      [7] splines_4.0.5       digest_0.6.30       foreach_1.5.2      
+     [10] yulab.utils_0.0.5   htmltools_0.5.3     fansi_1.0.3        
+     [13] checkmate_2.1.0     magrittr_2.0.3      googlesheets4_1.0.1
+     [16] doParallel_1.0.17   tzdb_0.3.0          modelr_0.1.10      
+     [19] extrafont_0.18      matrixStats_0.62.0  officer_0.4.4      
+     [22] extrafontdb_1.0     svglite_2.1.0       timechange_0.1.1   
+     [25] colorspace_2.0-3    rvest_1.0.3         haven_2.5.1        
+     [28] xfun_0.34           callr_3.7.3         crayon_1.5.2       
+     [31] jsonlite_1.8.3      lme4_1.1-31         survival_3.2-11    
+     [34] iterators_1.0.14    glue_1.6.2          gtable_0.3.1       
+     [37] gargle_1.2.1        webshot_0.5.4       Rttf2pt1_1.3.11    
+     [40] shape_1.4.6         abind_1.4-5         scales_1.2.1       
+     [43] DBI_1.1.3           GGally_2.1.2        miniUI_0.1.1.1     
+     [46] Rcpp_1.0.9          isoband_0.2.6       xtable_1.8-4       
+     [49] gridGraphics_0.5-1  bit_4.0.4           httr_1.4.4         
+     [52] RColorBrewer_1.1-3  ellipsis_0.3.2      pkgconfig_2.0.3    
+     [55] reshape_0.8.9       farver_2.1.1        dbplyr_2.2.1       
+     [58] utf8_1.2.2          ggplotify_0.1.0     tidyselect_1.2.0   
+     [61] labeling_0.4.2      rlang_1.0.6         later_1.3.0        
+     [64] munsell_0.5.0       cellranger_1.1.0    tools_4.0.5        
+     [67] cli_3.4.1           generics_0.1.3      evaluate_0.18      
+     [70] fastmap_1.1.0       yaml_2.3.6          processx_3.8.0     
+     [73] bit64_4.0.5         fs_1.5.2            zip_2.2.2          
+     [76] mime_0.12           coro_1.0.3          aplot_0.1.9        
+     [79] xml2_1.3.3          compiler_4.0.5      rstudioapi_0.14    
+     [82] gamm4_0.2-6         reprex_2.0.2        stringi_1.7.8      
+     [85] ps_1.7.2            gdtools_0.2.4       lattice_0.20-44    
+     [88] nloptr_2.0.3        vctrs_0.5.0         pillar_1.8.1       
+     [91] lifecycle_1.0.3     data.table_1.14.4   httpuv_1.6.6       
+     [94] patchwork_1.1.2     R6_2.5.1            promises_1.2.0.1   
+     [97] KernSmooth_2.23-20  codetools_0.2-18    boot_1.3-28        
+    [100] assertthat_0.2.1    withr_2.5.0         parallel_4.0.5     
+    [103] hms_1.1.2           grid_4.0.5          ggfun_0.0.9        
+    [106] minqa_1.2.5         rmarkdown_2.18      googledrive_2.0.0  
+    [109] numDeriv_2016.8-1.1 shiny_1.7.3         lubridate_1.9.0    
+    [112] base64enc_0.1-3    
+
+<div id="refs" class="references csl-bib-body hanging-indent">
+
+<div id="ref-chen2016xgboost" class="csl-entry">
+
+Chen, Tianqi, and Carlos Guestrin. 2016. “Xgboost: A Scalable Tree
+Boosting System.” In *Proceedings of the 22nd Acm Sigkdd International
+Conference on Knowledge Discovery and Data Mining*, 785–94.
+
+</div>
+
+</div>

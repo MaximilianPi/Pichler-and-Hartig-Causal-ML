@@ -2,9 +2,8 @@
 title: "Results"
 format: 
   docx:
-    toc: true
-    number-sections: true
-    keep-md: true
+    reference-doc: word_documents/custom-reference-doc.docx
+    keep-md: false
     fig-format: svg
 crossref:
   fig-title: '**Figure**'
@@ -114,15 +113,15 @@ parser = function(true, bias, pos = 1) {
   bb = round(bias, 2)
   if(bb > 0) { 
     symb = "+" 
-    if(abs(bb) > 0.001) text(x = xp + 0.280, y = yp+0.01, pos = 4, symb, cex = 1.3, col = "#e60000", font = 2)
+    if(abs(bb) > 0.001) text(x = xp + 0.280, y = yp+0.01, pos = 4, symb, cex = 1.3, col = "#DD5353", font = 2)
   } else { 
     symb = "-"
-      if(abs(bb) > 0.001) text(x = xp + 0.29, y = yp, pos = 4, symb, cex = 1.3, col = "#e60000", font = 2)
+      if(abs(bb) > 0.001) text(x = xp + 0.29, y = yp, pos = 4, symb, cex = 1.3, col = "#DD5353", font = 2)
     }
   bb = abs(bb)
    text(x = xp, y = yp, pos = 4,label = format(true, nsmall = 2), cex = 1.3)
 
-  if(bb> 0.001) text(x = xp+ 0.35, y = yp, pos = 4, label = format(bb, nsmall = 2), cex = 1.3, col = "#e60000", font = 1)
+  if(bb> 0.001) text(x = xp+ 0.35, y = yp, pos = 4, label = format(bb, nsmall = 2), cex = 1.3, col = "#DD5353", font = 1)
 }
 
 
