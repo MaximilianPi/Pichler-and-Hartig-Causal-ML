@@ -342,8 +342,6 @@ get_coefficients = function(i, gam = TRUE, path, method) {
       max(sapply(plot(getViz(out$gam_var_pred))[[1]], function(obj) max(obj$data$fit$y)  ))
     )
   }
-  #### RF ######
-  
   tmp = data.frame(model.matrix(~0+., tmp))
   
   

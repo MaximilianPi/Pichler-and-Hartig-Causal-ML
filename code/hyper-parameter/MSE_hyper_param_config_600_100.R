@@ -10,10 +10,10 @@ BRT_max_depth=2
 BRT_subsample=0.770330650615506
 BRT_lambda=8.21017173537984
 BRT_max_tree=110
-RF_mtry=0.805863957852125
-RF_min.node.size=8
-RF_max.depth=49
-RF_regularization.factor=0.763519950676709
+RF_mtry=0.792282316135243
+RF_min.node.size=3
+RF_max.depth=47
+RF_regularization.factor=0.735867896815762
 EN_alpha=0.0248146001249552
 EN_lambda=0.00599899843800813
 

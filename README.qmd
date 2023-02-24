@@ -1,0 +1,17 @@
+---
+title: "README"
+format: gfm
+editor: visual
+---
+
+# Can machine learning be used for causal inference?
+
+This repository contains the code to reproduce the results in Pichler and Hartig, Can machine learning be used for causal inference?
+
+# Results
+
+{{< include Results.qmd >}}
+
+# Appendix
+
+{{< include Appendix.qmd >}}
