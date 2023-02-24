@@ -20,7 +20,8 @@ and Hartig, Can machine learning be used for causal inference?
     [4,] -1.836970e-16 1.7071068
 
 <figure>
-<embed src="figures/fig-Fig_2-1.pdf" id="fig-Fig_2" />
+<img src="figures/fig-Fig_2-1.png" id="fig-Fig_2"
+alt="Figure S 1: Bias on effect estimates for different ML algorithms in three different simulated causal simulations (a and b). Sample sizes are so large that stochastic effects can be excluded (1000 observations and 500 repetitions). Effects of the ML models were inferred using average conditional effects. Row a) shows results for simulations with uncorrelated predictors with effect sizes (\beta_1=1.0, \beta_2=0.0, and \beta_3=1.0). Row b) shows the results for simulations with X1 and X2 being strongly correlated (Pearson correlation factor = 0.9) but only X1 affects y." />
 <figcaption aria-hidden="true"><strong>Figure S</strong> 1: Bias on
 effect estimates for different ML algorithms in three different
 simulated causal simulations (a and b). Sample sizes are so large that
@@ -39,7 +40,8 @@ X<sub>1</sub> affects y.</figcaption>
 ### Data-poor simulation
 
 <figure>
-<embed src="figures/fig-Fig_3-1.pdf" id="fig-Fig_3" />
+<img src="figures/fig-Fig_3-1.png" id="fig-Fig_3"
+alt="Figure S 2: Bias and variance of estimated effects in data-poor situations. N = 50, 100, and 600 observations of 100 weakly correlated predictors were simulated. True effects in the data generating model were \beta_1=1.0, \beta_2=0.0, and the other 98 effects were equally spaced between 0 and 1. Models were fitted to the simulated data (1000 replicates) with the optimal hyperparameters (except for LM, which doesn’t have hyperparameters). Hyperparameters were selected based on the minimum MSE of (\hat{\beta}_1) (green) or the prediction error (based on \hat{y} ) (red). Bias and variance were calculated for \hat{\beta}_1 and \hat{\beta}_2. Effects \hat{\beta}_i for i=1,…,100) were approximated using ACE." />
 <figcaption aria-hidden="true"><strong>Figure S</strong> 2: Bias and
 variance of estimated effects in data-poor situations. N = 50, 100, and
 600 observations of 100 weakly correlated predictors were simulated.
@@ -63,7 +65,8 @@ using ACE.</figcaption>
 #### Hyper-parameter sensitivity analysis
 
 <figure>
-<embed src="figures/fig-Fig_4-1.pdf" id="fig-Fig_4" />
+<img src="figures/fig-Fig_4-1.png" id="fig-Fig_4"
+alt="Figure S 3: Results of hyperparameter tuning for Neural Networks (NN), Boosted Regression Trees (BRT), Random Forests (RF), and Elastic Net (EN) for 100 observations with 100 predictors. The influence of the hyperparameters on effect (\hat{\beta}_1) (bias, variance, and MSE), and the predictions of the model, (\hat{y}), (bias, variance, and MSE) were estimated by a multivariate generalized additive model (GAM). Categorical hyperparameters (activation function in NN) were estimated as fixed effects. The responses (bias, variance, MSE) were centered so that the categorical hyperparameters correspond to the intercepts. The variable importance of the hyperparameters was estimated by a random forest with the MSE of the effect \hat{\beta}_1 (first plot) or the prediction (second plot) as the response. Red dots correspond to the best predicted set of hyperparameters (based on a random forest), in the first plot for the minimum MSE of the effect for \hat{\beta}_1 and in the second plot for the minimum MSE of the predictions \hat{y}." />
 <figcaption aria-hidden="true"><strong>Figure S</strong> 3: Results of
 hyperparameter tuning for Neural Networks (NN), Boosted Regression Trees
 (BRT), Random Forests (RF), and Elastic Net (EN) for 100 observations
@@ -93,7 +96,8 @@ class="math inline"><em>ŷ</em></span>.</figcaption>
 ### Case Study
 
 <figure>
-<embed src="figures/fig-Fig_5-1.pdf" id="fig-Fig_5" />
+<img src="figures/fig-Fig_5-1.png" id="fig-Fig_5"
+alt="Figure S 4: Difference between causal and conventional ML models for in-distribution and out-of-distribution predictions. In a simulated setting, the task is to predict Crop yield based on Plant growth (data-generating model is shown in the figure). Climate is an unobservable confounder and has effects on Plant growth and Pest (growth). In the first scenario, i.e. in-distribution predictions, Climate did not change, i.e. patients were exposed to the same climatic conditions; here the difference in predictive performance for the model with and without Pest growth is marginal (predictive performance was measured by R2). In the second theoretical setting, the climatic conditions changed (the effects of Climate on Plant growth and Pest are now zero). Using the previously trained models, the model without Pest deficit performed significantly worse than the model with Pest (plot with out-of-distribution predictions)." />
 <figcaption aria-hidden="true"><strong>Figure S</strong> 4: Difference
 between causal and conventional ML models for in-distribution and
 out-of-distribution predictions. In a simulated setting, the task is to
@@ -141,7 +145,8 @@ collinearity (Fig. S1a) and with collinearity (Fig. S1a, b) (we sampled
 column) and estimated effects using ACE (100 repititions)).
 
 <figure>
-<embed src="figures/fig-Fig_S1-1.pdf" id="fig-Fig_S1" />
+<img src="figures/fig-Fig_S1-1.png" id="fig-Fig_S1"
+alt="Figure S 5: Bias on effect estimates for different ML algorithms (LM = liner regression model (OLS), RT LC = regression tree with low complexity (depth), RT HC = regression tree with high complexity, Linear Booster, Tree Booster LC = tree booster with low complexity, Tree Booster HC = tree boster with high complexity) in three different simulated causal scenarios (a, b, and c). Sample sizes are so large that stochastic effects can be excluded (1000 observations). Effects of the ML models were inferred using average conditional effects. Row a) shows results for simulations with uncorrelated predictors with the true effect sizes . Row b) shows the results for simulations with X1 and X2 being strongly correlated (Pearson correlation factor = 0.9) but only X1 has an effect on y (mediator) and row c) shows the results for X1 and X2 being strongly correlated (Pearson correlation factor = 0.9) with X1 and X2 having effects on Y (confounder scenario)." />
 <figcaption aria-hidden="true"><strong>Figure S</strong> 5: Bias on
 effect estimates for different ML algorithms (LM = liner regression
 model (OLS), RT LC = regression tree with low complexity (depth), RT HC
@@ -196,7 +201,8 @@ bias (the effect of the missing confounder is absorbed by the collinear
 effect).
 
 <figure>
-<embed src="figures/fig-Fig_S2-1.pdf" id="fig-Fig_S2" />
+<img src="figures/fig-Fig_S2-1.png" id="fig-Fig_S2"
+alt="Figure S 6: Changes of effects within boosting. (A) shows the total effect of ensemble (linear booster) until the n-th ensemble member. (B) shows the effects of the n-th ensemble member. X1 and X2 were correlated (Pearson correlationf factor = 0.9)." />
 <figcaption aria-hidden="true"><strong>Figure S</strong> 6: Changes of
 effects within boosting. (A) shows the total effect of ensemble (linear
 booster) until the n-th ensemble member. (B) shows the effects of the
@@ -221,7 +227,8 @@ effects (Fig. S2b).
 ### Addtional scenarios
 
 <figure>
-<embed src="figures/fig-Fig_S3-1.pdf" id="fig-Fig_S3" />
+<img src="figures/fig-Fig_S3-1.png" id="fig-Fig_S3"
+alt="Figure S 7: Bias on effect estimates for different ML algorithms in trhee different simulated causal simulations (a, b, and c). Sample sizes are so large that stochastic effects can be excluded (1000 observations). Effects of the ML models were inferred using average conditional effects. Row a) shows the results for simulations with X1 and X2 being strongly correlated (Pearson correlation factor = 0.99) but only X1 has an effect on y. Row b) shows results for simulations with with predictors (Pearson correlation factor = 0.5) with effect sizes (X1: 1.0, X2: 0.5, X3: 1.0) and row c) shows results for simulations with with predictors (Pearson correlation factor = 0.5) with effect sizes (X1: 1.0, X2: -0.5, X3: 1.0)" />
 <figcaption aria-hidden="true"><strong>Figure S</strong> 7: Bias on
 effect estimates for different ML algorithms in trhee different
 simulated causal simulations (a, b, and c). Sample sizes are so large
@@ -240,7 +247,8 @@ X<sub>2</sub>: -0.5, X<sub>3</sub>: 1.0)</figcaption>
 ### Additonal models
 
 <figure>
-<embed src="figures/fig-Fig_S4-1.pdf" id="fig-Fig_S4" />
+<img src="figures/fig-Fig_S4-1.png" id="fig-Fig_S4"
+alt="Figure S 8: Bias on effect estimates for different ML algorithms in two different simulated causal simulations (a and b). Sample sizes are so large that stochastic effects can be excluded. Effects of the ML models were inferred using average conditional effects. Row a) shows results for simulations with with predictors (Pearson correlation factor = 0.5) with effect sizes (X1: 1.0, X2: -0.5, X3: 1.0). Row b) shows the results for simulations with X1 and X2 being strongly correlated (Pearson correlation factor = 0.99) but only X1 has an effect on y." />
 <figcaption aria-hidden="true"><strong>Figure S</strong> 8: Bias on
 effect estimates for different ML algorithms in two different simulated
 causal simulations (a and b). Sample sizes are so large that stochastic
@@ -306,7 +314,8 @@ Boosted Regression Tree, and Random Forest
 ### Results hyperparameter tuning
 
 <figure>
-<embed src="figures/fig-Fig_S5-1.pdf" id="fig-Fig_S5" />
+<img src="figures/fig-Fig_S5-1.png" id="fig-Fig_S5"
+alt="Figure S 9: Results of hyperparameter tuning for Neural Networks (NN), Boosted Regression Trees (BRT), Random Forests (RF), and Elastic Net (EN) for 50 observations with 100 predictors. The influence of the hyperparameters on effect \hat{\beta}_1 (bias, variance, and MSE)(true simulated effect \beta_1 = 1.0 ) and the predictions, \hat{y} of the model (bias, variance, and MSE) were estimated by a multivariate generalized additive model (GAM). Categorical hyperparameters (activation function in NN) were estimated as fixed effects. The responses (bias, variance, MSE) were centered so that the categorical hyperparameters correspond to the intercepts. The variable importance of the hyperparameters was estimated by a random forest with the MSE of the effect \hat{\beta}_1 (first plot) or the prediction \hat{y} (second plot) as the response. Red dots correspond to the best predicted set of hyperparameters (based on a random forest), in the first plot for the minimum MSE of the effect \hat{\beta}_1 and in the second plot for the minimum MSE of the predictions \hat{y}." />
 <figcaption aria-hidden="true"><strong>Figure S</strong> 9: Results of
 hyperparameter tuning for Neural Networks (NN), Boosted Regression Trees
 (BRT), Random Forests (RF), and Elastic Net (EN) for 50 observations
@@ -332,7 +341,8 @@ class="math inline"><em>ŷ</em></span>.</figcaption>
 </figure>
 
 <figure>
-<embed src="figures/fig-Fig_S6-1.pdf" id="fig-Fig_S6" />
+<img src="figures/fig-Fig_S6-1.png" id="fig-Fig_S6"
+alt="Figure S 10: Results of hyperparameter tuning for Neural Networks (NN), Boosted Regression Trees (BRT), Random Forests (RF), and Elastic Net (EN) for 600 observations with 100 predictors. The influence of the hyperparameters on effect \hat{\beta}_1 (bias, variance, and MSE)(true simulated effect \beta_1 = 1.0 ) and the predictions, \hat{y} of the model (bias, variance, and MSE) were estimated by a multivariate generalized additive model (GAM). Categorical hyperparameters (activation function in NN) were estimated as fixed effects. The responses (bias, variance, MSE) were centered so that the categorical hyperparameters correspond to the intercepts. The variable importance of the hyperparameters was estimated by a random forest with the MSE of the effect \hat{\beta}_1 (first plot) or the prediction \hat{y} (second plot) as the response. Red dots correspond to the best predicted set of hyperparameters (based on a random forest), in the first plot for the minimum MSE of the effect \hat{\beta}_1 and in the second plot for the minimum MSE of the predictions \hat{y}." />
 <figcaption aria-hidden="true"><strong>Figure S</strong> 10: Results of
 hyperparameter tuning for Neural Networks (NN), Boosted Regression Trees
 (BRT), Random Forests (RF), and Elastic Net (EN) for 600 observations
@@ -358,7 +368,8 @@ class="math inline"><em>ŷ</em></span>.</figcaption>
 </figure>
 
 <figure>
-<embed src="figures/fig-Fig_S7-1.pdf" id="fig-Fig_S7" />
+<img src="figures/fig-Fig_S7-1.png" id="fig-Fig_S7"
+alt="Figure S 11: Results of hyperparameter tuning for Neural Networks (NN), Boosted Regression Trees (BRT), Random Forests (RF), and Elastic Net (EN) for 2000 observations with 100 predictors. The influence of the hyperparameters on effect \hat{\beta}_1 (bias, variance, and MSE)(true simulated effect \beta_1 = 1.0 ) and the predictions, \hat{y} of the model (bias, variance, and MSE) were estimated by a multivariate generalized additive model (GAM). Categorical hyperparameters (activation function in NN) were estimated as fixed effects. The responses (bias, variance, MSE) were centered so that the categorical hyperparameters correspond to the intercepts. The variable importance of the hyperparameters was estimated by a random forest with the MSE of the effect \hat{\beta}_1 (first plot) or the prediction \hat{y} (second plot) as the response. Red dots correspond to the best predicted set of hyperparameters (based on a random forest), in the first plot for the minimum MSE of the effect \hat{\beta}_1 and in the second plot for the minimum MSE of the predictions \hat{y}." />
 <figcaption aria-hidden="true"><strong>Figure S</strong> 11: Results of
 hyperparameter tuning for Neural Networks (NN), Boosted Regression Trees
 (BRT), Random Forests (RF), and Elastic Net (EN) for 2000 observations
@@ -452,7 +463,8 @@ lowest MSE.
 ### Prediction error of scenarios
 
 <figure>
-<embed src="figures/fig-Fig_S8-1.pdf" id="fig-Fig_S8" />
+<img src="figures/fig-Fig_S8-1.png" id="fig-Fig_S8"
+alt="Figure S 12: Prediction error (mean square error, MSE) of data poor simulations with optimal hyperparameters either tuned after the best MSE of the effect size (red) or the best MSE of the prediction error (blue)." />
 <figcaption aria-hidden="true"><strong>Figure S</strong> 12: Prediction
 error (mean square error, MSE) of data poor simulations with optimal
 hyperparameters either tuned after the best MSE of the effect size (red)
@@ -464,7 +476,8 @@ or the best MSE of the prediction error (blue).</figcaption>
 ### Bias and variance of effects
 
 <figure>
-<embed src="figures/fig-Fig_S9-1.pdf" id="fig-Fig_S9" />
+<img src="figures/fig-Fig_S9-1.png" id="fig-Fig_S9"
+alt="Figure S 13: Bias and variance of estimated effects in data-poor situations. N = 50, 100, and 600 observations of 100 weakly correlated predictors were simulated. The effects of X1 and X2 were 1.0 and 0.0. The other 98 effects were equally spaced between 0 and 1. Models were fitted to the simulated data (1000 repititions) with the optimal hyperparameters (except for LM, which doesn’t have hyperparameters). Hyperparameters were chosen based on the minimum MSE of an effect (green) or the prediction error (red). Bias and variance were calculated for X1 and X2. Effects were approximated using ACE." />
 <figcaption aria-hidden="true"><strong>Figure S</strong> 13: Bias and
 variance of estimated effects in data-poor situations. N = 50, 100, and
 600 observations of 100 weakly correlated predictors were simulated. The
@@ -481,7 +494,8 @@ ACE.</figcaption>
 ### Prediction error of scenarios
 
 <figure>
-<embed src="figures/fig-Fig_S10-1.pdf" id="fig-Fig_S10" />
+<img src="figures/fig-Fig_S10-1.png" id="fig-Fig_S10"
+alt="Figure S 14: Prediction error (mean square error, MSE) of data poor simulations with optimal hyperparameters either tuned after the best MSE of the effect size (red) or the best MSE of the prediction error (blue)." />
 <figcaption aria-hidden="true"><strong>Figure S</strong> 14: Prediction
 error (mean square error, MSE) of data poor simulations with optimal
 hyperparameters either tuned after the best MSE of the effect size (red)
@@ -529,7 +543,8 @@ predictors. All effects were inferred using ACE. The bias was calculated
 for the interaction X<sub>1</sub>:X<sub>2</sub>.
 
 <figure>
-<embed src="figures/fig-Fig_S11-1.pdf" id="fig-Fig_S11" />
+<img src="figures/fig-Fig_S11-1.png" id="fig-Fig_S11"
+alt="Figure S 15: Bias of proof of concept simulations in inferring two-way interactions between predictors. First panel shows results for simulations (200 repititions) for 1000 and 5000 observations with collinear predictors (Pearson correlation factor = 0.9 between X1 and X2). Second panel shows results for simulations (200 repititions) for 1000 and 5000 observations with without collinear. Red bars correspond to 1000 observations and blue bars to 5000 observations." />
 <figcaption aria-hidden="true"><strong>Figure S</strong> 15: Bias of
 proof of concept simulations in inferring two-way interactions between
 predictors. First panel shows results for simulations (200 repititions)
@@ -558,7 +573,8 @@ The LM estimated an effect of 1.48, the unweighted ACE was 1.95, and the
 weighted ACE was 1.48 (Fig. S16).
 
 <figure>
-<embed src="figures/fig-Fig_S12-1.pdf" id="fig-Fig_S12" />
+<img src="figures/fig-Fig_S12-1.png" id="fig-Fig_S12"
+alt="Figure S 16: Simulation example with non-uniform sampled predictor X1 (log normal distributed). The red line is the effect estimated by a LM OLS. The blue line is the effect reported by an unweighted ACE from a NN. The green line is the effect reported by a weighted ACE from a NN." />
 <figcaption aria-hidden="true"><strong>Figure S</strong> 16: Simulation
 example with non-uniform sampled predictor X1 (log normal distributed).
 The red line is the effect estimated by a LM OLS. The blue line is the
@@ -586,7 +602,8 @@ over the training period to the correct estimates (X<sub>1</sub> = 1.0
 and X<sub>2</sub> = 0.0).
 
 <figure>
-<embed src="figures/fig-Fig_S13-1.pdf" id="fig-Fig_S13" />
+<img src="figures/fig-Fig_S13-1.png" id="fig-Fig_S13"
+alt="Figure S 17: Learning neural networks. Neural networks were trained on simulated data (1000 observations) with 5 predictors, X1 has a linear effect on Y, and X2 is collinear with X1 (Pearson correlation factor = 0.9). The ACE was computed after each optimization step (i.e., after each batch in stochastic gradient descent) (20 repetitions). Panels A and B show the evolution of the effects for X1 and X2 (true effects: X1 = 1.0 and X2 = 0.0). Panel A shows the results for a neural network with 50 units in each of the 3 hidden layers, while Panel B shows the results for a neural network with 500 units in each of the 3 hidden layers. Panel C shows the negative log likelihood surface for the corresponding OLS." />
 <figcaption aria-hidden="true"><strong>Figure S</strong> 17: Learning
 neural networks. Neural networks were trained on simulated data (1000
 observations) with 5 predictors, X<sub>1</sub> has a linear effect on Y,
