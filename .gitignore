@@ -8,3 +8,5 @@ Results_files/
 Appendix_files/
 results/
 results/*.RDS
+.Rproj.user/
+.DS_Store
