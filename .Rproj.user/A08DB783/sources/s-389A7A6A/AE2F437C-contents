@@ -1,6 +1,0 @@
-A = runif(100)
-Y =   rnorm(100)
-B = A + Y + rnorm(100, sd =0.01)
-
-
-summary(lm(Y~A+B))
