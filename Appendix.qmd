@@ -52,7 +52,7 @@ source("utils.R")
 set_flextable_defaults(
   font.size = 8, theme_fun = theme_vanilla)
 
-knitr::opts_chunk$set(fig.path="plots/", echo = FALSE)
+knitr::opts_chunk$set(fig.path="figures/", echo = FALSE)
 
 ```
 
