@@ -688,7 +688,7 @@ OLS.</figcaption>
 
 ## References
 
-# Session info
+## Session info
 
     R version 4.0.5 (2021-03-31)
     Platform: x86_64-pc-linux-gnu (64-bit)
@@ -718,47 +718,45 @@ OLS.</figcaption>
     [21] nlme_3.1-152      ranger_0.14.1     xgboost_1.6.0.1   Cairo_1.6-0      
     [25] igraph_1.3.5      forcats_0.5.2     stringr_1.4.1     dplyr_1.0.10     
     [29] purrr_0.3.5       readr_2.1.3       tidyr_1.2.1       tibble_3.1.8     
-    [33] tidyverse_1.3.2   ggbreak_0.1.1     ggplot2_3.4.0    
+    [33] tidyverse_1.3.2   ggplot2_3.4.0    
 
     loaded via a namespace (and not attached):
       [1] readxl_1.4.1        uuid_1.1-0          backports_1.4.1    
       [4] systemfonts_1.0.4   plyr_1.8.8          TMB_1.9.1          
       [7] splines_4.0.5       digest_0.6.30       foreach_1.5.2      
-     [10] yulab.utils_0.0.5   htmltools_0.5.3     fansi_1.0.3        
-     [13] checkmate_2.1.0     magrittr_2.0.3      googlesheets4_1.0.1
-     [16] doParallel_1.0.17   tzdb_0.3.0          modelr_0.1.10      
-     [19] extrafont_0.18      matrixStats_0.62.0  officer_0.4.4      
-     [22] extrafontdb_1.0     svglite_2.1.0       timechange_0.1.1   
-     [25] colorspace_2.0-3    rvest_1.0.3         haven_2.5.1        
-     [28] xfun_0.34           callr_3.7.3         crayon_1.5.2       
-     [31] jsonlite_1.8.3      lme4_1.1-31         survival_3.2-11    
-     [34] iterators_1.0.14    glue_1.6.2          gtable_0.3.1       
-     [37] gargle_1.2.1        webshot_0.5.4       Rttf2pt1_1.3.11    
-     [40] shape_1.4.6         abind_1.4-5         scales_1.2.1       
-     [43] DBI_1.1.3           GGally_2.1.2        miniUI_0.1.1.1     
-     [46] Rcpp_1.0.9          isoband_0.2.6       xtable_1.8-4       
-     [49] gridGraphics_0.5-1  bit_4.0.4           httr_1.4.4         
-     [52] RColorBrewer_1.1-3  ellipsis_0.3.2      pkgconfig_2.0.3    
-     [55] reshape_0.8.9       farver_2.1.1        dbplyr_2.2.1       
-     [58] utf8_1.2.2          ggplotify_0.1.0     tidyselect_1.2.0   
-     [61] labeling_0.4.2      rlang_1.0.6         later_1.3.0        
-     [64] munsell_0.5.0       cellranger_1.1.0    tools_4.0.5        
-     [67] cli_3.4.1           generics_0.1.3      evaluate_0.18      
-     [70] fastmap_1.1.0       yaml_2.3.6          processx_3.8.0     
-     [73] bit64_4.0.5         fs_1.5.2            zip_2.2.2          
-     [76] mime_0.12           coro_1.0.3          aplot_0.1.9        
-     [79] xml2_1.3.3          compiler_4.0.5      rstudioapi_0.14    
-     [82] gamm4_0.2-6         reprex_2.0.2        stringi_1.7.8      
-     [85] ps_1.7.2            gdtools_0.2.4       lattice_0.20-44    
-     [88] nloptr_2.0.3        vctrs_0.5.0         pillar_1.8.1       
-     [91] lifecycle_1.0.3     data.table_1.14.4   httpuv_1.6.6       
-     [94] patchwork_1.1.2     R6_2.5.1            promises_1.2.0.1   
-     [97] KernSmooth_2.23-20  codetools_0.2-18    boot_1.3-28        
-    [100] assertthat_0.2.1    withr_2.5.0         parallel_4.0.5     
-    [103] hms_1.1.2           grid_4.0.5          ggfun_0.0.9        
-    [106] minqa_1.2.5         rmarkdown_2.18      googledrive_2.0.0  
-    [109] numDeriv_2016.8-1.1 shiny_1.7.3         lubridate_1.9.0    
-    [112] base64enc_0.1-3    
+     [10] htmltools_0.5.3     fansi_1.0.3         checkmate_2.1.0    
+     [13] magrittr_2.0.3      googlesheets4_1.0.1 doParallel_1.0.17  
+     [16] tzdb_0.3.0          modelr_0.1.10       extrafont_0.18     
+     [19] matrixStats_0.62.0  officer_0.4.4       extrafontdb_1.0    
+     [22] svglite_2.1.0       timechange_0.1.1    colorspace_2.0-3   
+     [25] rvest_1.0.3         haven_2.5.1         xfun_0.34          
+     [28] callr_3.7.3         crayon_1.5.2        jsonlite_1.8.3     
+     [31] lme4_1.1-31         survival_3.2-11     iterators_1.0.14   
+     [34] glue_1.6.2          gtable_0.3.1        gargle_1.2.1       
+     [37] webshot_0.5.4       Rttf2pt1_1.3.11     shape_1.4.6        
+     [40] abind_1.4-5         scales_1.2.1        DBI_1.1.3          
+     [43] GGally_2.1.2        miniUI_0.1.1.1      Rcpp_1.0.9         
+     [46] isoband_0.2.6       xtable_1.8-4        bit_4.0.4          
+     [49] httr_1.4.4          RColorBrewer_1.1-3  ellipsis_0.3.2     
+     [52] pkgconfig_2.0.3     reshape_0.8.9       farver_2.1.1       
+     [55] dbplyr_2.2.1        utf8_1.2.2          tidyselect_1.2.0   
+     [58] labeling_0.4.2      rlang_1.0.6         later_1.3.0        
+     [61] munsell_0.5.0       cellranger_1.1.0    tools_4.0.5        
+     [64] cli_3.4.1           generics_0.1.3      evaluate_0.18      
+     [67] fastmap_1.1.0       yaml_2.3.6          processx_3.8.0     
+     [70] bit64_4.0.5         fs_1.5.2            zip_2.2.2          
+     [73] mime_0.12           coro_1.0.3          xml2_1.3.3         
+     [76] compiler_4.0.5      rstudioapi_0.14     gamm4_0.2-6        
+     [79] reprex_2.0.2        stringi_1.7.8       ps_1.7.2           
+     [82] gdtools_0.2.4       lattice_0.20-44     nloptr_2.0.3       
+     [85] vctrs_0.5.0         pillar_1.8.1        lifecycle_1.0.3    
+     [88] data.table_1.14.4   httpuv_1.6.6        R6_2.5.1           
+     [91] promises_1.2.0.1    KernSmooth_2.23-20  codetools_0.2-18   
+     [94] boot_1.3-28         assertthat_0.2.1    withr_2.5.0        
+     [97] parallel_4.0.5      hms_1.1.2           grid_4.0.5         
+    [100] minqa_1.2.5         rmarkdown_2.18      googledrive_2.0.0  
+    [103] numDeriv_2016.8-1.1 shiny_1.7.3         lubridate_1.9.0    
+    [106] base64enc_0.1-3    
 
 <div id="refs" class="references csl-bib-body hanging-indent">
 

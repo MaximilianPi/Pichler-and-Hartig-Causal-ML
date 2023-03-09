@@ -25,7 +25,6 @@ knitr::opts_chunk$set(fig.path="figures/", echo = FALSE)
 #| echo: false
 #| message: false
 library(ggplot2)
-library(ggbreak)
 library(tidyverse)
 library(igraph)
 library(Cairo)
@@ -166,7 +165,7 @@ eqarrowPlot(g1, matrix(c(1,1,
             vertex.frame.width = vertex_frame_width,
             edge.colors = rep("#B0A8B9", 3))
   text(letters[1], cex = 1.9, x = -1.6, y = 1.5, xpd = NA, font = 2)
-  text("Simulation", x = 0.3, y = 2.3, xpd = NA, cex = 1.4, pos = 3)
+  text("True model", x = 0.3, y = 2.3, xpd = NA, cex = 1.8, pos = 3)
 parser(1.00, 0.0000, pos = 1)
 parser(0.0, 0.0000, pos = 2)
 parser(1.00, 0.0000, pos = 3)  
@@ -191,7 +190,7 @@ eqarrowPlot(g1, matrix(c(1,1,
             vertex.label.color= vertex_col_frame,
             edge.colors = c(rep("#B0A8B9", 1),"#B0A8B9","#B0A8B9", "#ffab02"))
 text(letters[2], cex = 1.9, x = -1.6, y = 1.5, xpd = NA, font = 2)
-text("Simulation", x = 0.3, y = 2.3, xpd = NA, cex = 1.4, pos = 3)
+text("True model", x = 0.3, y = 2.3, xpd = NA, cex = 1.8, pos = 3)
 parser(1.00, 0.0000, pos = 1)
 parser(0.0, 0.0000, pos = 2)
 parser(1.00, 0.0000, pos = 3)  
@@ -228,7 +227,7 @@ for(i in c(1, 2, 3, 4, 8)) {
     parser(true_effs[j, 1], bias[1], pos = 1)
     parser(true_effs[j, 2], bias[2], pos = 2)
     parser(true_effs[j, 3], bias[3], pos = 3)
-    text(labs[i], x = 0, y = 2.3, xpd = NA, cex = 1.4, pos = 3)
+    text(labs[i], x = 0, y = 2.3, xpd = NA, cex = 1.8, pos = 3)
     if(i == 1) {
       text(letters[counter], cex = 1.9, x = -2.2, y = 2.5, xpd = NA, font = 2)
       counter = counter + 1
@@ -308,8 +307,8 @@ for(j in 1:3) {
   for(i in 1:5) {
     plot(NULL, NULL, xlim = c(0, 1), ylim = c(0, 1), yaxt = "n", xaxt = "n", xaxs = "i", yaxs = "i", xlab = "", ylab = "")
     if( i > 1) {
-      rect(0.5, 0, 1.0, 1.0, col = "#EDBD9660", border = NA)
-      rect(0.0, 0, 0.5, 1.0, col = "#9BED9660", border = NA)
+      rect(0.5, 0, 1.0, 1.0, col = "lightgrey", border = NA)
+      rect(0.0, 0, 0.5, 1.0, col = "white", border = NA)
 
       draw_stacked_bar(xleft = 0.1, res_pred[[j]]$bias[i, 1], res_pred[[j]]$var[i, 1])
       draw_stacked_bar(xleft = 0.1+0.18, res_pred[[j]]$bias[i, 2], res_pred[[j]]$var[i, 2])
@@ -347,10 +346,10 @@ for(j in 1:3) {
   }
 }
 
-points(pch = 15, x = rep(-1.0, 2), y = c(-0.7, -0.8), xpd = NA, col = c("#96c6ed","#e0acd5"), cex = 1.5)
+points(pch = 22,col= "black", x = rep(-1.0, 2), y = c(-0.7, -0.8), xpd = NA, bg = c("#96c6ed","#e0acd5"), cex = 1.5)
 text(x = rep(-1.0, 2)+0.01, y = c(-0.7, -0.8)-0.02, pos = 4, labels = c("Bias", "Variance"), xpd = NA)
 
-points(pch = 15, x = rep(-0.2, 2), y = c(-0.7, -0.8), xpd = NA, col = c("#9BED96","#EDBD96"), cex = 1.5)
+points(pch = 22,col= "black", x = rep(-0.2, 2), y = c(-0.7, -0.8), xpd = NA, bg = c("white","lightgrey"), cex = 1.5)
 text(x = rep(-0.2, 2)+0.01, y = c(-0.7, -0.8)-0.02, pos = 4, labels = c("Tuned after MSE of predictions", "Tuned after MSE of \U03B2\U2081"), xpd = NA)
 
 #dev.off()      
@@ -448,6 +447,7 @@ axis(3, at = scales::rescale(c(0, log10(10+1), log10(130+1)), to = c(0.3, 0.5), 
 #| echo: false
 #| message: false
 #| results: hide
+#| eval: false
 
 hyper_to_text = function(x, pre="", NN = FALSE) {x
   x = unlist(x)
@@ -524,14 +524,14 @@ sapply(1:3, function(k) {
 #| warning: false
 #| message: false
 #| fig-cap: "Difference between causal and conventional ML models for in-distribution and out-of-distribution predictions. In a simulated setting, the task is to predict Crop yield based on Plant growth (data-generating model is shown in the figure). Climate is an unobservable confounder and has effects on Plant growth and Pest (growth). In the first scenario, i.e. in-distribution predictions, Climate did not change, i.e. patients were exposed to the same climatic conditions; here the difference in predictive performance for the model with and without Pest growth is marginal (predictive performance was measured by R^2^). In the second theoretical setting, the climatic conditions changed (the effects of Climate on Plant growth and Pest are now zero). Using the previously trained models, the model without Pest deficit performed significantly worse than the model with Pest (plot with out-of-distribution predictions)."
-methods = c("LM", "BRT", "RF","EN", "NN" )
+methods = c( "BRT", "RF", "NN" )
 
 
 results = readRDS("results/results_case_study.RDS")
 results = apply(results, 2:3, mean)
 
 rownames(results) = methods
-colnames(results) = c("Conv_out", "Conv_in", "Causal_out", "Causal_in" )
+colnames(results) = c("Causal_out", "Causal_in" , "Conv_out", "Conv_in" )
 results = data.frame(results, method = methods)
 results = 
   results %>% 
@@ -544,9 +544,9 @@ results =
 
 
 results$method = as.factor(results$method)
-results$method = forcats::lvls_reorder(results$method, c(3,5,1, 4, 2) )
+results$method = forcats::lvls_reorder(results$method, c(3,1, 2) )
 results$model = as.factor(results$model)
-results$model = forcats::lvls_reorder(results$model, c(2, 1))
+#results$model = forcats::lvls_reorder(results$model, c(2, 1))
 
 res_ML = results %>% filter(method %in% c("RF", "BRT", "NN"))
 
@@ -560,7 +560,7 @@ g1 =
     ylab("R\U00B2") +
     ylim(0.0, 1.0) + 
     labs(tag = "a") +
-    scale_fill_manual(values = rev(c("#00203FFF","#ADEFD1FF")))
+    scale_fill_manual(values = (c("#00203FFF","#ADEFD1FF")))
 g2 =
   ggplot(res_ML %>% filter(prediction == "in"), 
          aes(y = R2, x = method, fill = model)) +
@@ -571,7 +571,7 @@ g2 =
     ggplot2::theme_bw() +
     ylim(0.0, 1.0) +
     labs(tag = "b") +
-    scale_fill_manual(values = rev(c("#00203FFF","#ADEFD1FF"))) + 
+    scale_fill_manual(values = (c("#00203FFF","#ADEFD1FF"))) + 
     theme(legend.position = c(0.8, 0.8))
 #cairo_pdf(filename = "plots/Fig_5.pdf", width = 5, height = 2.3)
 gridExtra::grid.arrange(g1, g2, nrow = 1)

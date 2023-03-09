@@ -77,12 +77,13 @@ train_test_glmnet= function(train, test,test2, MCE = FALSE) {
 
 
 
-simulate_SDM = function(effs = c(1.0, 1.0, -1.5, 1.0, 1.0), n = 5000) {
+simulate_SDM = function(effs = c(1.0, 1.0, -1.5, 1.0, 1.0, 1.0, 1.0), n = 5000) {
   Stress = rnorm(n, sd = 0.3)
   SleepD = effs[2]*Stress + rnorm(n, sd = 0.3)
   Smoking = effs[1]*Stress + effs[5]*SleepD + rnorm(n, sd = 0.3)
   LungC = effs[3]*Smoking + effs[4]*SleepD + rnorm(n, sd = 0.3)
-  return(data.frame(LungC = LungC, Smoking = Smoking, SleepD = SleepD, mvtnorm::rmvnorm(n, sigma = diag(0.3, 10))))
+  LungV = effs[6]*LungC + effs[7]*Smoking + rnorm(n, sd = 0.3)
+  return(data.frame(LungC = LungC, Smoking = Smoking, SleepD = SleepD, LungV = LungV, mvtnorm::rmvnorm(n, sigma = diag(0.3, 10))))
 }
 
 
@@ -103,28 +104,35 @@ result_list =
     
     Sys.setenv(CUDA_VISIBLE_DEVICES=dev)
 
-    data = simulate_SDM(   c(3.0,  3.0, 2.5, -1.2, 0.0), n = 1000)
+    # data = simulate_SDM(   c(3.0,  3.0, 2.5, -1.2, 0.0, 1.0, 1.0), n = 1000)
+    # train = data[1:500, ]
+    # test1 = simulate_SDM(   c(0.0,  0.0, 2.5, -1.2, 0.0, 0.0, 0.0), n = 500)
+    # test2 = data[-(1:500), ]
+    data = simulate_SDM(   c(2.0,  -2.0, 2, -1.5, 0.0, -1, -1.5), n = 1000)
     train = data[1:500, ]
-    test1 = simulate_SDM(   c(0.0,  0.0, 2.5, -1.2, 0.0), n = 500)
+    test1 = simulate_SDM(   c(0.0,  0.0, 2, -1.5, 0.0, 0.0, 0.0), n = 500)
+    test2 = data[-(1:500), ]
+    
+    data = simulate_SDM(   c(-3.0,  -2.0, 2, -1, 0.0, -1.5, -.5), n = 1000)
+    train = data[1:500, ]
+    test1 = simulate_SDM(   c(0.0,  0.0, 2, -1, 0.0, 0.0, 0.0), n = 500)
     test2 = data[-(1:500), ]
     
     
-    result = matrix(NA, 5, 4)
-    result[1, ]= c(train_test_lm(train[,-3], test1[,-3], test2[,-3]) %>% unlist, 
-                   train_test_lm(train[,], test1[,], test2[,]) %>% unlist) 
-    result[2, ]= c(train_test_brt(train[,-3], test1[,-3], test2[,-3]) %>% unlist, 
+    
+    result = matrix(NA, 3, 4)
+    result[1, ]= c(train_test_brt(train[,-4], test1[,-4], test2[,-4]) %>% unlist, 
                    train_test_brt(train[,], test1[,], test2[,]) %>% unlist) 
-    result[3, ]=  c(train_test_rf(train[,-3], test1[,-3], test2[,-3]) %>% unlist, 
+    result[2, ]=  c(train_test_rf(train[,-4], test1[,-4], test2[,-4]) %>% unlist, 
                     train_test_rf(train[,], test1[,], test2[,]) %>% unlist) 
-    
-    result[4, ]=  c(train_test_glmnet(train[,-3], test1[,-3], test2[,-3]) %>% unlist, 
-                    train_test_glmnet(train[,], test1[,], test2[,]) %>% unlist) 
-    
-    result[5, ]=  c(train_test_cito(train[,-3], test1[,-3], test2[,-3]) %>% unlist,
+    result
+    result[3, ]=  c(train_test_cito(train[,-4], test1[,-4], test2[,-4]) %>% unlist,
                     train_test_cito(train[,], test1[,], test2[,]) %>% unlist)
+    colnames(result) = c("R2out","R2in", "R2out", "R2in" )
     return(result)
     
   })
-
+abind::abind(result_list, along = 0L)
+apply(abind::abind(result_list, along = 0L), 2:3, mean)
 
 saveRDS(abind::abind(result_list, along = 0L), "results/results_case_study.RDS")

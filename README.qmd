@@ -36,7 +36,8 @@ source("code/6_Predictions.R")
 
 {{< include Appendix.qmd >}}
 
-# Session info
+
+## Session info
 
 ```{r}
 sessionInfo()
