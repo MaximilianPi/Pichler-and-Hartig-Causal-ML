@@ -282,81 +282,6 @@ res_eff = lapply(c("small", "mid", "big"), function(n) extract_results(paste0("r
 
 ```
 
-```{r}
-#| label: fig-Fig_3
-#| fig-format: svg
-#| fig-width: 10
-#| fig-height: 7
-#| echo: false
-#| message: false
-#| fig-cap: "Bias and variance of estimated effects in data-poor situations. N = 50, 100, and 600 observations of 100 weakly correlated predictors were simulated. True effects in the data generating model were $\\beta_1$=1.0, $\\beta_2$=0.0, and the other 98 effects were equally spaced between 0 and 1. Models were fitted to the simulated data (1000 replicates) with the optimal hyperparameters (except for LM, which doesn’t have hyperparameters). Hyperparameters were selected based on the minimum MSE of ($\\hat{\\beta}_1$) (green) or the prediction error (based on $\\hat{y}$  ) (red). Bias and variance were calculated for $\\hat{\\beta}_1$ and $\\hat{\\beta}_2$. Effects $\\hat{\\beta}_i$ for $i=1,…,100$) were approximated using ACE."
-
-#cairo_pdf("plots/Fig_3.pdf", width = 10, height = 7)
-
-bias = res_pred[[1]]$bias[1, 1]
-var = res_pred[[1]]$var[1, 1]
-draw_stacked_bar = function(bias, var, xleft = 0.0, w = 0.15) {
-  rect(xleft, 0, xleft+w, abs(bias), col = "#96c6ed" )
-  rect(xleft, abs(bias), xleft+w, abs(bias)+var, col = "#e0acd5" )
-}
-methods2 = c("LM", "RF", "BRT", "NN", "Elastic-net")
-methods2[-1] = paste0(methods2[-1], " tuned")
-par(mfrow = c(3, 5), mar = c(1, 1, 1, 1)*0.5, oma = c(12, 4, 4, 4))
-y_labels = c("N = 50", "N = 100", "N = 600")
-for(j in 1:3) {
-  for(i in 1:5) {
-    plot(NULL, NULL, xlim = c(0, 1), ylim = c(0, 1), yaxt = "n", xaxt = "n", xaxs = "i", yaxs = "i", xlab = "", ylab = "")
-    if(i == 1) axis(2, las = 2, at = seq(0.0, 0.8, length.out = 5), labels =  format(seq(0.0, 0.8, length.out = 5)))
-    if( i > 1) {
-      rect(0.5, 0, 1.0, 1.0, col = "lightgrey", border = NA)
-      rect(0.0, 0, 0.5, 1.0, col = "white", border = NA)
-
-      draw_stacked_bar(xleft = 0.1, res_pred[[j]]$bias[i, 1], res_pred[[j]]$var[i, 1])
-      draw_stacked_bar(xleft = 0.1+0.18, res_pred[[j]]$bias[i, 2], res_pred[[j]]$var[i, 2])
-      draw_stacked_bar(xleft = 0.1+0.47, res_eff[[j]]$bias[i, 1], res_eff[[j]]$var[i, 1])
-      draw_stacked_bar(xleft = 0.1+0.18+0.47, res_eff[[j]]$bias[i, 2], res_eff[[j]]$var[i, 2])
-    } else {
-      
-      if( ((j %in% c(1, 2)) && (i == 1) )) {
-        text(x = 0.5, y = 0.5, pos = 3, label = "NA", font = 2)
-      } else {
-        draw_stacked_bar(xleft = 0.325, res_pred[[j]]$bias[i, 1], res_pred[[j]]$var[i, 1])
-        draw_stacked_bar(xleft = 0.325+0.18, res_pred[[j]]$bias[i, 2], res_pred[[j]]$var[i, 2])
-
-        text(x = c(0.185, 0.185+0.18),y = -0.24, 
-        labels = c("Bias+Variance \U03B2\U2081", "Bias+Variance \U03B2\U2082"), 
-        srt = 45,
-        xpd = NA, pos = 1)        
-      }
-      
-    }
-    if(j == 1) {
-      rect(0, 1.0, 1.0, 1.15, xpd = NA, border = "black")
-      text(0.5, y = 0.98, pos = 3, xpd = NA, label = methods2[i], cex = 1.3, font = 2)
-    }
-    if(i == 5) {
-      rect(1, 0, 1.15, 1.0, xpd = NA, border = "black")
-      text(y = 0.72, x = 1.01, pos = 4, xpd = NA, label = y_labels[j], cex = 1.3, font = 2, srt = -90)
-    }
-    if( (j == 3) && (i > 1) ){
-      text(x = c(0.185, 0.185+0.18, c(0.185, 0.185+0.18)+0.47)-0.22,y = -0.24, 
-           labels = c("Bias+Variance \U03B2\U2081", "Bias+Variance \U03B2\U2082", "Bias+Variance \U03B2\U2081", "Bias+Variance \U03B2\U2082"), 
-           srt = 45,
-           xpd = NA, pos = 1)
-    }    
-  }
-}
-
-points(pch = 22,col= "black", x = rep(-1.0, 2), y = c(-0.7, -0.8), xpd = NA, bg = c("#96c6ed","#e0acd5"), cex = 1.5)
-text(x = rep(-1.0, 2)+0.01, y = c(-0.7, -0.8)-0.02, pos = 4, labels = c("Bias", "Variance"), xpd = NA)
-
-points(pch = 22,col= "black", x = rep(-0.2, 2), y = c(-0.7, -0.8), xpd = NA, bg = c("white","lightgrey"), cex = 1.5)
-text(x = rep(-0.2, 2)+0.01, y = c(-0.7, -0.8)-0.02, pos = 4, labels = c("Tuned after MSE of predictions", "Tuned after MSE of \U03B2\U2081"), xpd = NA)
-
-#dev.off()      
-
-```
-
 #### Hyper-parameter sensitivity analysis
 
 ```{r}
@@ -443,6 +368,84 @@ axis(3, at = scales::rescale(c(0, log10(10+1), log10(130+1)), to = c(0.3, 0.5), 
 #dev.off()
 
 ```
+
+#### Bias-variance of predictions and inference
+
+```{r}
+#| label: fig-Fig_3
+#| fig-format: svg
+#| fig-width: 10
+#| fig-height: 7
+#| echo: false
+#| message: false
+#| fig-cap: "Bias and variance of estimated effects in data-poor situations. N = 50, 100, and 600 observations of 100 weakly correlated predictors were simulated. True effects in the data generating model were $\\beta_1$=1.0, $\\beta_2$=0.0, and the other 98 effects were equally spaced between 0 and 1. Models were fitted to the simulated data (1000 replicates) with the optimal hyperparameters (except for LM, which doesn’t have hyperparameters). Hyperparameters were selected based on the minimum MSE of ($\\hat{\\beta}_1$) (green) or the prediction error (based on $\\hat{y}$  ) (red). Bias and variance were calculated for $\\hat{\\beta}_1$ and $\\hat{\\beta}_2$. Effects $\\hat{\\beta}_i$ for $i=1,…,100$) were approximated using ACE."
+
+#cairo_pdf("plots/Fig_3.pdf", width = 10, height = 7)
+
+bias = res_pred[[1]]$bias[1, 1]
+var = res_pred[[1]]$var[1, 1]
+draw_stacked_bar = function(bias, var, xleft = 0.0, w = 0.15) {
+  rect(xleft, 0, xleft+w, abs(bias), col = "#96c6ed" )
+  rect(xleft, abs(bias), xleft+w, abs(bias)+var, col = "#e0acd5" )
+}
+methods2 = c("LM", "RF", "BRT", "NN", "Elastic-net")
+methods2[-1] = paste0(methods2[-1], " tuned")
+par(mfrow = c(3, 5), mar = c(1, 1, 1, 1)*0.5, oma = c(12, 4, 4, 4))
+y_labels = c("N = 50", "N = 100", "N = 600")
+for(j in 1:3) {
+  for(i in 1:5) {
+    plot(NULL, NULL, xlim = c(0, 1), ylim = c(0, 1), yaxt = "n", xaxt = "n", xaxs = "i", yaxs = "i", xlab = "", ylab = "")
+    if(i == 1) axis(2, las = 2, at = seq(0.0, 0.8, length.out = 5), labels =  format(seq(0.0, 0.8, length.out = 5)))
+    if( i > 1) {
+      rect(0.5, 0, 1.0, 1.0, col = "lightgrey", border = NA)
+      rect(0.0, 0, 0.5, 1.0, col = "white", border = NA)
+
+      draw_stacked_bar(xleft = 0.1, res_pred[[j]]$bias[i, 1], res_pred[[j]]$var[i, 1])
+      draw_stacked_bar(xleft = 0.1+0.18, res_pred[[j]]$bias[i, 2], res_pred[[j]]$var[i, 2])
+      draw_stacked_bar(xleft = 0.1+0.47, res_eff[[j]]$bias[i, 1], res_eff[[j]]$var[i, 1])
+      draw_stacked_bar(xleft = 0.1+0.18+0.47, res_eff[[j]]$bias[i, 2], res_eff[[j]]$var[i, 2])
+    } else {
+      
+      if( ((j %in% c(1, 2)) && (i == 1) )) {
+        text(x = 0.5, y = 0.5, pos = 3, label = "NA", font = 2)
+      } else {
+        draw_stacked_bar(xleft = 0.325, res_pred[[j]]$bias[i, 1], res_pred[[j]]$var[i, 1])
+        draw_stacked_bar(xleft = 0.325+0.18, res_pred[[j]]$bias[i, 2], res_pred[[j]]$var[i, 2])
+
+        text(x = c(0.185, 0.185+0.18),y = -0.24, 
+        labels = c("Bias+Variance \U03B2\U2081", "Bias+Variance \U03B2\U2082"), 
+        srt = 45,
+        xpd = NA, pos = 1)        
+      }
+      
+    }
+    if(j == 1) {
+      rect(0, 1.0, 1.0, 1.15, xpd = NA, border = "black")
+      text(0.5, y = 0.98, pos = 3, xpd = NA, label = methods2[i], cex = 1.3, font = 2)
+    }
+    if(i == 5) {
+      rect(1, 0, 1.15, 1.0, xpd = NA, border = "black")
+      text(y = 0.72, x = 1.01, pos = 4, xpd = NA, label = y_labels[j], cex = 1.3, font = 2, srt = -90)
+    }
+    if( (j == 3) && (i > 1) ){
+      text(x = c(0.185, 0.185+0.18, c(0.185, 0.185+0.18)+0.47)-0.22,y = -0.24, 
+           labels = c("Bias+Variance \U03B2\U2081", "Bias+Variance \U03B2\U2082", "Bias+Variance \U03B2\U2081", "Bias+Variance \U03B2\U2082"), 
+           srt = 45,
+           xpd = NA, pos = 1)
+    }    
+  }
+}
+
+points(pch = 22,col= "black", x = rep(-1.0, 2), y = c(-0.7, -0.8), xpd = NA, bg = c("#96c6ed","#e0acd5"), cex = 1.5)
+text(x = rep(-1.0, 2)+0.01, y = c(-0.7, -0.8)-0.02, pos = 4, labels = c("Bias", "Variance"), xpd = NA)
+
+points(pch = 22,col= "black", x = rep(-0.2, 2), y = c(-0.7, -0.8), xpd = NA, bg = c("white","lightgrey"), cex = 1.5)
+text(x = rep(-0.2, 2)+0.01, y = c(-0.7, -0.8)-0.02, pos = 4, labels = c("Tuned after MSE of predictions", "Tuned after MSE of \U03B2\U2081"), xpd = NA)
+
+#dev.off()      
+
+```
+
 
 ```{r}
 #| echo: false

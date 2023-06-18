@@ -33,7 +33,7 @@ source("code/6_Predictions.R")
 
 <figure>
 <img src="figures/fig-Fig_2-1.png" id="fig-Fig_2"
-alt="Figure 1: Bias on effect estimates for different ML algorithms in three different simulated causal simulations (a and b). Sample sizes are so large that stochastic effects can be excluded (1000 observations and 500 repetitions). Effects of the ML models were inferred using average conditional effects. Row a) shows results for simulations with uncorrelated predictors with effect sizes (\beta_1=1.0, \beta_2=0.0, and \beta_3=1.0). Row b) shows the results for simulations with X1 and X2 being strongly correlated (Pearson correlation factor = 0.9) but only X1 affects y." />
+alt="Figure 1: Bias on effect estimates for different ML algorithms in three different simulated causal simulations (a and b). Sample sizes are so large that stochastic effects can be excluded (1000 observations and 500 repetitions). Effects of the ML models were inferred using average conditional effects. Row a) shows results for simulations with uncorrelated predictors with effect sizes (\beta_1=1.0, \beta_2=0.0, and \beta_3=1.0). Row b) shows the results for simulations with X1 and X2 being strongly correlated (Pearson correlation factor = 0.9) but only X1 affects y." />
 <figcaption aria-hidden="true"><strong>Figure </strong> 1: Bias on
 effect estimates for different ML algorithms in three different
 simulated causal simulations (a and b). Sample sizes are so large that
@@ -51,35 +51,12 @@ X<sub>1</sub> affects y.</figcaption>
 
 ### Data-poor simulation
 
-<figure>
-<img src="figures/fig-Fig_3-1.png" id="fig-Fig_3"
-alt="Figure 2: Bias and variance of estimated effects in data-poor situations. N = 50, 100, and 600 observations of 100 weakly correlated predictors were simulated. True effects in the data generating model were \beta_1=1.0, \beta_2=0.0, and the other 98 effects were equally spaced between 0 and 1. Models were fitted to the simulated data (1000 replicates) with the optimal hyperparameters (except for LM, which doesn’t have hyperparameters). Hyperparameters were selected based on the minimum MSE of (\hat{\beta}_1) (green) or the prediction error (based on \hat{y} ) (red). Bias and variance were calculated for \hat{\beta}_1 and \hat{\beta}_2. Effects \hat{\beta}_i for i=1,…,100) were approximated using ACE." />
-<figcaption aria-hidden="true"><strong>Figure </strong> 2: Bias and
-variance of estimated effects in data-poor situations. N = 50, 100, and
-600 observations of 100 weakly correlated predictors were simulated.
-True effects in the data generating model were <span
-class="math inline"><em>β</em><sub>1</sub></span>=1.0, <span
-class="math inline"><em>β</em><sub>2</sub></span>=0.0, and the other 98
-effects were equally spaced between 0 and 1. Models were fitted to the
-simulated data (1000 replicates) with the optimal hyperparameters
-(except for LM, which doesn’t have hyperparameters). Hyperparameters
-were selected based on the minimum MSE of (<span
-class="math inline"><em>β̂</em><sub>1</sub></span>) (green) or the
-prediction error (based on <span class="math inline"><em>ŷ</em></span> )
-(red). Bias and variance were calculated for <span
-class="math inline"><em>β̂</em><sub>1</sub></span> and <span
-class="math inline"><em>β̂</em><sub>2</sub></span>. Effects <span
-class="math inline"><em>β̂</em><sub><em>i</em></sub></span> for <span
-class="math inline"><em>i</em> = 1, …, 100</span>) were approximated
-using ACE.</figcaption>
-</figure>
-
 #### Hyper-parameter sensitivity analysis
 
 <figure>
 <img src="figures/fig-Fig_4-1.png" id="fig-Fig_4"
-alt="Figure 3: Results of hyperparameter tuning for Neural Networks (NN), Boosted Regression Trees (BRT), Random Forests (RF), and Elastic Net (EN) for 100 observations with 100 predictors. The influence of the hyperparameters on effect (\hat{\beta}_1) (bias, variance, and MSE), and the predictions of the model, (\hat{y}), (bias, variance, and MSE) were estimated by a multivariate generalized additive model (GAM). Categorical hyperparameters (activation function in NN) were estimated as fixed effects. The responses (bias, variance, MSE) were centered so that the categorical hyperparameters correspond to the intercepts. The variable importance of the hyperparameters was estimated by a random forest with the MSE of the effect \hat{\beta}_1 (first plot) or the prediction (second plot) as the response. Red dots correspond to the best predicted set of hyperparameters (based on a random forest), in the first plot for the minimum MSE of the effect for \hat{\beta}_1 and in the second plot for the minimum MSE of the predictions \hat{y}." />
-<figcaption aria-hidden="true"><strong>Figure </strong> 3: Results of
+alt="Figure 2: Results of hyperparameter tuning for Neural Networks (NN), Boosted Regression Trees (BRT), Random Forests (RF), and Elastic Net (EN) for 100 observations with 100 predictors. The influence of the hyperparameters on effect (\hat{\beta}_1) (bias, variance, and MSE), and the predictions of the model, (\hat{y}), (bias, variance, and MSE) were estimated by a multivariate generalized additive model (GAM). Categorical hyperparameters (activation function in NN) were estimated as fixed effects. The responses (bias, variance, MSE) were centered so that the categorical hyperparameters correspond to the intercepts. The variable importance of the hyperparameters was estimated by a random forest with the MSE of the effect \hat{\beta}_1 (first plot) or the prediction (second plot) as the response. Red dots correspond to the best predicted set of hyperparameters (based on a random forest), in the first plot for the minimum MSE of the effect for \hat{\beta}_1 and in the second plot for the minimum MSE of the predictions \hat{y}." />
+<figcaption aria-hidden="true"><strong>Figure </strong> 2: Results of
 hyperparameter tuning for Neural Networks (NN), Boosted Regression Trees
 (BRT), Random Forests (RF), and Elastic Net (EN) for 100 observations
 with 100 predictors. The influence of the hyperparameters on effect
@@ -101,12 +78,37 @@ for the minimum MSE of the predictions <span
 class="math inline"><em>ŷ</em></span>.</figcaption>
 </figure>
 
+#### Bias-variance of predictions and inference
+
+<figure>
+<img src="figures/fig-Fig_3-1.png" id="fig-Fig_3"
+alt="Figure 3: Bias and variance of estimated effects in data-poor situations. N = 50, 100, and 600 observations of 100 weakly correlated predictors were simulated. True effects in the data generating model were \beta_1=1.0, \beta_2=0.0, and the other 98 effects were equally spaced between 0 and 1. Models were fitted to the simulated data (1000 replicates) with the optimal hyperparameters (except for LM, which doesn’t have hyperparameters). Hyperparameters were selected based on the minimum MSE of (\hat{\beta}_1) (green) or the prediction error (based on \hat{y} ) (red). Bias and variance were calculated for \hat{\beta}_1 and \hat{\beta}_2. Effects \hat{\beta}_i for i=1,…,100) were approximated using ACE." />
+<figcaption aria-hidden="true"><strong>Figure </strong> 3: Bias and
+variance of estimated effects in data-poor situations. N = 50, 100, and
+600 observations of 100 weakly correlated predictors were simulated.
+True effects in the data generating model were <span
+class="math inline"><em>β</em><sub>1</sub></span>=1.0, <span
+class="math inline"><em>β</em><sub>2</sub></span>=0.0, and the other 98
+effects were equally spaced between 0 and 1. Models were fitted to the
+simulated data (1000 replicates) with the optimal hyperparameters
+(except for LM, which doesn’t have hyperparameters). Hyperparameters
+were selected based on the minimum MSE of (<span
+class="math inline"><em>β̂</em><sub>1</sub></span>) (green) or the
+prediction error (based on <span class="math inline"><em>ŷ</em></span> )
+(red). Bias and variance were calculated for <span
+class="math inline"><em>β̂</em><sub>1</sub></span> and <span
+class="math inline"><em>β̂</em><sub>2</sub></span>. Effects <span
+class="math inline"><em>β̂</em><sub><em>i</em></sub></span> for <span
+class="math inline"><em>i</em> = 1, …, 100</span>) were approximated
+using ACE.</figcaption>
+</figure>
+
 ### Case Study
 
 <figure>
 <img src="figures/fig-Fig_5-1.png" id="fig-Fig_5"
 alt="Figure 4: Difference between causal and conventional ML models for in-distribution and out-of-distribution predictions. In a simulated setting, the task is to predict Crop yield based on Plant growth (data-generating model is shown in the figure). Climate is an unobservable confounder and has effects on Plant growth and Pest (growth). In the first scenario, i.e. in-distribution predictions, Climate did not change, i.e. patients were exposed to the same climatic conditions; here the difference in predictive performance for the model with and without Pest growth is marginal (predictive performance was measured by R2). In the second theoretical setting, the climatic conditions changed (the effects of Climate on Plant growth and Pest are now zero). Using the previously trained models, the model without Pest deficit performed significantly worse than the model with Pest (plot with out-of-distribution predictions)." />
-<figcaption aria-hidden="true"><strong>Figure </strong> 4: Difference
+<figcaption aria-hidden="true"><strong>Figure</strong> 4: Difference
 between causal and conventional ML models for in-distribution and
 out-of-distribution predictions. In a simulated setting, the task is to
 predict Crop yield based on Plant growth (data-generating model is shown
