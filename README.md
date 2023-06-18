@@ -128,6 +128,98 @@ predictions).</figcaption>
 **Summary:** This document provides supporting information on Pichler &
 Hartig – Can machine learning be used for causal inference.
 
+## Extending ACE to two-way interactions
+
+ACE can be extended to $n$-dimensions to detect $n$ way predictor
+interactions. Here, we extended ACEs to two dimensions to detect two-way
+predictor interactions by asking what the change is of $\hat{f}(\cdot)$
+when predictors $x_m$ and $x_k$ change together:
+
+$$\mathbf{ACE}_{mk} = \frac{\partial^2 \hat{f} (\mathbf{X} )}{ \partial x_m \partial x_k }$$
+
+We can approximate $\mathbf{ACE}_{mk}$ with the finite difference
+method:
+
+$$
+\mathbf{ACE}_{mk} \approx \frac{ \hat{f} (x_1, x_2, ..., x_m + h, x_k + h, ..., x_j ) }{2(h_m + h_k)} -  \frac{ \hat{f} (x_1, x_2, ..., x_m - h, x_k + h, ..., x_j ) }{2(h_m + h_k)} -  \frac{ \hat{f} (x_1, x_2, ..., x_m + h, x_k - h, ..., x_j ) }{2(h_m + h_k)} - \frac{ \hat{f} (x_1, x_2, ..., x_m - h, x_k - h, ..., x_j ) }{2(h_m + h_k)}
+$$
+
+$h_m$ and $h_k$ are set to $0.1 \cdot sd(x_m)$ and $0.1 \cdot sd(x_k)$.
+All predictors are centered and standardized.
+
+### Proof of concept simulations for inferring interactions
+
+To test the ability of ML algorithms to identify predictor-predictor
+interactions, we repeated the proof-of-concept simulations, but with an
+interaction between X<sub>1</sub> and X<sub>2</sub>. The data generation
+model was
+$Y\sim 1.0 \cdot X_1 + 1.0 \cdot X_5 + 1.0 \cdot (X_1 \cdot X_2) + \epsilon$
+with \$N(0, 1.0) \$. We simulated two scenarios, in the first
+(“collinear”) X<sub>1</sub> and X<sub>2</sub> were collinear (Pearson
+correlation factor = 0.9) and in the second without collinearity between
+the predictors.
+
+We sampled 1000 and 5000 observations from each scenario. The ML
+algorithms (RF, BRT, NN, and NN with dropout) were fit to the data
+without predictor engineering the predictor interactions (because ML
+algorithms are known to be able to infer interactions automatically),
+while the regression algorithms (LM, l1, l2, and elastic-net) received
+all combinatorially possible predictor interactions as possible
+predictors. All effects were inferred using ACE. The bias was calculated
+for the interaction X<sub>1</sub>:X<sub>2</sub>.
+
+<figure>
+<img src="figures/fig-Fig_S1-1.png" id="fig-Fig_S1"
+alt="Figure S 5: Bias of proof of concept simulations in inferring two-way interactions between predictors. First panel shows results for simulations (200 repititions) for 1000 and 5000 observations with collinear predictors (Pearson correlation factor = 0.9 between X1 and X2). Second panel shows results for simulations (200 repititions) for 1000 and 5000 observations with without collinear. Red bars correspond to 1000 observations and blue bars to 5000 observations." />
+<figcaption aria-hidden="true"><strong>Figure S</strong> 5: Bias of
+proof of concept simulations in inferring two-way interactions between
+predictors. First panel shows results for simulations (200 repititions)
+for 1000 and 5000 observations with collinear predictors (Pearson
+correlation factor = 0.9 between X<sub>1</sub> and X<sub>2</sub>).
+Second panel shows results for simulations (200 repititions) for 1000
+and 5000 observations with without collinear. Red bars correspond to
+1000 observations and blue bars to 5000 observations.</figcaption>
+</figure>
+
+We found that for the ML algorithms (RF, BRT, and NN) NN showed the
+lowest for all scenarios (Fig. S1). Also collinearity increased the bias
+for the ML algorithms. No collinearity or more observations decreased
+the bias (Fig. S1). The regression models, LM, LASSO and Ridge
+regression, and elastic-net showed the lowest and in case of LM, no
+bias. However, we want to note here that the regression models received
+all possible predictor-predictor interactions as predictors while the ML
+algorithms had to infer the interactions on their own. Whit this in
+mind, the performance of the NN is surprising well, even competing with
+the penalized regression models. On the other hand, NN with dropout
+showed larger biases than BRT (Fig. S1).
+
+### Weighted ACE
+
+If the instances of a predictor x_j are not uniformly distributed, we
+propose to calculate a weighted $wACE_k = \Sigma^{N}_{i=1} w_i ACE_{ik}$
+with the $w_i$ being, for example, the inverse probabilities of an
+estimated density function over the predictor space of $x_k$.
+
+To demonstrate the idea of weighted ACE, we simulated a scenario with
+one predictor where the $\beta_1 = 2$ for values of the predictor $< 2$
+and for the other predictor values $\beta_1=0$ (Fig. S2). The predictor
+was sampled from a log-Normal distribution. We fitted a linear
+regression model and a NN on the data and compared the effect estimated
+by the LM, the unweighted ACE, and the weighted ACE.
+
+The LM estimated an effect of 1.48, the unweighted ACE was 1.95, and the
+weighted ACE was 1.48 (Fig. S2).
+
+<figure>
+<img src="figures/fig-Fig_S2-1.png" id="fig-Fig_S2"
+alt="Figure S 6: Simulation example with non-uniform sampled predictor X1 (log normal distributed). The red line is the effect estimated by a LM OLS. The blue line is the effect reported by an unweighted ACE from a NN. The green line is the effect reported by a weighted ACE from a NN." />
+<figcaption aria-hidden="true"><strong>Figure S</strong> 6: Simulation
+example with non-uniform sampled predictor X1 (log normal distributed).
+The red line is the effect estimated by a LM OLS. The blue line is the
+effect reported by an unweighted ACE from a NN. The green line is the
+effect reported by a weighted ACE from a NN.</figcaption>
+</figure>
+
 ## Boosting and regression trees
 
 ### Unbiasedness
@@ -147,15 +239,15 @@ bootstrap samples for each tree and also subsamples of columns in each
 tree (or node), see Chen and Guestrin (2016)).
 
 To understand how boosting and regression trees affect effect estimates,
-we simulated three different scenarios (Fig. S1, first column) without
-collinearity (Fig. S1a) and with collinearity (Fig. S1a, b) (we sampled
-1000 observations from each data generating model (Fig. S1, first
+we simulated three different scenarios (Fig. S3, first column) without
+collinearity (Fig. S3a) and with collinearity (Fig. S3a, b) (we sampled
+1000 observations from each data generating model (Fig. S3, first
 column) and estimated effects using ACE (500 repititions)).
 
 <figure>
-<img src="figures/fig-Fig_S1-1.png" id="fig-Fig_S1"
-alt="Figure S 5: Bias on effect estimates for different ML algorithms (LM = liner regression model (OLS), RT LC = regression tree with low complexity (depth), RT HC = regression tree with high complexity, Linear Booster, Tree Booster LC = tree booster with low complexity, Tree Booster HC = tree boster with high complexity) in three different simulated causal scenarios (a, b, and c). Sample sizes are so large that stochastic effects can be excluded (1000 observations). Effects of the ML models were inferred using average conditional effects. Row a) shows results for simulations with uncorrelated predictors with the true effect sizes. Row b) shows the results for simulations with X1 and X2 being strongly correlated (Pearson correlation factor = 0.9) but only X1 has an effect on y (mediator) and row c) shows the results for X1 and X2 being strongly correlated (Pearson correlation factor = 0.9) with X1 and X2 having effects on Y (confounder scenario)." />
-<figcaption aria-hidden="true"><strong>Figure S</strong> 5: Bias on
+<img src="figures/fig-Fig_S3-1.png" id="fig-Fig_S3"
+alt="Figure S 7: Bias on effect estimates for different ML algorithms (LM = liner regression model (OLS), RT LC = regression tree with low complexity (depth), RT HC = regression tree with high complexity, Linear Booster, Tree Booster LC = tree booster with low complexity, Tree Booster HC = tree boster with high complexity) in three different simulated causal scenarios (a, b, and c). Sample sizes are so large that stochastic effects can be excluded (1000 observations). Effects of the ML models were inferred using average conditional effects. Row a) shows results for simulations with uncorrelated predictors with the true effect sizes. Row b) shows the results for simulations with X1 and X2 being strongly correlated (Pearson correlation factor = 0.9) but only X1 has an effect on y (mediator) and row c) shows the results for X1 and X2 being strongly correlated (Pearson correlation factor = 0.9) with X1 and X2 having effects on Y (confounder scenario)." />
+<figcaption aria-hidden="true"><strong>Figure S</strong> 7: Bias on
 effect estimates for different ML algorithms (LM = liner regression
 model (OLS), RT LC = regression tree with low complexity (depth), RT HC
 = regression tree with high complexity, Linear Booster, Tree Booster LC
@@ -174,30 +266,30 @@ effects on Y (confounder scenario).</figcaption>
 </figure>
 
 We found that the regression tree (RT) is unable to estimate unbiased
-effects (Fig. S1), regardless of the presence or absence of collinearity
+effects (Fig. S3), regardless of the presence or absence of collinearity
 or the complexity of the RT (depth of the regression trees). Without
 collinearity, effects in regression trees were biased toward zero, less
-so with higher complexity (Fig. S1). With collinearity, there was a
-small spillover effect for the RT with high complexity (Fig. S1b) to the
+so with higher complexity (Fig. S3). With collinearity, there was a
+small spillover effect for the RT with high complexity (Fig. S3b) to the
 collinear zero effect (X<sub>2</sub>), similar to an l2 regularization.
-When the collinear predictor (X<sub>2</sub>) had an effect (Fig. S1c),
+When the collinear predictor (X<sub>2</sub>) had an effect (Fig. S3c),
 we found a stronger absolute bias for the smaller of the two collinear
 effects (X<sub>2</sub>), confirming our expectation that RTs show a
 greedy effect. This greedy behavior was particularly strong for the low
-complexity RT (Fig. S1c).
+complexity RT (Fig. S3c).
 
 To answer the question of how boosting affects the greediness and
 spillover effects of RT, we first investigated the behavior of a linear
 booster because of the well-known behavior of OLS under collinearity.
 And indeed, we found that the linear booster was unbiased in all three
-scenarios (compare LM and linear booster in Fig. S1), showing that
+scenarios (compare LM and linear booster in Fig. S3), showing that
 boosting itself can produce unbiased effects.
 
 Now, comparing the vanilla BRTs with low and high complexity (depth of
 individual trees) with the linear booster and the RTs, we found similar
 biases as for the RTs, in terms of spillover with a collinear zero
 effect and the greediness effect in the presence of a weaker collinear
-effect (Fig. S1).
+effect (Fig. S3).
 
 ### Understanding boosting
 
@@ -209,9 +301,9 @@ bias (the effect of the missing confounder is absorbed by the collinear
 effect).
 
 <figure>
-<img src="figures/fig-Fig_S2-1.png" id="fig-Fig_S2"
-alt="Figure S 6: Changes of effects within boosting. (A) shows the total effect of ensemble (linear booster) until the n-th ensemble member. (B) shows the effects of the n-th ensemble member. X1 and X2 were correlated (Pearson correlationf factor = 0.9)." />
-<figcaption aria-hidden="true"><strong>Figure S</strong> 6: Changes of
+<img src="figures/fig-Fig_S4-1.png" id="fig-Fig_S4"
+alt="Figure S 8: Changes of effects within boosting. (A) shows the total effect of ensemble (linear booster) until the n-th ensemble member. (B) shows the effects of the n-th ensemble member. X1 and X2 were correlated (Pearson correlationf factor = 0.9)." />
+<figcaption aria-hidden="true"><strong>Figure S</strong> 8: Changes of
 effects within boosting. (A) shows the total effect of ensemble (linear
 booster) until the n-th ensemble member. (B) shows the effects of the
 n-th ensemble member. X1 and X2 were correlated (Pearson correlationf
@@ -219,28 +311,31 @@ factor = 0.9).</figcaption>
 </figure>
 
 Looking at the development of the total effect within a linear booster
-model (Fig. S2a), we found indeed that the first members of the ensemble
-absorb the effect of the collinear effect (effect of X<sub>1</sub> is
-absorbed by X1, Fig. S2a), but as members are added to the ensemble, the
-collinear effect (X2) slowly recovers the effect of the stronger
-collinear effect until both are at their correct effect estimate (Fig.
-S2a). This retrieval works by reversing the sign of each member’s
-effect, so that X1, which initially has an effect of 1.5 (because it
-absorbed the effect of X2), has small negative effects in subsequent
-trees, while X2, which is initially estimated at 0, has small positive
-effects (Fig. S2b).
+model (Fig. S4a), we found that the first members of the ensemble absorb
+the effect of the collinear effect ($\beta_1$ absorbed $\beta_2$, Fig.
+S4a), but as members are added to the ensemble, the collinear effect
+$\beta_2$ slowly recovers the effect of the stronger collinear effect
+until both are at their correct effect estimate (Fig. S4a). This
+retrieval works by reversing the sign of each member’s effect, so that
+$\beta_1$, which initially has an effect of 1.5 (because it absorbed the
+effect of $\beta_2$), has small negative effects in subsequent trees,
+while $\beta_2$, which is initially estimated at 0, has small positive
+effects (Fig. S4b).
 
 ## Proof of concept - Additional results
 
 ### Addtional scenarios
 
 To better understand the ability of ML algorithms in learning unbiased
-effects, we tested additional scenarios (Fig. S3, first column).
+effects, we tested additional scenarios (Fig. S5, first column). :::
+{.cell}
+
+:::
 
 <figure>
-<img src="figures/fig-Fig_S3-1.png" id="fig-Fig_S3"
-alt="Figure S 7: Bias on effect estimates for different ML algorithms in trhee different simulated causal simulations (a, b, and c). Sample sizes are so large that stochastic effects can be excluded (1000 observations). Effects of the ML models were inferred using average conditional effects. Row a) shows the results for simulations with X1 and X2 being strongly correlated (Pearson correlation factor = 0.99) but only X1 has an effect on y. Row b) shows results for simulations with with predictors (Pearson correlation factor = 0.5) with effect sizes (X1: 1.0, X2: 0.5, X3: 1.0) and row c) shows results for simulations with with predictors (Pearson correlation factor = 0.5) with effect sizes (X1: 1.0, X2: -0.5, X3: 1.0)" />
-<figcaption aria-hidden="true"><strong>Figure S</strong> 7: Bias on
+<img src="figures/fig-Fig_S5-1.png" id="fig-Fig_S5"
+alt="Figure S 9: Bias on effect estimates for different ML algorithms in trhee different simulated causal simulations (a, b, and c). Sample sizes are so large that stochastic effects can be excluded (1000 observations). Effects of the ML models were inferred using average conditional effects. Row a) shows the results for simulations with X1 and X2 being strongly correlated (Pearson correlation factor = 0.99) but only X1 has an effect on y. Row b) shows results for simulations with with predictors (Pearson correlation factor = 0.5) with effect sizes (X1: 1.0, X2: 0.5, X3: 1.0) and row c) shows results for simulations with with predictors (Pearson correlation factor = 0.5) with effect sizes (X1: 1.0, X2: -0.5, X3: 1.0)" />
+<figcaption aria-hidden="true"><strong>Figure S</strong> 9: Bias on
 effect estimates for different ML algorithms in trhee different
 simulated causal simulations (a, b, and c). Sample sizes are so large
 that stochastic effects can be excluded (1000 observations). Effects of
@@ -256,18 +351,18 @@ X<sub>2</sub>: -0.5, X<sub>3</sub>: 1.0)</figcaption>
 </figure>
 
 We found that NN cannot separate extreme collinear effects as the OLS
-(Fig. S3a) which, however, may improve with additional observations.
+(Fig. S5a) which, however, may improve with additional observations.
 
 ### Additonal models
 
 To understand the different effects of regularization in NN (dropout),
 LASSO regression, and Ridge regression, we tested these models on our
-theoretical scenarios (Fig. S4, first column).
+theoretical scenarios (Fig. S6, first column).
 
 <figure>
-<img src="figures/fig-Fig_S4-1.png" id="fig-Fig_S4"
-alt="Figure S 8: Bias on effect estimates for different ML algorithms in two different simulated causal simulations (a and b). Sample sizes are so large that stochastic effects can be excluded. Effects of the ML models were inferred using average conditional effects. Row a) shows results for simulations with with predictors (Pearson correlation factor = 0.5) with effect sizes (X1: 1.0, X2: -0.5, X3: 1.0). Row b) shows the results for simulations with X1 and X2 being strongly correlated (Pearson correlation factor = 0.99) but only X1 has an effect on y." />
-<figcaption aria-hidden="true"><strong>Figure S</strong> 8: Bias on
+<img src="figures/fig-Fig_S6-1.png" id="fig-Fig_S6"
+alt="Figure S 10: Bias on effect estimates for different ML algorithms in two different simulated causal simulations (a and b). Sample sizes are so large that stochastic effects can be excluded. Effects of the ML models were inferred using average conditional effects. Row a) shows results for simulations with with predictors (Pearson correlation factor = 0.5) with effect sizes (X1: 1.0, X2: -0.5, X3: 1.0). Row b) shows the results for simulations with X1 and X2 being strongly correlated (Pearson correlation factor = 0.99) but only X1 has an effect on y." />
+<figcaption aria-hidden="true"><strong>Figure S</strong> 10: Bias on
 effect estimates for different ML algorithms in two different simulated
 causal simulations (a and b). Sample sizes are so large that stochastic
 effects can be excluded. Effects of the ML models were inferred using
@@ -280,8 +375,8 @@ X<sub>1</sub> has an effect on y.</figcaption>
 </figure>
 
 Dropout has an negative effect on the ability to separate collinear
-effects in NN (Fig. S4) while also LASSO and Ridge (as expected) affect
-negatively the ability to separate collinear effects (Fig. S4).
+effects in NN (Fig. S6) while also LASSO and Ridge (as expected) affect
+negatively the ability to separate collinear effects (Fig. S6).
 
 ## Hyperparameter tuning
 
@@ -337,12 +432,12 @@ Boosted Regression Tree, and Random Forest
 
 As described in the main text, we analyzed the effects of the
 hyperparameters on the different errors using GAMs and variable
-importance of random forest (Fig. S5, S6, S7).
+importance of random forest (Fig. S7, S8, S9).
 
 <figure>
-<img src="figures/fig-Fig_S5-1.png" id="fig-Fig_S5"
-alt="Figure S 9: Results of hyperparameter tuning for Neural Networks (NN), Boosted Regression Trees (BRT), Random Forests (RF), and Elastic Net (EN) for 50 observations with 100 predictors. The influence of the hyperparameters on effect \hat{\beta}_1 (bias, variance, and MSE)(true simulated effect \beta_1 = 1.0 ) and the predictions, \hat{y} of the model (bias, variance, and MSE) were estimated by a multivariate generalized additive model (GAM). Categorical hyperparameters (activation function in NN) were estimated as fixed effects. The responses (bias, variance, MSE) were centered so that the categorical hyperparameters correspond to the intercepts. The variable importance of the hyperparameters was estimated by a random forest with the MSE of the effect \hat{\beta}_1 (first plot) or the prediction \hat{y} (second plot) as the response. Red dots correspond to the best predicted set of hyperparameters (based on a random forest), in the first plot for the minimum MSE of the effect \hat{\beta}_1 and in the second plot for the minimum MSE of the predictions \hat{y}." />
-<figcaption aria-hidden="true"><strong>Figure S</strong> 9: Results of
+<img src="figures/fig-Fig_S7-1.png" id="fig-Fig_S7"
+alt="Figure S 11: Results of hyperparameter tuning for Neural Networks (NN), Boosted Regression Trees (BRT), Random Forests (RF), and Elastic Net (EN) for 50 observations with 100 predictors. The influence of the hyperparameters on effect \hat{\beta}_1 (bias, variance, and MSE)(true simulated effect \beta_1 = 1.0 ) and the predictions, \hat{y} of the model (bias, variance, and MSE) were estimated by a multivariate generalized additive model (GAM). Categorical hyperparameters (activation function in NN) were estimated as fixed effects. The responses (bias, variance, MSE) were centered so that the categorical hyperparameters correspond to the intercepts. The variable importance of the hyperparameters was estimated by a random forest with the MSE of the effect \hat{\beta}_1 (first plot) or the prediction \hat{y} (second plot) as the response. Red dots correspond to the best predicted set of hyperparameters (based on a random forest), in the first plot for the minimum MSE of the effect \hat{\beta}_1 and in the second plot for the minimum MSE of the predictions \hat{y}." />
+<figcaption aria-hidden="true"><strong>Figure S</strong> 11: Results of
 hyperparameter tuning for Neural Networks (NN), Boosted Regression Trees
 (BRT), Random Forests (RF), and Elastic Net (EN) for 50 observations
 with 100 predictors. The influence of the hyperparameters on effect
@@ -367,9 +462,9 @@ class="math inline"><em>ŷ</em></span>.</figcaption>
 </figure>
 
 <figure>
-<img src="figures/fig-Fig_S6-1.png" id="fig-Fig_S6"
-alt="Figure S 10: Results of hyperparameter tuning for Neural Networks (NN), Boosted Regression Trees (BRT), Random Forests (RF), and Elastic Net (EN) for 600 observations with 100 predictors. The influence of the hyperparameters on effect \hat{\beta}_1 (bias, variance, and MSE)(true simulated effect \beta_1 = 1.0 ) and the predictions, \hat{y} of the model (bias, variance, and MSE) were estimated by a multivariate generalized additive model (GAM). Categorical hyperparameters (activation function in NN) were estimated as fixed effects. The responses (bias, variance, MSE) were centered so that the categorical hyperparameters correspond to the intercepts. The variable importance of the hyperparameters was estimated by a random forest with the MSE of the effect \hat{\beta}_1 (first plot) or the prediction \hat{y} (second plot) as the response. Red dots correspond to the best predicted set of hyperparameters (based on a random forest), in the first plot for the minimum MSE of the effect \hat{\beta}_1 and in the second plot for the minimum MSE of the predictions \hat{y}." />
-<figcaption aria-hidden="true"><strong>Figure S</strong> 10: Results of
+<img src="figures/fig-Fig_S8-1.png" id="fig-Fig_S8"
+alt="Figure S 12: Results of hyperparameter tuning for Neural Networks (NN), Boosted Regression Trees (BRT), Random Forests (RF), and Elastic Net (EN) for 600 observations with 100 predictors. The influence of the hyperparameters on effect \hat{\beta}_1 (bias, variance, and MSE)(true simulated effect \beta_1 = 1.0 ) and the predictions, \hat{y} of the model (bias, variance, and MSE) were estimated by a multivariate generalized additive model (GAM). Categorical hyperparameters (activation function in NN) were estimated as fixed effects. The responses (bias, variance, MSE) were centered so that the categorical hyperparameters correspond to the intercepts. The variable importance of the hyperparameters was estimated by a random forest with the MSE of the effect \hat{\beta}_1 (first plot) or the prediction \hat{y} (second plot) as the response. Red dots correspond to the best predicted set of hyperparameters (based on a random forest), in the first plot for the minimum MSE of the effect \hat{\beta}_1 and in the second plot for the minimum MSE of the predictions \hat{y}." />
+<figcaption aria-hidden="true"><strong>Figure S</strong> 12: Results of
 hyperparameter tuning for Neural Networks (NN), Boosted Regression Trees
 (BRT), Random Forests (RF), and Elastic Net (EN) for 600 observations
 with 100 predictors. The influence of the hyperparameters on effect
@@ -394,9 +489,9 @@ class="math inline"><em>ŷ</em></span>.</figcaption>
 </figure>
 
 <figure>
-<img src="figures/fig-Fig_S7-1.png" id="fig-Fig_S7"
-alt="Figure S 11: Results of hyperparameter tuning for Neural Networks (NN), Boosted Regression Trees (BRT), Random Forests (RF), and Elastic Net (EN) for 2000 observations with 100 predictors. The influence of the hyperparameters on effect \hat{\beta}_1 (bias, variance, and MSE)(true simulated effect \beta_1 = 1.0 ) and the predictions, \hat{y} of the model (bias, variance, and MSE) were estimated by a multivariate generalized additive model (GAM). Categorical hyperparameters (activation function in NN) were estimated as fixed effects. The responses (bias, variance, MSE) were centered so that the categorical hyperparameters correspond to the intercepts. The variable importance of the hyperparameters was estimated by a random forest with the MSE of the effect \hat{\beta}_1 (first plot) or the prediction \hat{y} (second plot) as the response. Red dots correspond to the best predicted set of hyperparameters (based on a random forest), in the first plot for the minimum MSE of the effect \hat{\beta}_1 and in the second plot for the minimum MSE of the predictions \hat{y}." />
-<figcaption aria-hidden="true"><strong>Figure S</strong> 11: Results of
+<img src="figures/fig-Fig_S9-1.png" id="fig-Fig_S9"
+alt="Figure S 13: Results of hyperparameter tuning for Neural Networks (NN), Boosted Regression Trees (BRT), Random Forests (RF), and Elastic Net (EN) for 2000 observations with 100 predictors. The influence of the hyperparameters on effect \hat{\beta}_1 (bias, variance, and MSE)(true simulated effect \beta_1 = 1.0 ) and the predictions, \hat{y} of the model (bias, variance, and MSE) were estimated by a multivariate generalized additive model (GAM). Categorical hyperparameters (activation function in NN) were estimated as fixed effects. The responses (bias, variance, MSE) were centered so that the categorical hyperparameters correspond to the intercepts. The variable importance of the hyperparameters was estimated by a random forest with the MSE of the effect \hat{\beta}_1 (first plot) or the prediction \hat{y} (second plot) as the response. Red dots correspond to the best predicted set of hyperparameters (based on a random forest), in the first plot for the minimum MSE of the effect \hat{\beta}_1 and in the second plot for the minimum MSE of the predictions \hat{y}." />
+<figcaption aria-hidden="true"><strong>Figure S</strong> 13: Results of
 hyperparameter tuning for Neural Networks (NN), Boosted Regression Trees
 (BRT), Random Forests (RF), and Elastic Net (EN) for 2000 observations
 with 100 predictors. The influence of the hyperparameters on effect
@@ -488,14 +583,14 @@ lowest MSE.
 
 ### Prediction error of scenarios
 
-Fig. S8 shows the MSE of the predictions on the holdouts for the
+Fig. S10 shows the MSE of the predictions on the holdouts for the
 different ML algorithms and different number of observations of the
 data-poor scenarios (see main text).
 
 <figure>
-<img src="figures/fig-Fig_S8-1.png" id="fig-Fig_S8"
-alt="Figure S 12: Prediction error (mean square error, MSE) of data poor simulations with optimal hyperparameters either tuned after the best MSE of the effect size (red) or the best MSE of the prediction error (blue)." />
-<figcaption aria-hidden="true"><strong>Figure S</strong> 12: Prediction
+<img src="figures/fig-Fig_S10-1.png" id="fig-Fig_S10"
+alt="Figure S 14: Prediction error (mean square error, MSE) of data poor simulations with optimal hyperparameters either tuned after the best MSE of the effect size (red) or the best MSE of the prediction error (blue)." />
+<figcaption aria-hidden="true"><strong>Figure S</strong> 14: Prediction
 error (mean square error, MSE) of data poor simulations with optimal
 hyperparameters either tuned after the best MSE of the effect size (red)
 or the best MSE of the prediction error (blue).</figcaption>
@@ -513,9 +608,9 @@ used the best hyperparameters (Table S3, Table S4) which were tuned for
 the collinear scenarios, for these scenarios
 
 <figure>
-<img src="figures/fig-Fig_S9-1.png" id="fig-Fig_S9"
-alt="Figure S 13: Bias and variance of estimated effects in data-poor situations. N = 50, 100, and 600 observations of 100 uncorrelated predictors were simulated. True effects in the data generating model were \beta_1=1.0, \beta_2=0.0, and the other 98 effects were equally spaced between 0 and 1. Models were fitted to the simulated data (1000 replicates) with the optimal hyperparameters (except for LM, which doesn’t have hyperparameters). Hyperparameters were selected based on the minimum MSE of (\hat{\beta}_1) (green) or the prediction error (based on \hat{y} ) (red). Bias and variance were calculated for \hat{\beta}_1 and \hat{\beta}_2. Effects \hat{\beta}_i for i=1,…,100) were approximated using ACE." />
-<figcaption aria-hidden="true"><strong>Figure S</strong> 13: Bias and
+<img src="figures/fig-Fig_S11-1.png" id="fig-Fig_S11"
+alt="Figure S 15: Bias and variance of estimated effects in data-poor situations. N = 50, 100, and 600 observations of 100 uncorrelated predictors were simulated. True effects in the data generating model were \beta_1=1.0, \beta_2=0.0, and the other 98 effects were equally spaced between 0 and 1. Models were fitted to the simulated data (1000 replicates) with the optimal hyperparameters (except for LM, which doesn’t have hyperparameters). Hyperparameters were selected based on the minimum MSE of (\hat{\beta}_1) (green) or the prediction error (based on \hat{y} ) (red). Bias and variance were calculated for \hat{\beta}_1 and \hat{\beta}_2. Effects \hat{\beta}_i for i=1,…,100) were approximated using ACE." />
+<figcaption aria-hidden="true"><strong>Figure S</strong> 15: Bias and
 variance of estimated effects in data-poor situations. N = 50, 100, and
 600 observations of 100 uncorrelated predictors were simulated. True
 effects in the data generating model were <span
@@ -536,117 +631,23 @@ using ACE.</figcaption>
 </figure>
 
 We found similar results as for data-poor scenarios with collinearity
-(Fig. S9). NN and elastic-net show the lowest errors and strongest
+(Fig. S11). NN and elastic-net show the lowest errors and strongest
 increase in those errors with increasing number of observations (Fig.
-S9).
+S11).
 
 ### Prediction error of scenarios
 
-Fig. S10 shows the prediction errors for the ML algorithms for the
+Fig. S12 shows the prediction errors for the ML algorithms for the
 data-poor simulations without collinearity. We found similar results as
 for the data-poor simulations with collinearity.
 
 <figure>
-<img src="figures/fig-Fig_S10-1.png" id="fig-Fig_S10"
-alt="Figure S 14: Prediction error (mean square error, MSE) of data poor simulations with optimal hyperparameters either tuned after the best MSE of the effect size (red) or the best MSE of the prediction error (blue)." />
-<figcaption aria-hidden="true"><strong>Figure S</strong> 14: Prediction
+<img src="figures/fig-Fig_S12-1.png" id="fig-Fig_S12"
+alt="Figure S 16: Prediction error (mean square error, MSE) of data poor simulations with optimal hyperparameters either tuned after the best MSE of the effect size (red) or the best MSE of the prediction error (blue)." />
+<figcaption aria-hidden="true"><strong>Figure S</strong> 16: Prediction
 error (mean square error, MSE) of data poor simulations with optimal
 hyperparameters either tuned after the best MSE of the effect size (red)
 or the best MSE of the prediction error (blue).</figcaption>
-</figure>
-
-## Proof of concept - Inferring interactions
-
-### Extending ACE to two-way interactions
-
-ACE can be extended to \$n\$-dimensions to detect $n$ way predictor
-interactions. Here, we extended ACEs to two dimensions to detect two-way
-predictor interactions by asking what the change is of $\hat{f}(\cdot)$
-when predictors $x_m$ and $x_k$ change together:
-
-$$\mathbf{ACE}_{mk} = \frac{\partial^2 \hat{f} (\mathbf{X} )}{ \partial x_m \partial x_k }$$
-
-We can approximate $\mathbf{ACE}_{mk}$ with the finite difference
-method:
-
-$$
-\mathbf{ACE}_{mk} \approx \frac{ \hat{f} (x_1, x_2, ..., x_m + h, x_k + h, ..., x_j ) }{2(h_m + h_k)} -  \frac{ \hat{f} (x_1, x_2, ..., x_m - h, x_k + h, ..., x_j ) }{2(h_m + h_k)} -  \frac{ \hat{f} (x_1, x_2, ..., x_m + h, x_k - h, ..., x_j ) }{2(h_m + h_k)} - \frac{ \hat{f} (x_1, x_2, ..., x_m - h, x_k - h, ..., x_j ) }{2(h_m + h_k)}
-$$
-
-$h_m$ and $h_k$ are set to $0.1 \cdot sd(x_m)$ and $0.1 \cdot sd(x_k)$.
-All predictors are centered and standardized.
-
-### Proof of concept simulations for inferring interactions
-
-To test the ability of ML algorithms to identify predictor-predictor
-interactions, we repeated the proof-of-concept simulations, but with an
-interaction between X<sub>1</sub> and X<sub>2</sub>. The data generation
-model was
-$Y\sim 1.0 \cdot X_1 + 1.0 \cdot X_5 + 1.0 \cdot (X_1 \cdot X_2) + \epsilon$
-with \$N(0, 1.0) \$. We simulated two scenarios, in the first
-(“collinear”) X<sub>1</sub> and X<sub>2</sub> were collinear (Pearson
-correlation factor = 0.9) and in the second without collinearity between
-the predictors.
-
-We sampled 1000 and 5000 observations from each scenario. The ML
-algorithms (RF, BRT, NN, and NN with dropout) were fit to the data
-without predictor engineering the predictor interactions (because ML
-algorithms are known to be able to infer interactions automatically),
-while the regression algorithms (LM, l1, l2, and elastic-net) received
-all combinatorially possible predictor interactions as possible
-predictors. All effects were inferred using ACE. The bias was calculated
-for the interaction X<sub>1</sub>:X<sub>2</sub>.
-
-<figure>
-<img src="figures/fig-Fig_S11-1.png" id="fig-Fig_S11"
-alt="Figure S 15: Bias of proof of concept simulations in inferring two-way interactions between predictors. First panel shows results for simulations (200 repititions) for 1000 and 5000 observations with collinear predictors (Pearson correlation factor = 0.9 between X1 and X2). Second panel shows results for simulations (200 repititions) for 1000 and 5000 observations with without collinear. Red bars correspond to 1000 observations and blue bars to 5000 observations." />
-<figcaption aria-hidden="true"><strong>Figure S</strong> 15: Bias of
-proof of concept simulations in inferring two-way interactions between
-predictors. First panel shows results for simulations (200 repititions)
-for 1000 and 5000 observations with collinear predictors (Pearson
-correlation factor = 0.9 between X<sub>1</sub> and X<sub>2</sub>).
-Second panel shows results for simulations (200 repititions) for 1000
-and 5000 observations with without collinear. Red bars correspond to
-1000 observations and blue bars to 5000 observations.</figcaption>
-</figure>
-
-We found that for the ML algorithms (RF, BRT, and NN) NN showed the
-lowest for all scenarios (Fig. S11). Also collinearity increased the
-bias for the ML algorithms. No collinearity or more observations
-decreased the bias (Fig. S11). The regression models, LM, LASSO and
-Ridge regression, and elastic-net showed the lowest and in case of LM,
-no bias. However, we want to note here that the regression models
-received all possible predictor-predictor interactions as predictors
-while the ML algorithms had to infer the interactions on their own. Whit
-this in mind, the performance of the NN is surprising well, even
-competing with the penalized regression models. On the other hand, NN
-with dropout showed larger biases than BRT (Fig. S11).
-
-## Weighted ACE
-
-If the instances of a predictor x_j are not uniformly distributed, we
-propose to calculate a weighted $wACE_k = \Sigma^{N}_{i=1} w_i ACE_{ik}$
-with the $w_i$ being, for example, the inverse probabilities of an
-estimated density function over the predictor space of $x_k$.
-
-To demonstrate the idea of weighted ACE, we simulated a scenario with
-one predictor where the $\beta_1 = 2$ for values of the predictor $< 2$
-and for the other predictor values $\beta_1=0$ (Fig. S4). The predictor
-was sampled from a log-Normal distribution. We fitted a linear
-regression model and a NN on the data and compared the effect estimated
-by the LM, the unweighted ACE, and the weighted ACE.
-
-The LM estimated an effect of 1.48, the unweighted ACE was 1.95, and the
-weighted ACE was 1.48 (Fig. S16).
-
-<figure>
-<img src="figures/fig-Fig_S12-1.png" id="fig-Fig_S12"
-alt="Figure S 16: Simulation example with non-uniform sampled predictor X1 (log normal distributed). The red line is the effect estimated by a LM OLS. The blue line is the effect reported by an unweighted ACE from a NN. The green line is the effect reported by a weighted ACE from a NN." />
-<figcaption aria-hidden="true"><strong>Figure S</strong> 16: Simulation
-example with non-uniform sampled predictor X1 (log normal distributed).
-The red line is the effect estimated by a LM OLS. The blue line is the
-effect reported by an unweighted ACE from a NN. The green line is the
-effect reported by a weighted ACE from a NN.</figcaption>
 </figure>
 
 ## Learning in neural networks
@@ -660,11 +661,11 @@ factor = 0.9)) and calculated the ACE after each batch optimization
 step.
 
 We found that the estimates of the botch effect were initially estimated
-to be around 0 (Fig. S12 A, B), probably due to the initialization of
+to be around 0 (Fig. S13 A, B), probably due to the initialization of
 the neural networks, which resembles a shrinkage behavior (weights have
 to be moved away from 0 step by step in the gradient descent). After
 this initialization phase, both estimates are within the expected
-negative log-likelihood surface of OLS (Fig. S12C) and are estimated
+negative log-likelihood surface of OLS (Fig. S13C) and are estimated
 over the training period to the correct estimates (X<sub>1</sub> = 1.0
 and X<sub>2</sub> = 0.0).
 
@@ -690,9 +691,9 @@ OLS.</figcaption>
 
 ## Session info
 
-    R version 4.0.5 (2021-03-31)
+    R version 4.2.3 (2023-03-15)
     Platform: x86_64-pc-linux-gnu (64-bit)
-    Running under: Ubuntu 20.04.5 LTS
+    Running under: Ubuntu 20.04.6 LTS
 
     Matrix products: default
     BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3
@@ -710,53 +711,52 @@ OLS.</figcaption>
     [1] stats     graphics  grDevices utils     datasets  methods   base     
 
     other attached packages:
-     [1] latex2exp_0.9.6   MASS_7.3-54       glmnetUtils_1.1.8 glmnet_4.1-4     
-     [5] Matrix_1.5-3      cito_1.0.1        torch_0.9.0       ggeffects_1.1.4  
-     [9] broom_1.0.1       kableExtra_1.3.4  knitr_1.40        flextable_0.8.3  
-    [13] glmmTMB_1.1.5     gridExtra_2.3     viridis_0.6.2     viridisLite_0.4.1
-    [17] hrbrthemes_0.8.0  mgcViz_0.1.9      qgam_1.3.4        mgcv_1.8-35      
-    [21] nlme_3.1-152      ranger_0.14.1     xgboost_1.6.0.1   Cairo_1.6-0      
-    [25] igraph_1.3.5      forcats_0.5.2     stringr_1.4.1     dplyr_1.0.10     
-    [29] purrr_0.3.5       readr_2.1.3       tidyr_1.2.1       tibble_3.1.8     
-    [33] tidyverse_1.3.2   ggplot2_3.4.0    
+     [1] latex2exp_0.9.6   MASS_7.3-58.3     glmnetUtils_1.1.8 glmnet_4.1-7     
+     [5] Matrix_1.5-3      cito_1.0.1        torch_0.10.0      ggeffects_1.2.0  
+     [9] broom_1.0.4       kableExtra_1.3.4  knitr_1.42        flextable_0.9.0  
+    [13] glmmTMB_1.1.6     gridExtra_2.3     viridis_0.6.2     viridisLite_0.4.1
+    [17] hrbrthemes_0.8.0  mgcViz_0.1.9      qgam_1.3.4        mgcv_1.8-42      
+    [21] nlme_3.1-162      ranger_0.14.1     xgboost_1.7.3.1   Cairo_1.6-0      
+    [25] igraph_1.2.11     lubridate_1.9.2   forcats_1.0.0     stringr_1.5.0    
+    [29] dplyr_1.1.1       purrr_1.0.1       readr_2.1.4       tidyr_1.3.0      
+    [33] tibble_3.2.1      tidyverse_2.0.0   ggplot2_3.4.1    
 
     loaded via a namespace (and not attached):
-      [1] readxl_1.4.1        uuid_1.1-0          backports_1.4.1    
-      [4] systemfonts_1.0.4   plyr_1.8.8          TMB_1.9.1          
-      [7] splines_4.0.5       digest_0.6.30       foreach_1.5.2      
-     [10] htmltools_0.5.3     fansi_1.0.3         checkmate_2.1.0    
-     [13] magrittr_2.0.3      googlesheets4_1.0.1 doParallel_1.0.17  
-     [16] tzdb_0.3.0          modelr_0.1.10       extrafont_0.18     
-     [19] matrixStats_0.62.0  officer_0.4.4       extrafontdb_1.0    
-     [22] svglite_2.1.0       timechange_0.1.1    colorspace_2.0-3   
-     [25] rvest_1.0.3         haven_2.5.1         xfun_0.34          
-     [28] callr_3.7.3         crayon_1.5.2        jsonlite_1.8.3     
-     [31] lme4_1.1-31         survival_3.2-11     iterators_1.0.14   
-     [34] glue_1.6.2          gtable_0.3.1        gargle_1.2.1       
-     [37] webshot_0.5.4       Rttf2pt1_1.3.11     shape_1.4.6        
-     [40] abind_1.4-5         scales_1.2.1        DBI_1.1.3          
-     [43] GGally_2.1.2        miniUI_0.1.1.1      Rcpp_1.0.9         
-     [46] isoband_0.2.6       xtable_1.8-4        bit_4.0.4          
-     [49] httr_1.4.4          RColorBrewer_1.1-3  ellipsis_0.3.2     
-     [52] pkgconfig_2.0.3     reshape_0.8.9       farver_2.1.1       
-     [55] dbplyr_2.2.1        utf8_1.2.2          tidyselect_1.2.0   
-     [58] labeling_0.4.2      rlang_1.0.6         later_1.3.0        
-     [61] munsell_0.5.0       cellranger_1.1.0    tools_4.0.5        
-     [64] cli_3.4.1           generics_0.1.3      evaluate_0.18      
-     [67] fastmap_1.1.0       yaml_2.3.6          processx_3.8.0     
-     [70] bit64_4.0.5         fs_1.5.2            zip_2.2.2          
-     [73] mime_0.12           coro_1.0.3          xml2_1.3.3         
-     [76] compiler_4.0.5      rstudioapi_0.14     gamm4_0.2-6        
-     [79] reprex_2.0.2        stringi_1.7.8       ps_1.7.2           
-     [82] gdtools_0.2.4       lattice_0.20-44     nloptr_2.0.3       
-     [85] vctrs_0.5.0         pillar_1.8.1        lifecycle_1.0.3    
-     [88] data.table_1.14.4   httpuv_1.6.6        R6_2.5.1           
-     [91] promises_1.2.0.1    KernSmooth_2.23-20  codetools_0.2-18   
-     [94] boot_1.3-28         assertthat_0.2.1    withr_2.5.0        
-     [97] parallel_4.0.5      hms_1.1.2           grid_4.0.5         
-    [100] minqa_1.2.5         rmarkdown_2.18      googledrive_2.0.0  
-    [103] numDeriv_2016.8-1.1 shiny_1.7.3         lubridate_1.9.0    
-    [106] base64enc_0.1-3    
+      [1] uuid_1.1-0              backports_1.4.1         systemfonts_1.0.4      
+      [4] plyr_1.8.8              TMB_1.9.3               splines_4.2.3          
+      [7] digest_0.6.31           foreach_1.5.2           htmltools_0.5.5        
+     [10] fansi_1.0.4             magrittr_2.0.3          checkmate_2.1.0        
+     [13] doParallel_1.0.17       tzdb_0.3.0              extrafont_0.19         
+     [16] matrixStats_0.63.0      officer_0.6.2           extrafontdb_1.0        
+     [19] svglite_2.1.1           askpass_1.1             timechange_0.2.0       
+     [22] gfonts_0.2.0            colorspace_2.1-0        rvest_1.0.3            
+     [25] textshaping_0.3.6       xfun_0.38               callr_3.7.3            
+     [28] crayon_1.5.2            jsonlite_1.8.4          lme4_1.1-32            
+     [31] survival_3.5-5          iterators_1.0.14        glue_1.6.2             
+     [34] gtable_0.3.3            webshot_0.5.4           Rttf2pt1_1.3.12        
+     [37] shape_1.4.6             abind_1.4-5             scales_1.2.1           
+     [40] fontquiver_0.2.1        GGally_2.1.2            miniUI_0.1.1.1         
+     [43] Rcpp_1.0.10             isoband_0.2.7           xtable_1.8-4           
+     [46] bit_4.0.5               fontLiberation_0.1.0    httr_1.4.5             
+     [49] RColorBrewer_1.1-3      ellipsis_0.3.2          pkgconfig_2.0.3        
+     [52] reshape_0.8.9           farver_2.1.1            utf8_1.2.3             
+     [55] crul_1.3                tidyselect_1.2.0        labeling_0.4.2         
+     [58] rlang_1.1.0             later_1.3.0             munsell_0.5.0          
+     [61] tools_4.2.3             cli_3.6.1               generics_0.1.3         
+     [64] evaluate_0.20           fastmap_1.1.1           yaml_2.3.7             
+     [67] ragg_1.2.5              processx_3.8.0          bit64_4.0.5            
+     [70] zip_2.2.2               mime_0.12               coro_1.0.3             
+     [73] xml2_1.3.3              compiler_4.2.3          rstudioapi_0.14        
+     [76] curl_5.0.0              gamm4_0.2-6             stringi_1.7.12         
+     [79] ps_1.7.3                gdtools_0.3.3           lattice_0.20-45        
+     [82] fontBitstreamVera_0.1.1 nloptr_2.0.3            vctrs_0.6.1            
+     [85] pillar_1.9.0            lifecycle_1.0.3         data.table_1.14.8      
+     [88] httpuv_1.6.9            R6_2.5.1                promises_1.2.0.1       
+     [91] KernSmooth_2.23-20      codetools_0.2-19        boot_1.3-28.1          
+     [94] openssl_2.0.6           withr_2.5.0             httpcode_0.3.0         
+     [97] parallel_4.2.3          hms_1.1.3               grid_4.2.3             
+    [100] minqa_1.2.5             rmarkdown_2.21          numDeriv_2016.8-1.1    
+    [103] shiny_1.7.4            
 
 <div id="refs" class="references csl-bib-body hanging-indent">
 

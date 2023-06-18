@@ -114,3 +114,6 @@ res = replicate(50, {
 })
 res_500 = res
 saveRDS(res_500, file = "results/NN_learning_500.RDS")
+
+
+

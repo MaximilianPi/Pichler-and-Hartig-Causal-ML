@@ -18,10 +18,10 @@ get_R = function(pred, test) {
   return(cor(test[,1], pred)**2)
 }
 
-train_test_brt = function(train, test,test2, MCE = FALSE) {
+train_test_brt = function(train, test,test2, MCE = FALSE, nrounds = 100) {
   brt = xgboost::xgboost(data=xgboost::xgb.DMatrix(as.matrix(train)[,-1,drop=FALSE],
                                                     label = (as.matrix(train)[,1, drop=FALSE])),
-                          nrounds = 100,
+                          nrounds = nrounds,
                           objective="reg:squarederror", nthread = 1, verbose = 0)
   if(MCE) {
     ME = diag(marginalEffects(brt, as.matrix(train[,-1, drop = FALSE]), interactions = FALSE)$mean)
@@ -136,3 +136,20 @@ abind::abind(result_list, along = 0L)
 apply(abind::abind(result_list, along = 0L), 2:3, mean)
 
 saveRDS(abind::abind(result_list, along = 0L), "results/results_case_study.RDS")
+
+
+
+sapply(1:2000, function(N) {
+
+data = simulate_SDM(   c(-3.0,  -2.0, 2, -1, 0.0, -1.5, -.5), n = 1000)
+train = data[1:500, ]
+test1 = simulate_SDM(   c(0.0,  0.0, 2, -1, 0.0, 0.0, 0.0), n = 500)
+test2 = data[-(1:500), ]
+
+
+
+result = matrix(NA, 1, 4)
+result[1, ]= c(train_test_brt(train[,-4], test1[,-4], test2[,-4], nrounds = N) %>% unlist, 
+               train_test_brt(train[,], test1[,], test2[,], nrounds = N) %>% unlist) 
+
+})

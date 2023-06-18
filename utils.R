@@ -4,21 +4,22 @@ addA = function(col, alpha = 0.25) apply(sapply(col, grDevices::col2rgb)/255, 2,
 eqarrowPlot <- function(graph, layout, edge.lty=rep(1, ecount(graph)),edge.width=rep(1, ecount(graph)),
                         edge.arrow.size=rep(1, ecount(graph)), cols = c( "pink","pink", "skyblue"), edge.arrow.mode = NULL, edge.colors = NULL,
                         rangeX = c(0, 1), rangeY = c(0, 2),vertex.label.cex = 2.1, ...) {
+  vertex.size = 40
   plot(graph, edge.lty=0, edge.arrow.size=0, layout=layout,
-       vertex.shape="none",  vertex.size=50, vertex.color = cols, rescale=FALSE, xlim = rangeX, ylim = rangeY, vertex.label.cex = vertex.label.cex)
+       vertex.shape="none",  vertex.size=vertex.size, vertex.color = cols, rescale=FALSE, xlim = rangeX, ylim = rangeY, vertex.label.cex = vertex.label.cex)
   if(is.null(edge.arrow.mode)) edge.arrow.mode = rep(">", (ecount(graph)))
   if(is.null(edge.colors)) edge.colors = rep(NULL, ecount(graph))
   for (e in seq_len(ecount(graph))) {
     graph2 <- delete.edges(graph, E(graph)[(1:ecount(graph))[-e]])
     plot(graph2, edge.lty=edge.lty[e], edge.arrow.size=edge.arrow.size[e], layout=layout,edge.color = edge.colors[e],
-         vertex.label=NA, add=TRUE, vertex.color = cols, edge.width=edge.width[e], vertex.size=50,edge.arrow.mode = edge.arrow.mode[e], rescale=FALSE, 
+         vertex.label=NA, add=TRUE, vertex.color = cols, edge.width=edge.width[e], vertex.size=vertex.size,edge.arrow.mode = edge.arrow.mode[e], rescale=FALSE, 
          xlim = rangeX, ylim = rangeY, vertex.label.cex = vertex.label.cex)
   }
   plot(graph, edge.lty=0, 
        edge.arrow.size=0, 
        layout=layout, 
        add=TRUE,
-       vertex.size=50, 
+       vertex.size=vertex.size, 
        vertex.color = cols,
        vertex.label.cex = vertex.label.cex, xlim = rangeX, ylim = rangeY,
        edge.label.color = "black", rescale=FALSE,...)
