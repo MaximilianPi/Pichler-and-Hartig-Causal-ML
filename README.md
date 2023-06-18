@@ -1,5 +1,4 @@
-Supporting information Appendix for Pichler & Hartig – Can machine
-learning be used for causal inference?
+Can machine learning be used for causal inference?
 ================
 
 This repository contains the code to reproduce the results in Pichler
