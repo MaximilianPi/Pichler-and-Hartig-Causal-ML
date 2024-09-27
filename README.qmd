@@ -5,7 +5,7 @@ editor: visual
 bibliography: references.bib
 ---
 
-This repository contains the code to reproduce the results in Pichler and Hartig, Can machine learning be used for causal inference?
+This repository contains the code to reproduce the results in Inductive bias in black-box Machine Learning and Deep Learning models – consequences for the tradeoff between prediction and explanation under feature collinearity
 
 ## Scripts 
 

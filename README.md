@@ -1,8 +1,8 @@
-Can machine learning be used for causal inference?
+Inductive bias in black-box Machine Learning and Deep Learning models – consequences for the tradeoff between prediction and explanation under feature collinearity
 ================
 
 This repository contains the code to reproduce the results in Pichler
-and Hartig, Can machine learning be used for causal inference?
+and Hartig, Inductive bias in black-box Machine Learning and Deep Learning models – consequences for the tradeoff between prediction and explanation under feature collinearity
 
 ## Scripts
 
